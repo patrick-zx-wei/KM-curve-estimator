@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2.0",
-    "google-generativeai>=0.8.0",
+    "langchain-google-genai>=2.0.0",
     "opencv-python>=4.10.0",
     "numpy>=2.0.0",
     "scikit-learn-extra>=0.3.0",
