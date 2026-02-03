@@ -52,3 +52,23 @@ Using both the image and extracted text, return JSON with:
 - annotations: list of strings
 
 Return only valid JSON, no markdown."""
+
+INPUT_GUARD_PROMPT = """Analyze this image and determine if it is a valid Kaplan-Meier survival curve.
+
+Check for the following elements:
+1. Axes: Are there clear X and Y axes?
+2. Curves: Is there at least one step-function survival curve?
+3. Ticks: Are there readable tick marks/labels on both axes?
+4. Legend: Is there a legend identifying curve groups? (optional but helpful)
+5. Risk table: Is there a number-at-risk table below the plot? (optional)
+
+Return JSON with:
+- valid: true if this is a usable KM curve image, false otherwise
+- axes_present: true/false
+- curves_present: true/false
+- ticks_readable: true/false
+- legend_present: true/false
+- risk_table_present: true/false
+- feedback: brief explanation of issues found (or "OK" if valid)
+
+Return only valid JSON, no markdown."""
