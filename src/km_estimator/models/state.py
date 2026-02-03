@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 from .ipd_output import IPDOutput, ProcessingError
-from .plot_metadata import PlotMetadata, ValidationResult
+from .plot_metadata import PlotMetadata, RawOCRTokens, ValidationResult
 
 
 class PipelineConfig(BaseModel):
@@ -37,6 +37,7 @@ class PipelineState(BaseModel):
     validation_result: ValidationResult | None = None
     input_guard_retries: int = 0
 
+    ocr_tokens: RawOCRTokens | None = None
     plot_metadata: PlotMetadata | None = None
     mmpu_retries: int = 0
 
