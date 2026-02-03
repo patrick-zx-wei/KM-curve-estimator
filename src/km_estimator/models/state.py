@@ -42,6 +42,7 @@ class PipelineState(BaseModel):
     ocr_tokens: RawOCRTokens | None = None
     plot_metadata: PlotMetadata | None = None
     mmpu_retries: int = 0
+    mmpu_warnings: list[str] = []
 
     digitized_curves: dict[str, list[tuple[float, float]]] | None = None
     censoring_marks: dict[str, list[float]] | None = None
