@@ -1,11 +1,12 @@
 import base64
-import json
 from pathlib import Path
 from typing import Literal
 
 from langchain_core.messages import HumanMessage
+from langchain_core.utils.json import parse_json_markdown
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from km_estimator import config
 from km_estimator.models import (
     PlotMetadata,
     ProcessingError,
@@ -14,37 +15,9 @@ from km_estimator.models import (
 )
 
 MODELS = {
-    "pro": "gemini-3-pro-preview",
-    "flash": "gemini-3-flash-preview",
+    "pro": config.GEMINI_PRO_MODEL,
+    "flash": config.GEMINI_FLASH_MODEL,
 }
-
-OCR_PROMPT = """Extract all text from this Kaplan-Meier survival curve image.
-
-Return JSON with these fields:
-- x_tick_labels: list of x-axis tick labels (e.g., ["0", "12", "24", "36"])
-- y_tick_labels: list of y-axis tick labels (e.g., ["0.0", "0.2", "0.4", "0.6", "0.8", "1.0"])
-- axis_labels: list of axis labels (e.g., ["Time (months)", "Survival probability"])
-- legend_labels: list of legend/group names (e.g., ["Treatment", "Control"])
-- risk_table_text: 2D array of risk table values if present, null otherwise
-- title: plot title if present, null otherwise
-- annotations: list of other text (p-values, hazard ratios, etc.)
-
-Return only valid JSON, no markdown."""
-
-ANALYSIS_PROMPT_TEMPLATE = """Analyze this Kaplan-Meier survival curve image.
-
-Previously extracted text from the image:
-{ocr_json}
-
-Using both the image and extracted text, return JSON with:
-- x_axis: {{label, start, end, tick_interval, tick_values, scale}}
-- y_axis: {{label, start, end, tick_interval, tick_values, scale}}
-- curves: [{{name, color_description, line_style}}]
-- risk_table: {{time_points, groups: [{{name, counts}}]}} or null
-- title: string or null
-- annotations: list of strings
-
-Return only valid JSON, no markdown."""
 
 _cache: dict[tuple, ChatGoogleGenerativeAI] = {}
 
@@ -64,6 +37,15 @@ def _get_model(model: str, timeout: int, max_retries: int):
     return _cache[key]
 
 
+MIME_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+
 def _call_vision(
     image_path: str,
     prompt: str,
@@ -71,11 +53,41 @@ def _call_vision(
     timeout: int,
     max_retries: int,
 ) -> str | ProcessingError:
+    if model not in MODELS:
+        return ProcessingError(
+            stage=ProcessingStage.MMPU,
+            error_type="invalid_model",
+            recoverable=False,
+            message=f"Unknown model: {model}. Must be 'pro' or 'flash'",
+            details={"model": model},
+        )
+
+    path = Path(image_path)
+    try:
+        image_bytes = path.read_bytes()
+    except FileNotFoundError:
+        return ProcessingError(
+            stage=ProcessingStage.MMPU,
+            error_type="file_not_found",
+            recoverable=False,
+            message=f"Image file not found: {image_path}",
+            details={"image_path": image_path},
+        )
+    except PermissionError:
+        return ProcessingError(
+            stage=ProcessingStage.MMPU,
+            error_type="permission_denied",
+            recoverable=False,
+            message=f"Permission denied reading: {image_path}",
+            details={"image_path": image_path},
+        )
+
     try:
         llm = _get_model(model, timeout, max_retries)
-        b64 = base64.b64encode(Path(image_path).read_bytes()).decode()
+        b64 = base64.b64encode(image_bytes).decode()
+        mime = MIME_TYPES.get(path.suffix.lower(), "image/png")
         msg = HumanMessage(content=[
-            {"type": "image_url", "image_url": f"data:image/png;base64,{b64}"},
+            {"type": "image_url", "image_url": f"data:{mime};base64,{b64}"},
             {"type": "text", "text": prompt},
         ])
         return llm.invoke([msg]).content
@@ -90,22 +102,19 @@ def _call_vision(
 
 
 def _parse_json(text: str) -> dict | None:
-    text = text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1].rsplit("```", 1)[0]
     try:
-        return json.loads(text)
-    except json.JSONDecodeError:
+        return parse_json_markdown(text)
+    except Exception:
         return None
 
 
 def extract_ocr(
     image_path: str,
     model: Literal["pro", "flash"] = "pro",
-    timeout: int = 30,
-    max_retries: int = 3,
+    timeout: int = config.API_TIMEOUT_SECONDS,
+    max_retries: int = config.API_MAX_RETRIES,
 ) -> RawOCRTokens | ProcessingError:
-    result = _call_vision(image_path, OCR_PROMPT, model, timeout, max_retries)
+    result = _call_vision(image_path, config.OCR_PROMPT, model, timeout, max_retries)
     if isinstance(result, ProcessingError):
         return result
 
@@ -135,11 +144,11 @@ def extract_metadata(
     image_path: str,
     ocr_tokens: RawOCRTokens,
     model: Literal["pro", "flash"] = "pro",
-    timeout: int = 30,
-    max_retries: int = 3,
+    timeout: int = config.API_TIMEOUT_SECONDS,
+    max_retries: int = config.API_MAX_RETRIES,
 ) -> PlotMetadata | ProcessingError:
     ocr_json = ocr_tokens.model_dump_json(indent=2)
-    prompt = ANALYSIS_PROMPT_TEMPLATE.format(ocr_json=ocr_json)
+    prompt = config.ANALYSIS_PROMPT_TEMPLATE.format(ocr_json=ocr_json)
 
     result = _call_vision(image_path, prompt, model, timeout, max_retries)
     if isinstance(result, ProcessingError):
