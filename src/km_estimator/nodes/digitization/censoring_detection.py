@@ -3,6 +3,7 @@
 import cv2
 import numpy as np
 from numpy.typing import NDArray
+from scipy.spatial import cKDTree
 
 from .axis_calibration import AxisMapping
 
@@ -30,7 +31,6 @@ def detect_censoring(
         result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
         locs = np.where(result > 0.6)
         for py, px in zip(*locs):
-            # Center of template
             cx = px + template.shape[1] // 2
             cy = py + template.shape[0] // 2
             matches.append((cx, cy))
@@ -46,20 +46,31 @@ def detect_censoring(
         if not is_dup:
             unique.append(m)
 
-    # Assign to nearest curve (within 15px)
+    if not unique:
+        return {name: [] for name in curves}
+
+    # Build KDTree for each curve for O(log n) nearest neighbor lookup
     censoring: dict[str, list[float]] = {name: [] for name in curves}
     max_dist = 15
+
+    curve_trees: dict[str, cKDTree | None] = {}
+    for name, pixels in curves.items():
+        if pixels:
+            curve_trees[name] = cKDTree(pixels)
+        else:
+            curve_trees[name] = None
 
     for mx, my in unique:
         best_curve: str | None = None
         best_dist = max_dist
 
-        for name, pixels in curves.items():
-            for px, py in pixels:
-                dist = np.sqrt((mx - px) ** 2 + (my - py) ** 2)
-                if dist < best_dist:
-                    best_dist = dist
-                    best_curve = name
+        for name, tree in curve_trees.items():
+            if tree is None:
+                continue
+            dist, _ = tree.query([mx, my], k=1)
+            if dist < best_dist:
+                best_dist = dist
+                best_curve = name
 
         if best_curve is not None:
             x_real, _ = mapping.px_to_real(mx, my)
