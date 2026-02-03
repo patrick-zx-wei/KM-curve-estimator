@@ -28,6 +28,16 @@ class RiskTable(BaseModel):
     groups: list[RiskGroup]
 
 
+class RawOCRTokens(BaseModel):
+    x_tick_labels: list[str]
+    y_tick_labels: list[str]
+    axis_labels: list[str]
+    legend_labels: list[str]
+    risk_table_text: list[list[str]] | None
+    title: str | None
+    annotations: list[str] = []
+
+
 class PlotMetadata(BaseModel):
     x_axis: AxisConfig
     y_axis: AxisConfig
