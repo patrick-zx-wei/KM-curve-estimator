@@ -6,12 +6,13 @@ requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2.0",
     "langchain-google-genai>=2.0.0",
-    "opencv-python>=4.10.0",
     "numpy>=2.0.0",
     "scikit-learn-extra>=0.3.0",
     "pydantic>=2.0.0",
     "click>=8.1.0",
     "python-dotenv>=1.0.0",
+    "opencv-contrib-python>=4.13.0.90",
+    "opencv-stubs>=0.1.1",
 ]
 
 [project.optional-dependencies]
