@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from km_estimator.models import AxisConfig, PlotMetadata, ProcessingError, ProcessingStage
+from km_estimator.models import AxisConfig, PlotMetadata, ProcessingError, ProcessingStage, RiskTable
 
 
 @dataclass
@@ -25,11 +25,23 @@ class AxisMapping:
         # y: top→bottom = end→start (inverted in image coords)
         y_ratio = (py - y0) / (y1 - y0) if y1 != y0 else 0
         y_real = self.y_axis.end - y_ratio * (self.y_axis.end - self.y_axis.start)
-        # Log scale transform
+
+        # Log scale transform with overflow protection
         if self.x_axis.scale == "log":
-            x_real = 10**x_real
+            if x_real > 300:  # 10^300 ≈ infinity
+                x_real = float("inf")
+            elif x_real < -300:
+                x_real = 0.0
+            else:
+                x_real = 10**x_real
         if self.y_axis.scale == "log":
-            y_real = 10**y_real
+            if y_real > 300:
+                y_real = float("inf")
+            elif y_real < -300:
+                y_real = 0.0
+            else:
+                y_real = 10**y_real
+
         return (x_real, y_real)
 
     def real_to_px(self, x: float, y: float) -> tuple[int, int]:
@@ -116,3 +128,175 @@ def calibrate_axes(
         x_axis=meta.x_axis,
         y_axis=meta.y_axis,
     )
+
+
+def calculate_anchors_from_risk_table(
+    risk_table: RiskTable | None,
+    curve_names: list[str],
+) -> dict[str, list[tuple[float, float]]]:
+    """
+    Calculate approximate survival anchors from number-at-risk data.
+
+    These anchors are LOWER BOUNDS (typically 5-15% below actual survival)
+    because number-at-risk decreases from both events AND censoring,
+    while survival probability only decreases from events.
+
+    Args:
+        risk_table: Risk table with time points and patient counts per group
+        curve_names: Names of curves to calculate anchors for
+
+    Returns:
+        Dict mapping curve name to list of (time, survival_lower_bound) tuples
+    """
+    if risk_table is None:
+        return {}
+
+    anchors: dict[str, list[tuple[float, float]]] = {}
+
+    for group in risk_table.groups:
+        # Match group name to curve names (case-insensitive)
+        matched_name = None
+        for name in curve_names:
+            if name.lower() == group.name.lower():
+                matched_name = name
+                break
+        if matched_name is None:
+            continue
+
+        if not group.counts or group.counts[0] <= 0:
+            continue
+
+        initial_count = group.counts[0]
+        anchors[matched_name] = [
+            (time, count / initial_count)
+            for time, count in zip(risk_table.time_points, group.counts)
+            if count >= 0
+        ]
+
+    return anchors
+
+
+def validate_against_anchors(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    tolerance: float = 0.05,
+) -> list[str]:
+    """
+    Validate that digitized curves are above anchor points (within tolerance).
+
+    Since anchors are lower bounds (derived from number-at-risk which includes
+    censoring), the actual survival curve should be ABOVE these values.
+
+    Args:
+        digitized_curves: Dict of curve name to list of (time, survival) points
+        anchors: Dict of curve name to list of (time, survival_lower_bound) points
+        tolerance: How far below anchor is acceptable (default 5%)
+
+    Returns:
+        List of warning messages for curves that fall below anchors
+    """
+    warnings: list[str] = []
+
+    for curve_name, anchor_points in anchors.items():
+        if curve_name not in digitized_curves:
+            continue
+
+        curve = digitized_curves[curve_name]
+        if not curve:
+            continue
+
+        for anchor_time, anchor_survival in anchor_points:
+            # Find closest digitized point by time
+            closest = min(curve, key=lambda p: abs(p[0] - anchor_time))
+            time_diff = abs(closest[0] - anchor_time)
+
+            # Only validate if we have a point close enough in time
+            if time_diff > anchor_time * 0.1 + 1:  # 10% of time + 1 unit tolerance
+                continue
+
+            if closest[1] < anchor_survival - tolerance:
+                warnings.append(
+                    f"{curve_name} at t={anchor_time:.1f}: digitized survival "
+                    f"{closest[1]:.3f} below anchor {anchor_survival:.3f}"
+                )
+
+    return warnings
+
+
+def validate_axis_bounds(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    y_axis: AxisConfig,
+) -> list[str]:
+    """
+    Validate that digitized points respect y-axis bounds.
+
+    This catches issues with truncated y-axes (e.g., starting at 0.3 instead of 0).
+
+    Args:
+        digitized_curves: Dict of curve name to list of (time, survival) points
+        y_axis: Y-axis configuration with start/end values
+
+    Returns:
+        List of warning messages for out-of-bounds points
+    """
+    warnings: list[str] = []
+    tolerance = 0.02  # Allow 2% out of bounds for measurement noise
+
+    for curve_name, points in digitized_curves.items():
+        below_count = 0
+        above_count = 0
+
+        for x, y in points:
+            if y < y_axis.start - tolerance:
+                below_count += 1
+            if y > y_axis.end + tolerance:
+                above_count += 1
+
+        if below_count > 0:
+            warnings.append(
+                f"{curve_name}: {below_count} points below y_axis.start={y_axis.start}"
+            )
+        if above_count > 0:
+            warnings.append(
+                f"{curve_name}: {above_count} points above y_axis.end={y_axis.end}"
+            )
+
+    return warnings
+
+
+def validate_axis_config(axis: AxisConfig, axis_name: str) -> list[str]:
+    """
+    Validate that axis configuration is sensible.
+
+    Checks:
+    - start < end
+    - tick_values are within [start, end]
+    - tick_values are in increasing order
+
+    Args:
+        axis: Axis configuration to validate
+        axis_name: Name for error messages (e.g., "x_axis", "y_axis")
+
+    Returns:
+        List of warning messages for invalid configurations
+    """
+    warnings: list[str] = []
+
+    # Check start < end
+    if axis.start >= axis.end:
+        warnings.append(f"{axis_name}: start ({axis.start}) >= end ({axis.end})")
+
+    if axis.tick_values:
+        # Check tick values are in range
+        out_of_range = [
+            v for v in axis.tick_values
+            if v < axis.start - 0.01 or v > axis.end + 0.01
+        ]
+        if out_of_range:
+            warnings.append(f"{axis_name}: tick values out of range: {out_of_range}")
+
+        # Check tick values are increasing
+        if axis.tick_values != sorted(axis.tick_values):
+            warnings.append(f"{axis_name}: tick values not in increasing order")
+
+    return warnings

@@ -1,0 +1,229 @@
+"""Shape comparison metrics for KM curves."""
+
+import numpy as np
+from typing import Sequence
+
+
+def dtw_distance(
+    curve1: Sequence[tuple[float, float]],
+    curve2: Sequence[tuple[float, float]],
+) -> float:
+    """
+    Compute Dynamic Time Warping distance between two curves.
+
+    DTW finds the optimal alignment between two sequences, making it robust to:
+    - Different sampling densities
+    - Time warping/stretching
+    - Local variations in timing
+
+    Uses only the survival (y) values for comparison since KM curves
+    may have different time sampling.
+
+    Args:
+        curve1: First curve as list of (time, survival) tuples
+        curve2: Second curve as list of (time, survival) tuples
+
+    Returns:
+        Normalized DTW distance (lower is better, 0 = identical)
+    """
+    if not curve1 or not curve2:
+        return float("inf")
+
+    s1 = np.array([p[1] for p in curve1])
+    s2 = np.array([p[1] for p in curve2])
+
+    n, m = len(s1), len(s2)
+
+    # Initialize DTW matrix with infinity
+    dtw_matrix = np.full((n + 1, m + 1), np.inf)
+    dtw_matrix[0, 0] = 0
+
+    # Fill the matrix
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            cost = abs(s1[i - 1] - s2[j - 1])
+            dtw_matrix[i, j] = cost + min(
+                dtw_matrix[i - 1, j],  # insertion
+                dtw_matrix[i, j - 1],  # deletion
+                dtw_matrix[i - 1, j - 1],  # match
+            )
+
+    # Normalize by path length
+    return dtw_matrix[n, m] / max(n, m)
+
+
+def frechet_distance(
+    curve1: Sequence[tuple[float, float]],
+    curve2: Sequence[tuple[float, float]],
+) -> float:
+    """
+    Compute discrete Frechet distance (maximum deviation) between curves.
+
+    The Frechet distance is the maximum distance that needs to be traveled
+    between the two curves when traversing them optimally. It's useful for
+    detecting the worst-case deviation.
+
+    Args:
+        curve1: First curve as list of (time, survival) tuples
+        curve2: Second curve as list of (time, survival) tuples
+
+    Returns:
+        Frechet distance (maximum deviation in survival values)
+    """
+    if not curve1 or not curve2:
+        return float("inf")
+
+    n, m = len(curve1), len(curve2)
+    ca = np.full((n, m), -1.0)
+
+    def _c(i: int, j: int) -> float:
+        if ca[i, j] > -1:
+            return ca[i, j]
+
+        p1, p2 = curve1[i], curve2[j]
+        d = abs(p1[1] - p2[1])  # Compare survival values
+
+        if i == 0 and j == 0:
+            ca[i, j] = d
+        elif i > 0 and j == 0:
+            ca[i, j] = max(_c(i - 1, 0), d)
+        elif i == 0 and j > 0:
+            ca[i, j] = max(_c(0, j - 1), d)
+        else:
+            ca[i, j] = max(min(_c(i - 1, j), _c(i - 1, j - 1), _c(i, j - 1)), d)
+
+        return ca[i, j]
+
+    return _c(n - 1, m - 1)
+
+
+def area_between_curves(
+    curve1: Sequence[tuple[float, float]],
+    curve2: Sequence[tuple[float, float]],
+) -> float:
+    """
+    Compute the area between two curves using trapezoidal integration.
+
+    This metric captures the overall difference between curves,
+    weighting larger deviations over longer time periods more heavily.
+
+    Args:
+        curve1: First curve as list of (time, survival) tuples
+        curve2: Second curve as list of (time, survival) tuples
+
+    Returns:
+        Normalized area between curves (0 = identical)
+    """
+    if not curve1 or not curve2:
+        return float("inf")
+
+    # Get all unique time points from both curves
+    times1 = set(p[0] for p in curve1)
+    times2 = set(p[0] for p in curve2)
+    all_times = sorted(times1 | times2)
+
+    if len(all_times) < 2:
+        return 0.0
+
+    # Interpolate both curves at all time points
+    def get_survival(curve: Sequence[tuple[float, float]], t: float) -> float:
+        """Step function interpolation."""
+        if t <= curve[0][0]:
+            return curve[0][1]
+        if t >= curve[-1][0]:
+            return curve[-1][1]
+        for i in range(len(curve) - 1, -1, -1):
+            if curve[i][0] <= t:
+                return curve[i][1]
+        return curve[0][1]
+
+    # Calculate area using trapezoidal rule
+    area = 0.0
+    for i in range(len(all_times) - 1):
+        t1, t2 = all_times[i], all_times[i + 1]
+        dt = t2 - t1
+
+        s1_at_t1 = get_survival(curve1, t1)
+        s1_at_t2 = get_survival(curve1, t2)
+        s2_at_t1 = get_survival(curve2, t1)
+        s2_at_t2 = get_survival(curve2, t2)
+
+        # Average absolute difference over interval
+        diff1 = abs(s1_at_t1 - s2_at_t1)
+        diff2 = abs(s1_at_t2 - s2_at_t2)
+        area += (diff1 + diff2) / 2 * dt
+
+    # Normalize by total time range
+    time_range = all_times[-1] - all_times[0]
+    return area / time_range if time_range > 0 else 0.0
+
+
+def rmse(
+    curve1: Sequence[tuple[float, float]],
+    curve2: Sequence[tuple[float, float]],
+) -> float:
+    """
+    Compute Root Mean Square Error between curves at common time points.
+
+    Args:
+        curve1: First curve as list of (time, survival) tuples
+        curve2: Second curve as list of (time, survival) tuples
+
+    Returns:
+        RMSE value (0 = identical)
+    """
+    if not curve1 or not curve2:
+        return float("inf")
+
+    # Use curve1's time points for comparison
+    def get_survival(curve: Sequence[tuple[float, float]], t: float) -> float:
+        if t <= curve[0][0]:
+            return curve[0][1]
+        if t >= curve[-1][0]:
+            return curve[-1][1]
+        for i in range(len(curve) - 1, -1, -1):
+            if curve[i][0] <= t:
+                return curve[i][1]
+        return curve[0][1]
+
+    squared_errors = []
+    for t, s1 in curve1:
+        s2 = get_survival(curve2, t)
+        squared_errors.append((s1 - s2) ** 2)
+
+    return float(np.sqrt(np.mean(squared_errors))) if squared_errors else 0.0
+
+
+def max_error(
+    curve1: Sequence[tuple[float, float]],
+    curve2: Sequence[tuple[float, float]],
+) -> float:
+    """
+    Compute maximum absolute error between curves.
+
+    Args:
+        curve1: First curve as list of (time, survival) tuples
+        curve2: Second curve as list of (time, survival) tuples
+
+    Returns:
+        Maximum absolute error
+    """
+    if not curve1 or not curve2:
+        return float("inf")
+
+    def get_survival(curve: Sequence[tuple[float, float]], t: float) -> float:
+        if t <= curve[0][0]:
+            return curve[0][1]
+        if t >= curve[-1][0]:
+            return curve[-1][1]
+        for i in range(len(curve) - 1, -1, -1):
+            if curve[i][0] <= t:
+                return curve[i][1]
+        return curve[0][1]
+
+    errors = []
+    for t, s1 in curve1:
+        s2 = get_survival(curve2, t)
+        errors.append(abs(s1 - s2))
+
+    return float(max(errors)) if errors else 0.0

@@ -123,8 +123,8 @@ def validate_image(path: str, **kw) -> ValidationResult | ProcessingError:
 
 
 def extract_ocr(path: str, **kw) -> RawOCRTokens | ProcessingError:
-    """Extract OCR tokens using Gemini."""
-    return _invoke(path, config.OCR_PROMPT, RawOCRTokens, ProcessingStage.MMPU, **kw)
+    """Extract OCR tokens using Gemini with model-specific prompt."""
+    return _invoke(path, config.OCR_PROMPT_GEMINI, RawOCRTokens, ProcessingStage.MMPU, **kw)
 
 
 def extract_metadata(path: str, ocr: RawOCRTokens, **kw) -> PlotMetadata | ProcessingError:

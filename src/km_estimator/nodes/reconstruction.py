@@ -2,6 +2,12 @@
 
 import numpy as np
 
+from km_estimator.utils.shape_metrics import (
+    dtw_distance,
+    frechet_distance,
+    max_error,
+    rmse,
+)
 from km_estimator.models import (
     CurveIPD,
     IPDOutput,
@@ -10,8 +16,41 @@ from km_estimator.models import (
     ProcessingError,
     ProcessingStage,
     ReconstructionMode,
+    RiskGroup,
     RiskTable,
 )
+
+
+def _find_matching_risk_group(
+    risk_table: RiskTable,
+    curve_name: str,
+) -> RiskGroup | None:
+    """
+    Find risk group by name with fuzzy matching.
+
+    Matching strategy (in order of preference):
+    1. Exact match
+    2. Case-insensitive match
+    3. Substring match (e.g., "Treatment" matches "Treatment (n=50)")
+    """
+    # Try exact match first
+    for g in risk_table.groups:
+        if g.name == curve_name:
+            return g
+
+    # Try case-insensitive
+    curve_lower = curve_name.lower()
+    for g in risk_table.groups:
+        if g.name.lower() == curve_lower:
+            return g
+
+    # Try substring matching (either direction)
+    for g in risk_table.groups:
+        group_lower = g.name.lower()
+        if curve_lower in group_lower or group_lower in curve_lower:
+            return g
+
+    return None
 
 
 def _get_survival_at_time(
@@ -52,15 +91,15 @@ def _guyot_ikm(
     warnings: list[str] = []
     patients: list[PatientRecord] = []
 
-    # Find matching risk group
-    risk_group = None
-    for g in risk_table.groups:
-        if g.name == curve_name:
-            risk_group = g
-            break
+    # Find matching risk group with fuzzy matching
+    risk_group = _find_matching_risk_group(risk_table, curve_name)
 
     if risk_group is None:
-        warnings.append(f"No risk table group for curve '{curve_name}'")
+        available_groups = [g.name for g in risk_table.groups]
+        warnings.append(
+            f"No risk table group for curve '{curve_name}'. "
+            f"Available groups: {available_groups}"
+        )
         return patients, warnings
 
     time_points = risk_table.time_points
@@ -284,8 +323,21 @@ def validate(state: PipelineState) -> PipelineState:
     for curve in state.output.curves:
         original = state.digitized_curves.get(curve.group_name, [])
         reconstructed = _km_from_ipd(curve.patients)
+
+        # Calculate all validation metrics
         mae = _calculate_mae(original, reconstructed)
-        validated_curves.append(curve.model_copy(update={"validation_mae": mae}))
+        dtw = dtw_distance(original, reconstructed)
+        curve_rmse = rmse(original, reconstructed)
+        curve_max_error = max_error(original, reconstructed)
+        curve_frechet = frechet_distance(original, reconstructed)
+
+        validated_curves.append(curve.model_copy(update={
+            "validation_mae": mae,
+            "validation_dtw": dtw,
+            "validation_rmse": curve_rmse,
+            "validation_max_error": curve_max_error,
+            "validation_frechet": curve_frechet,
+        }))
 
     updated_output = state.output.model_copy(update={"curves": validated_curves})
 
