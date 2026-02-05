@@ -1,0 +1,26 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.8,
+        "description": "6-month survival"
+      },
+      {
+        "time": 12,
+        "survival": 0.5315,
+        "description": "1-year survival"
+      },
+      {
+        "time": 24,
+        "survival": 0.3077,
+        "description": "2-year survival"
+      }
+    ],
+    "median_survival": 13.24,
+    "quartiles": {
+      "25pct": 6.82,
+      "50pct": 13.24
+    }
+  }
+}

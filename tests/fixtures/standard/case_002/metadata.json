@@ -1,0 +1,25 @@
+{
+  "name": "case_002",
+  "seed": 1101,
+  "n_groups": 4,
+  "n_patients_per_arm": 52,
+  "groups": [
+    "Arm A",
+    "Arm B",
+    "Arm C",
+    "Arm D"
+  ],
+  "max_time": 96.0,
+  "y_axis_start": 0.0,
+  "difficulty": 5,
+  "dpi": 150,
+  "modifiers": [
+    "CensoringMarks",
+    "LowResolution",
+    "JPEGArtifacts"
+  ],
+  "title": "Kaplan-Meier Survival Curve",
+  "annotations": [],
+  "total_patients": 208,
+  "total_events": 3
+}

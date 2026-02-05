@@ -1,0 +1,23 @@
+{
+  "name": "sparse_degraded",
+  "seed": 46,
+  "n_groups": 2,
+  "n_patients_per_arm": 30,
+  "groups": [
+    "Control",
+    "Treatment"
+  ],
+  "max_time": 48.0,
+  "y_axis_start": 0.0,
+  "difficulty": 5,
+  "dpi": 150,
+  "modifiers": [
+    "CensoringMarks",
+    "JPEGArtifacts",
+    "NoisyBackground"
+  ],
+  "title": "Kaplan-Meier Survival Curve",
+  "annotations": [],
+  "total_patients": 60,
+  "total_events": 25
+}
