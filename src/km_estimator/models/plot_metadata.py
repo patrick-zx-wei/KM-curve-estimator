@@ -36,6 +36,7 @@ class RawOCRTokens(BaseModel):
     risk_table_text: list[list[str]] | None
     title: str | None
     annotations: list[str] = []
+    extraction_confidence: float | None = None
 
 
 class PlotMetadata(BaseModel):

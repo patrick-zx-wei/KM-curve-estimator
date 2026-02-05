@@ -25,7 +25,6 @@ def input_guard(state: PipelineState) -> PipelineState:
     for attempt in range(1, cfg.max_input_guard_retries + 1):
         result = validate_image(
             image_path,
-            model="pro",
             timeout=cfg.api_timeout_seconds,
             max_retries=cfg.api_max_retries,
         )

@@ -1,6 +1,6 @@
 # Model names
-GEMINI_PRO_MODEL = "gemini-3-pro-preview"
-GEMINI_FLASH_MODEL = "gemini-3-flash-preview"
+GPT5_MINI_MODEL = "gpt-5-mini"
+GEMINI_FLASH_MODEL = "gemini-3.0-flash"
 
 # API defaults
 API_TIMEOUT_SECONDS = 30
@@ -14,6 +14,19 @@ MAX_VALIDATION_RETRIES = 3
 # Thresholds
 CONVERGENCE_THRESHOLD = 0.9
 VALIDATION_MAE_THRESHOLD = 0.02
+
+# Tiered extraction thresholds
+TIERED_CONFIDENCE_THRESHOLD = 0.75
+TIERED_SIMILARITY_THRESHOLD = 0.9
+
+# Comparison tolerance for floating-point values
+FLOAT_TOLERANCE = 0.01
+
+# Cost per 1K tokens in USD
+GPT5_MINI_COST_INPUT = 0.0001
+GPT5_MINI_COST_OUTPUT = 0.0002
+GEMINI_FLASH_COST_INPUT = 0.00025
+GEMINI_FLASH_COST_OUTPUT = 0.0005
 
 # Image resolution
 TARGET_RESOLUTION = 2000
@@ -35,6 +48,20 @@ Return JSON with these fields:
 - risk_table_text: 2D array of risk table values if present, null otherwise
 - title: plot title if present, null otherwise
 - annotations: list of other text (p-values, hazard ratios, etc.)
+
+Return only valid JSON, no markdown."""
+
+OCR_PROMPT_WITH_CONFIDENCE = """Extract all text from this Kaplan-Meier survival curve image.
+
+Return JSON with these fields:
+- x_tick_labels: list of x-axis tick labels (e.g., ["0", "12", "24", "36"])
+- y_tick_labels: list of y-axis tick labels (e.g., ["0.0", "0.2", "0.4", "0.6", "0.8", "1.0"])
+- axis_labels: list of axis labels (e.g., ["Time (months)", "Survival probability"])
+- legend_labels: list of legend/group names (e.g., ["Treatment", "Control"])
+- risk_table_text: 2D array of risk table values if present, null otherwise
+- title: plot title if present, null otherwise
+- annotations: list of other text (p-values, hazard ratios, etc.)
+- extraction_confidence: float 0.0-1.0 indicating your confidence in extraction accuracy
 
 Return only valid JSON, no markdown."""
 

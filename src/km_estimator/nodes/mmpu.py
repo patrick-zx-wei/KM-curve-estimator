@@ -1,46 +1,51 @@
-"""MMPU (Multi-Model Processing Unit) node for LLM-based extraction."""
+"""MMPU node - tiered extraction with GPT-5 Mini primary, Gemini Flash verification."""
 
+from km_estimator import config
 from km_estimator.models import PipelineState, ProcessingError, ProcessingStage
-from km_estimator.utils.gemini_client import extract_metadata_dual, extract_ocr_dual
+from km_estimator.utils.tiered_extractor import extract_metadata_tiered, extract_ocr_tiered
 
 
 def mmpu(state: PipelineState) -> PipelineState:
     """
-    Extract OCR tokens and plot metadata using dual-model convergence.
+    Extract OCR tokens and plot metadata using tiered extraction.
 
-    Stage 1: OCR extraction (axis labels, tick labels, legend, risk table text)
-    Stage 2: Structured analysis (axis configs, curve info, risk table parsing)
+    Stage 1: OCR extraction (GPT-5 Mini primary, Gemini Flash verification)
+    Stage 2: Structured analysis (GPT-5 Mini primary, Gemini Flash verification)
 
     Updates state with:
     - ocr_tokens: RawOCRTokens from Stage 1
     - plot_metadata: PlotMetadata from Stage 2
-    - mmpu_retries: Total retries across both stages
+    - extraction_route: Route taken (gpt_only, gpt_verified, gemini_override, gemini_fallback)
+    - gpt_confidence: GPT confidence score
+    - verification_similarity: Similarity score when Gemini verification was used
+    - flagged_for_review: True if GPT/Gemini disagreed
+    - extraction_cost_usd: Estimated cost in USD
     - errors: Any processing errors encountered
     """
     cfg = state.config
-
-    # Use preprocessed image if available, otherwise original
     image_path = state.preprocessed_image_path or state.image_path
-
     warnings: list[str] = []
-    total_attempts = 0
+    total_cost = 0.0
 
-    # Stage 1: OCR Extraction
-    ocr_result = extract_ocr_dual(
+    # Stage 1: Tiered OCR Extraction
+    ocr_result = extract_ocr_tiered(
         image_path,
-        max_attempts=cfg.max_mmpu_retries,
+        confidence_threshold=cfg.tiered_confidence_threshold,
+        similarity_threshold=cfg.tiered_similarity_threshold,
         timeout=cfg.api_timeout_seconds,
-        single_model_mode=cfg.single_model_mode,
     )
 
-    total_attempts += ocr_result.attempts
     warnings.extend(ocr_result.warnings)
+    if ocr_result.gpt_tokens:
+        total_cost += _calculate_cost(ocr_result.gpt_tokens, ocr_result.gemini_used)
 
-    if ocr_result.error is not None:
+    if ocr_result.error:
         return state.model_copy(
             update={
-                "mmpu_retries": total_attempts,
                 "errors": state.errors + [ocr_result.error],
+                "extraction_route": ocr_result.route.value,
+                "extraction_cost_usd": total_cost,
+                "mmpu_warnings": warnings,
             }
         )
 
@@ -53,35 +58,37 @@ def mmpu(state: PipelineState) -> PipelineState:
         )
         return state.model_copy(
             update={
-                "mmpu_retries": total_attempts,
                 "errors": state.errors + [error],
+                "extraction_route": ocr_result.route.value,
+                "extraction_cost_usd": total_cost,
+                "mmpu_warnings": warnings,
             }
         )
 
     ocr_tokens = ocr_result.result
 
-    if not ocr_result.converged:
-        warnings.append("OCR stage did not converge between models")
-
-    # Stage 2: Structured Analysis
-    metadata_result = extract_metadata_dual(
+    # Stage 2: Tiered Metadata Extraction
+    metadata_result = extract_metadata_tiered(
         image_path,
         ocr_tokens,
-        max_attempts=cfg.max_mmpu_retries,
+        confidence_threshold=cfg.tiered_confidence_threshold,
+        similarity_threshold=cfg.tiered_similarity_threshold,
         timeout=cfg.api_timeout_seconds,
-        single_model_mode=cfg.single_model_mode,
     )
 
-    total_attempts += metadata_result.attempts
     warnings.extend(metadata_result.warnings)
+    if metadata_result.gpt_tokens:
+        total_cost += _calculate_cost(metadata_result.gpt_tokens, metadata_result.gemini_used)
 
-    if metadata_result.error is not None:
-        # Still save OCR tokens even if metadata fails
+    if metadata_result.error:
         return state.model_copy(
             update={
                 "ocr_tokens": ocr_tokens,
-                "mmpu_retries": total_attempts,
                 "errors": state.errors + [metadata_result.error],
+                "extraction_route": metadata_result.route.value,
+                "gpt_confidence": metadata_result.gpt_confidence,
+                "extraction_cost_usd": total_cost,
+                "mmpu_warnings": warnings,
             }
         )
 
@@ -95,15 +102,15 @@ def mmpu(state: PipelineState) -> PipelineState:
         return state.model_copy(
             update={
                 "ocr_tokens": ocr_tokens,
-                "mmpu_retries": total_attempts,
                 "errors": state.errors + [error],
+                "extraction_route": metadata_result.route.value,
+                "gpt_confidence": metadata_result.gpt_confidence,
+                "extraction_cost_usd": total_cost,
+                "mmpu_warnings": warnings,
             }
         )
 
     plot_metadata = metadata_result.result
-
-    if not metadata_result.converged:
-        warnings.append("Metadata stage did not converge between models")
 
     # Validate: at least one curve must be detected
     if len(plot_metadata.curves) == 0:
@@ -118,8 +125,11 @@ def mmpu(state: PipelineState) -> PipelineState:
             update={
                 "ocr_tokens": ocr_tokens,
                 "plot_metadata": plot_metadata,
-                "mmpu_retries": total_attempts,
                 "errors": state.errors + [error],
+                "extraction_route": metadata_result.route.value,
+                "gpt_confidence": metadata_result.gpt_confidence,
+                "extraction_cost_usd": total_cost,
+                "mmpu_warnings": warnings,
             }
         )
 
@@ -127,7 +137,27 @@ def mmpu(state: PipelineState) -> PipelineState:
         update={
             "ocr_tokens": ocr_tokens,
             "plot_metadata": plot_metadata,
-            "mmpu_retries": total_attempts,
+            "extraction_route": metadata_result.route.value,
+            "gpt_confidence": metadata_result.gpt_confidence,
+            "verification_similarity": metadata_result.similarity_score,
+            "flagged_for_review": ocr_result.flagged_for_review or metadata_result.flagged_for_review,
+            "extraction_cost_usd": total_cost,
+            "gpt_tokens_used": metadata_result.gpt_tokens,
             "mmpu_warnings": warnings,
         }
     )
+
+
+def _calculate_cost(gpt_tokens: tuple[int, int], gemini_used: bool) -> float:
+    """Calculate extraction cost in USD."""
+    cost = (
+        gpt_tokens[0] / 1000 * config.GPT5_MINI_COST_INPUT
+        + gpt_tokens[1] / 1000 * config.GPT5_MINI_COST_OUTPUT
+    )
+    if gemini_used:
+        # Estimate Gemini tokens (similar to GPT)
+        cost += (
+            gpt_tokens[0] / 1000 * config.GEMINI_FLASH_COST_INPUT
+            + gpt_tokens[1] / 1000 * config.GEMINI_FLASH_COST_OUTPUT
+        )
+    return cost

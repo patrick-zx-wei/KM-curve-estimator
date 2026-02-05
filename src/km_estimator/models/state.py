@@ -7,10 +7,6 @@ from .plot_metadata import PlotMetadata, RawOCRTokens, ValidationResult
 
 
 class PipelineConfig(BaseModel):
-    use_pro: bool = True
-    use_flash: bool = True
-    single_model_mode: bool = False
-
     max_input_guard_retries: int = config.MAX_INPUT_GUARD_RETRIES
     max_mmpu_retries: int = config.MAX_MMPU_RETRIES
     max_validation_retries: int = config.MAX_VALIDATION_RETRIES
@@ -27,6 +23,10 @@ class PipelineConfig(BaseModel):
 
     min_image_variance: float = config.MIN_IMAGE_VARIANCE
     min_confidence_output: float = config.MIN_CONFIDENCE_OUTPUT
+
+    # Tiered extraction config
+    tiered_confidence_threshold: float = config.TIERED_CONFIDENCE_THRESHOLD
+    tiered_similarity_threshold: float = config.TIERED_SIMILARITY_THRESHOLD
 
 
 class PipelineState(BaseModel):
@@ -51,3 +51,11 @@ class PipelineState(BaseModel):
     validation_retries: int = 0
 
     errors: list[ProcessingError] = []
+
+    # Tiered extraction tracking
+    extraction_route: str | None = None
+    gpt_confidence: float | None = None
+    verification_similarity: float | None = None
+    flagged_for_review: bool = False
+    extraction_cost_usd: float | None = None
+    gpt_tokens_used: tuple[int, int] | None = None
