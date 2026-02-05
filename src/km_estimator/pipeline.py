@@ -2,7 +2,7 @@
 
 from langgraph.graph import END, StateGraph
 
-from km_estimator.models import PipelineConfig, PipelineState, ProcessingStage
+from km_estimator.models import PipelineConfig, PipelineState, ProcessingError, ProcessingStage
 from km_estimator.nodes.digitization import digitize
 from km_estimator.nodes.input_guard import input_guard, input_guard_async
 from km_estimator.nodes.mmpu import mmpu, mmpu_async
@@ -66,26 +66,43 @@ def _route_validate(state: PipelineState) -> str:
             return END
     if state.validation_retries < cfg.max_validation_retries:
         return "digitize"
+    # Max retries exhausted with validation still failing - add warning
+    if state.output:
+        failed_curves = [
+            c.group_name for c in state.output.curves
+            if c.validation_mae is None or c.validation_mae > cfg.validation_mae_threshold
+        ]
+        state.errors.append(ProcessingError(
+            stage=ProcessingStage.VALIDATE,
+            error_type="validation_threshold_exceeded",
+            recoverable=True,
+            message=(
+                f"Validation MAE threshold ({cfg.validation_mae_threshold}) "
+                f"exceeded after {cfg.max_validation_retries} retries"
+            ),
+            details={"failed_curves": failed_curves},
+        ))
     return END
 
 
 def create_pipeline():
     graph = StateGraph(PipelineState)
 
-    graph.add_node("input_guard", input_guard)
     graph.add_node("preprocess", preprocess)
+    graph.add_node("input_guard", input_guard)
     graph.add_node("mmpu", mmpu)
     graph.add_node("digitize", digitize)
     graph.add_node("reconstruct", reconstruct)
     graph.add_node("validate", validate)
 
-    graph.set_entry_point("input_guard")
+    # Preprocess first to improve input_guard accuracy on noisy/low-res images
+    graph.set_entry_point("preprocess")
 
     graph.add_conditional_edges(
-        "input_guard", _route_input_guard, {"preprocess": "preprocess", END: END}
+        "preprocess", _route_preprocess, {"mmpu": "input_guard", END: END}
     )
     graph.add_conditional_edges(
-        "preprocess", _route_preprocess, {"mmpu": "mmpu", END: END}
+        "input_guard", _route_input_guard, {"preprocess": "mmpu", END: END}
     )
     graph.add_conditional_edges("mmpu", _route_mmpu, {"digitize": "digitize", END: END})
     graph.add_conditional_edges(
@@ -111,20 +128,21 @@ def create_async_pipeline():
     """Create async pipeline with async nodes for concurrent processing."""
     graph = StateGraph(PipelineState)
 
-    graph.add_node("input_guard", input_guard_async)
     graph.add_node("preprocess", preprocess)
+    graph.add_node("input_guard", input_guard_async)
     graph.add_node("mmpu", mmpu_async)
     graph.add_node("digitize", digitize)
     graph.add_node("reconstruct", reconstruct)
     graph.add_node("validate", validate)
 
-    graph.set_entry_point("input_guard")
+    # Preprocess first to improve input_guard accuracy on noisy/low-res images
+    graph.set_entry_point("preprocess")
 
     graph.add_conditional_edges(
-        "input_guard", _route_input_guard, {"preprocess": "preprocess", END: END}
+        "preprocess", _route_preprocess, {"mmpu": "input_guard", END: END}
     )
     graph.add_conditional_edges(
-        "preprocess", _route_preprocess, {"mmpu": "mmpu", END: END}
+        "input_guard", _route_input_guard, {"preprocess": "mmpu", END: END}
     )
     graph.add_conditional_edges("mmpu", _route_mmpu, {"digitize": "digitize", END: END})
     graph.add_conditional_edges(
