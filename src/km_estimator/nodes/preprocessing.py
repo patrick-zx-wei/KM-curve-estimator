@@ -1,5 +1,6 @@
 """Preprocessing node for image scaling, denoising, and quality assessment."""
 
+import uuid
 from pathlib import Path
 from tempfile import gettempdir
 
@@ -65,10 +66,11 @@ def preprocess(state: PipelineState) -> PipelineState:
     if isinstance(quality, ProcessingError):
         return state.model_copy(update={"errors": state.errors + [quality]})
 
-    # Save preprocessed image
+    # Save preprocessed image with unique identifier to avoid collisions
     original_path = Path(state.image_path)
     output_dir = Path(gettempdir()) / "km_estimator"
-    output_path = output_dir / f"{original_path.stem}_preprocessed.png"
+    unique_id = uuid.uuid4().hex[:8]
+    output_path = output_dir / f"{original_path.stem}_{unique_id}_preprocessed.png"
 
     save_result = cv_utils.save_image(image, output_path)
     if isinstance(save_result, ProcessingError):

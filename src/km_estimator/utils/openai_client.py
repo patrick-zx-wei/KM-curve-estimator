@@ -96,7 +96,9 @@ def _invoke_gpt(
             ]
         )
         result = llm.invoke([msg])
-        confidence = getattr(result, "extraction_confidence", None) or 0.5
+        confidence = (
+            getattr(result, "extraction_confidence", None) or config.DEFAULT_EXTRACTION_CONFIDENCE
+        )
 
         # LangChain doesn't expose token usage directly through structured output
         return GPTResult(
@@ -141,3 +143,79 @@ def extract_metadata_gpt(path: str, ocr: RawOCRTokens, **kw) -> GPTResult[PlotMe
     """Extract plot metadata using GPT-5 Mini."""
     prompt = config.ANALYSIS_PROMPT_TEMPLATE.format(ocr_json=ocr.model_dump_json(indent=2))
     return _invoke_gpt(path, prompt, PlotMetadata, ProcessingStage.MMPU, **kw)
+
+
+# --- Async Extraction ---
+
+
+async def _ainvoke_gpt(
+    path: str,
+    prompt: str,
+    output_type: type[T],
+    stage: ProcessingStage,
+    timeout: int = config.API_TIMEOUT_SECONDS,
+    max_retries: int = config.API_MAX_RETRIES,
+) -> GPTResult[T]:
+    """Async: Invoke GPT-5 Mini with structured output."""
+    img = _read_image(path)
+    if isinstance(img, ProcessingError):
+        return GPTResult(None, img, 0.0)
+
+    data, mime = img
+    b64 = base64.b64encode(data).decode()
+
+    try:
+        llm = _get_model(output_type, timeout, max_retries)
+        msg = HumanMessage(
+            content=[
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                {"type": "text", "text": prompt},
+            ]
+        )
+        result = await llm.ainvoke([msg])
+        confidence = (
+            getattr(result, "extraction_confidence", None) or config.DEFAULT_EXTRACTION_CONFIDENCE
+        )
+
+        return GPTResult(
+            result=result,
+            error=None,
+            confidence=confidence,
+            input_tokens=0,
+            output_tokens=0,
+        )
+    except ValidationError as e:
+        return GPTResult(
+            None,
+            ProcessingError(
+                stage=stage,
+                error_type="validation_error",
+                recoverable=True,
+                message=str(e),
+            ),
+            0.0,
+        )
+    except APIError as e:
+        return GPTResult(
+            None,
+            ProcessingError(
+                stage=stage,
+                error_type="openai_api_error",
+                recoverable=True,
+                message=str(e),
+            ),
+            0.0,
+        )
+
+
+async def extract_ocr_gpt_async(path: str, **kw) -> GPTResult[RawOCRTokens]:
+    """Async: Extract OCR tokens using GPT-5 Mini with model-specific prompt."""
+    return await _ainvoke_gpt(
+        path, config.OCR_PROMPT_GPT, RawOCRTokens, ProcessingStage.MMPU, **kw
+    )
+
+
+async def extract_metadata_gpt_async(path: str, ocr: RawOCRTokens, **kw) -> GPTResult[PlotMetadata]:
+    """Async: Extract plot metadata using GPT-5 Mini."""
+    prompt = config.ANALYSIS_PROMPT_TEMPLATE.format(ocr_json=ocr.model_dump_json(indent=2))
+    return await _ainvoke_gpt(path, prompt, PlotMetadata, ProcessingStage.MMPU, **kw)

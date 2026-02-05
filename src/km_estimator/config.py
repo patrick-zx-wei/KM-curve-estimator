@@ -37,6 +37,13 @@ MAX_RESOLUTION = 4000
 MIN_IMAGE_VARIANCE = 100.0
 MIN_CONFIDENCE_OUTPUT = 0.3
 
+# Extraction confidence defaults
+DEFAULT_EXTRACTION_CONFIDENCE = 0.5
+METADATA_MIN_CONFIDENCE_BOOST = 0.7
+
+# Concurrency
+DEFAULT_MAX_CONCURRENCY = 10
+
 # Prompts
 OCR_PROMPT = """Extract all text from this Kaplan-Meier survival curve image.
 
