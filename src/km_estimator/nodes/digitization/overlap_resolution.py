@@ -45,11 +45,17 @@ def enforce_step_function(
         return deduped
 
     # Build step function: for each drop, add horizontal then vertical
+    # Track minimum survival seen so far (KM curves are monotonically non-increasing)
     step_points: list[tuple[float, float]] = [deduped[0]]
+    min_survival = deduped[0][1]
 
     for i in range(1, len(deduped)):
         curr_t, curr_s = deduped[i]
-        prev_t, prev_s = deduped[i - 1]
+        prev_t, prev_s = step_points[-1]
+
+        # Clamp any survival increase to previous level (noise correction)
+        if curr_s > min_survival:
+            curr_s = min_survival
 
         # If survival dropped, add the step shape
         if curr_s < prev_s:
@@ -57,8 +63,9 @@ def enforce_step_function(
             step_points.append((curr_t, prev_s))
             # Vertical drop: drop to current survival at current time
             step_points.append((curr_t, curr_s))
+            min_survival = curr_s
         else:
-            # Survival stayed same or increased slightly (noise) - just add point
+            # Survival stayed same - extend horizontal
             step_points.append((curr_t, curr_s))
 
     return step_points

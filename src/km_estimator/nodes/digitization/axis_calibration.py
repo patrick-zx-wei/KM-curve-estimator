@@ -21,44 +21,50 @@ class AxisMapping:
         x0, y0, x1, y1 = self.plot_region
         # x: left→right = start→end
         x_ratio = (px - x0) / (x1 - x0) if x1 != x0 else 0
-        x_real = self.x_axis.start + x_ratio * (self.x_axis.end - self.x_axis.start)
         # y: top→bottom = end→start (inverted in image coords)
         y_ratio = (py - y0) / (y1 - y0) if y1 != y0 else 0
-        y_real = self.y_axis.end - y_ratio * (self.y_axis.end - self.y_axis.start)
 
-        # Log scale transform with overflow protection
-        if self.x_axis.scale == "log":
-            if x_real > 300:  # 10^300 ≈ infinity
-                x_real = float("inf")
-            elif x_real < -300:
-                x_real = 0.0
-            else:
-                x_real = 10**x_real
-        if self.y_axis.scale == "log":
-            if y_real > 300:
-                y_real = float("inf")
-            elif y_real < -300:
-                y_real = 0.0
-            else:
-                y_real = 10**y_real
+        # For log scale, interpolate in log space then exponentiate
+        if self.x_axis.scale == "log" and self.x_axis.start > 0 and self.x_axis.end > 0:
+            log_start = np.log10(self.x_axis.start)
+            log_end = np.log10(self.x_axis.end)
+            x_real = 10 ** (log_start + x_ratio * (log_end - log_start))
+        else:
+            x_real = self.x_axis.start + x_ratio * (self.x_axis.end - self.x_axis.start)
+
+        if self.y_axis.scale == "log" and self.y_axis.start > 0 and self.y_axis.end > 0:
+            log_start = np.log10(self.y_axis.start)
+            log_end = np.log10(self.y_axis.end)
+            y_real = 10 ** (log_end - y_ratio * (log_end - log_start))
+        else:
+            y_real = self.y_axis.end - y_ratio * (self.y_axis.end - self.y_axis.start)
 
         return (x_real, y_real)
 
     def real_to_px(self, x: float, y: float) -> tuple[int, int]:
         x0, y0, x1, y1 = self.plot_region
-        # Inverse log if needed
-        if self.x_axis.scale == "log" and x > 0:
-            x = np.log10(x)
-        if self.y_axis.scale == "log" and y > 0:
-            y = np.log10(y)
-        # x
-        x_range = self.x_axis.end - self.x_axis.start
-        x_ratio = (x - self.x_axis.start) / x_range if x_range != 0 else 0
+
+        # For log scale, compute ratio in log space
+        if self.x_axis.scale == "log" and x > 0 and self.x_axis.start > 0 and self.x_axis.end > 0:
+            log_start = np.log10(self.x_axis.start)
+            log_end = np.log10(self.x_axis.end)
+            log_range = log_end - log_start
+            x_ratio = (np.log10(x) - log_start) / log_range if log_range != 0 else 0
+        else:
+            x_range = self.x_axis.end - self.x_axis.start
+            x_ratio = (x - self.x_axis.start) / x_range if x_range != 0 else 0
         px = int(x0 + x_ratio * (x1 - x0))
-        # y (inverted)
-        y_range = self.y_axis.end - self.y_axis.start
-        y_ratio = (self.y_axis.end - y) / y_range if y_range != 0 else 0
+
+        if self.y_axis.scale == "log" and y > 0 and self.y_axis.start > 0 and self.y_axis.end > 0:
+            log_start = np.log10(self.y_axis.start)
+            log_end = np.log10(self.y_axis.end)
+            log_range = log_end - log_start
+            y_ratio = (log_end - np.log10(y)) / log_range if log_range != 0 else 0
+        else:
+            y_range = self.y_axis.end - self.y_axis.start
+            y_ratio = (self.y_axis.end - y) / y_range if y_range != 0 else 0
         py = int(y0 + y_ratio * (y1 - y0))
+
         return (px, py)
 
 

@@ -203,7 +203,11 @@ def calculate_scale_factor(
         return (target_resolution / longest, "lanczos_down")
 
     scale = target_resolution / longest
-    if scale <= 2.0:
+    # For small upscales (< 1.5x), use lanczos to avoid overshooting target
+    if scale < 1.5:
+        return (scale, "lanczos_up")
+    # For larger upscales, use ESPCN at nearest factor that reaches target
+    elif scale <= 2.0:
         return (2.0, "espcn")
     elif scale <= 3.0:
         return (3.0, "espcn")
