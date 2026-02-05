@@ -6,6 +6,8 @@ requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2.0",
     "langchain-google-genai>=2.0.0",
+    "langchain-openai>=0.2.0",
+    "openai>=1.0.0",
     "numpy>=2.0.0",
     "scikit-learn-extra>=0.3.0",
     "pydantic>=2.0.0",
