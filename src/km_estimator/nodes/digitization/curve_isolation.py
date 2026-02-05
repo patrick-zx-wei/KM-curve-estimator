@@ -59,6 +59,13 @@ def isolate_curves(
             message="Plot region is empty",
         )
 
+    # Calculate ROI dimensions for adaptive thresholds
+    roi_height, roi_width = roi.shape[:2]
+    roi_area = roi_width * roi_height
+
+    # Adaptive minimum pixel threshold: 0.005% of ROI area, but at least 5 pixels
+    min_pixels = max(5, int(roi_area * 0.00005))
+
     # Convert to HSV for color filtering
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
@@ -71,7 +78,7 @@ def isolate_curves(
     # Get pixel coordinates
     ys, xs = np.where(mask > 0)
 
-    if len(xs) < 10:
+    if len(xs) < min_pixels:
         return ProcessingError(
             stage=ProcessingStage.DIGITIZE,
             error_type="no_curve_pixels",

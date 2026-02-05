@@ -39,6 +39,10 @@ class CurveIPD(BaseModel):
     patients: list[PatientRecord]
     censoring_times: list[float] = []
     validation_mae: float | None = None
+    validation_dtw: float | None = None
+    validation_rmse: float | None = None
+    validation_max_error: float | None = None
+    validation_frechet: float | None = None
     digitization_confidence: float = 1.0
 
 

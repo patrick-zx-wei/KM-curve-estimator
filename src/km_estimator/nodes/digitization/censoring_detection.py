@@ -51,7 +51,11 @@ def detect_censoring(
 
     # Build KDTree for each curve for O(log n) nearest neighbor lookup
     censoring: dict[str, list[float]] = {name: [] for name in curves}
-    max_dist = 15
+
+    # Adaptive distance threshold: ~2% of plot width, but at least 10 pixels
+    x0, _, x1, _ = mapping.plot_region
+    roi_width = x1 - x0
+    max_dist = max(10, int(roi_width * 0.02))
 
     curve_trees: dict[str, cKDTree | None] = {}
     for name, pixels in curves.items():

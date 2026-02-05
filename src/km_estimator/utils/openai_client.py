@@ -131,9 +131,9 @@ def _invoke_gpt(
 
 
 def extract_ocr_gpt(path: str, **kw) -> GPTResult[RawOCRTokens]:
-    """Extract OCR tokens using GPT-5 Mini."""
+    """Extract OCR tokens using GPT-5 Mini with model-specific prompt."""
     return _invoke_gpt(
-        path, config.OCR_PROMPT_WITH_CONFIDENCE, RawOCRTokens, ProcessingStage.MMPU, **kw
+        path, config.OCR_PROMPT_GPT, RawOCRTokens, ProcessingStage.MMPU, **kw
     )
 
 
