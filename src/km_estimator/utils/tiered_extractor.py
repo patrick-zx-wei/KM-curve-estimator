@@ -43,17 +43,87 @@ class TieredResult(Generic[T]):
     flagged_for_review: bool = False
 
 
+def _parse_numeric(s: str) -> float | None:
+    """Try to parse a string as a number, return None if not numeric."""
+    try:
+        return float(s.replace(",", ""))  # Handle "1,000" format
+    except ValueError:
+        return None
+
+
+def _normalize_text(s: str) -> str:
+    """Normalize text for comparison: strip whitespace, lowercase."""
+    return s.strip().lower()
+
+
+def _tick_label_similarity(a: list[str], b: list[str]) -> float:
+    """Compare tick labels with numeric tolerance for numbers, exact match for text."""
+    if len(a) != len(b):
+        # Different lengths - partial credit based on overlap
+        if not a or not b:
+            return 0.0
+        # Compare what we can
+        min_len = min(len(a), len(b))
+        max_len = max(len(a), len(b))
+        length_penalty = min_len / max_len
+        a, b = a[:min_len], b[:min_len]
+    else:
+        length_penalty = 1.0
+
+    if not a:
+        return 1.0  # Both empty
+
+    matches = 0
+    for x, y in zip(a, b):
+        x_num = _parse_numeric(x)
+        y_num = _parse_numeric(y)
+
+        if x_num is not None and y_num is not None:
+            # Both numeric - use tolerance
+            if abs(x_num - y_num) < config.FLOAT_TOLERANCE:
+                matches += 1
+        else:
+            # Text comparison - normalized
+            if _normalize_text(x) == _normalize_text(y):
+                matches += 1
+
+    return (matches / len(a)) * length_penalty
+
+
+def _text_list_similarity(a: list[str], b: list[str]) -> float:
+    """Compare text lists with normalization."""
+    if len(a) != len(b):
+        return 0.0
+    if not a:
+        return 1.0  # Both empty
+
+    a_norm = [_normalize_text(s) for s in a]
+    b_norm = [_normalize_text(s) for s in b]
+
+    matches = sum(1 for x, y in zip(a_norm, b_norm) if x == y)
+    return matches / len(a)
+
+
 def _calculate_ocr_similarity(a: RawOCRTokens, b: RawOCRTokens) -> float:
-    """Calculate similarity score between two OCR results."""
+    """Calculate similarity score between two OCR results.
+
+    Uses type-aware comparison:
+    - Tick labels: numeric tolerance for numbers, normalized text for strings
+    - Axis/legend labels: normalized text comparison (strip, lowercase)
+    - Proportional matching instead of all-or-nothing
+    """
+    # Weights for each field (must sum to 1.0)
+    x_tick_weight = 0.35
+    y_tick_weight = 0.35
+    axis_label_weight = 0.25
+    legend_weight = 0.05
+
     score = 0.0
-    if a.axis_labels == b.axis_labels:
-        score += 0.25
-    if a.x_tick_labels == b.x_tick_labels:
-        score += 0.35
-    if a.y_tick_labels == b.y_tick_labels:
-        score += 0.35
-    if a.legend_labels == b.legend_labels:
-        score += 0.05
+    score += x_tick_weight * _tick_label_similarity(a.x_tick_labels, b.x_tick_labels)
+    score += y_tick_weight * _tick_label_similarity(a.y_tick_labels, b.y_tick_labels)
+    score += axis_label_weight * _text_list_similarity(a.axis_labels, b.axis_labels)
+    score += legend_weight * _text_list_similarity(a.legend_labels, b.legend_labels)
+
     return score
 
 
