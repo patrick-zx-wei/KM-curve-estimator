@@ -1,0 +1,24 @@
+{
+  "name": "truncated_noisy",
+  "seed": 43,
+  "n_groups": 2,
+  "n_patients_per_arm": 200,
+  "groups": [
+    "Control",
+    "Treatment"
+  ],
+  "max_time": 60.0,
+  "y_axis_start": 0.4,
+  "difficulty": 5,
+  "dpi": 150,
+  "modifiers": [
+    "TruncatedYAxis",
+    "CensoringMarks",
+    "ThinLines",
+    "NoisyBackground"
+  ],
+  "title": "Kaplan-Meier Survival Curve",
+  "annotations": [],
+  "total_patients": 400,
+  "total_events": 223
+}

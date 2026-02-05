@@ -1,0 +1,51 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9667,
+        "description": "6-month survival"
+      },
+      {
+        "time": 12,
+        "survival": 0.9199,
+        "description": "1-year survival"
+      },
+      {
+        "time": 24,
+        "survival": 0.8222,
+        "description": "2-year survival"
+      },
+      {
+        "time": 36,
+        "survival": 0.6754,
+        "description": "3-year survival"
+      },
+      {
+        "time": 48,
+        "survival": 0.6015,
+        "description": "4-year survival"
+      },
+      {
+        "time": 60,
+        "survival": 0.5275,
+        "description": "5-year survival"
+      },
+      {
+        "time": 96,
+        "survival": 0.5275,
+        "description": "8-year survival"
+      },
+      {
+        "time": 120,
+        "survival": 0.3846,
+        "description": "10-year survival"
+      }
+    ],
+    "median_survival": 97.17,
+    "quartiles": {
+      "25pct": 26.75,
+      "50pct": 97.17
+    }
+  }
+}

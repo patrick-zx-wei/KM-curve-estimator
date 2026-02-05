@@ -1,0 +1,27 @@
+{
+  "case_name": "low_res_overlap",
+  "difficulty": 5,
+  "n_curves": 3,
+  "pipeline_errors": [
+    {
+      "stage": "input_guard",
+      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3.0-fla... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+    }
+  ],
+  "mmpu": {
+    "error": "no plot_metadata extracted"
+  },
+  "digitize": {
+    "error": "no digitized_curves produced"
+  },
+  "hard_points": {
+    "error": "no pipeline output"
+  },
+  "reconstruction": {
+    "error": "no pipeline output"
+  },
+  "validation": {
+    "error": "no pipeline output"
+  },
+  "passed": false
+}

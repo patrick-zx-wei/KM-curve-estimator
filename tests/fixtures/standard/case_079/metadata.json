@@ -1,0 +1,20 @@
+{
+  "name": "case_079",
+  "seed": 1178,
+  "n_groups": 1,
+  "n_patients_per_arm": 249,
+  "groups": [
+    "Control"
+  ],
+  "max_time": 60.0,
+  "y_axis_start": 0.0,
+  "difficulty": 1,
+  "dpi": 150,
+  "modifiers": [
+    "RiskTableDisplay"
+  ],
+  "title": "Kaplan-Meier Survival Curve",
+  "annotations": [],
+  "total_patients": 249,
+  "total_events": 97
+}
