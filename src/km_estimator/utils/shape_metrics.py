@@ -74,27 +74,21 @@ def frechet_distance(
         return float("inf")
 
     n, m = len(curve1), len(curve2)
-    ca = np.full((n, m), -1.0)
+    ca = np.full((n, m), 0.0)
 
-    def _c(i: int, j: int) -> float:
-        if ca[i, j] > -1:
-            return ca[i, j]
+    for i in range(n):
+        for j in range(m):
+            d = abs(curve1[i][1] - curve2[j][1])
+            if i == 0 and j == 0:
+                ca[i, j] = d
+            elif i > 0 and j == 0:
+                ca[i, j] = max(ca[i - 1, 0], d)
+            elif i == 0 and j > 0:
+                ca[i, j] = max(ca[0, j - 1], d)
+            else:
+                ca[i, j] = max(min(ca[i - 1, j], ca[i - 1, j - 1], ca[i, j - 1]), d)
 
-        p1, p2 = curve1[i], curve2[j]
-        d = abs(p1[1] - p2[1])  # Compare survival values
-
-        if i == 0 and j == 0:
-            ca[i, j] = d
-        elif i > 0 and j == 0:
-            ca[i, j] = max(_c(i - 1, 0), d)
-        elif i == 0 and j > 0:
-            ca[i, j] = max(_c(0, j - 1), d)
-        else:
-            ca[i, j] = max(min(_c(i - 1, j), _c(i - 1, j - 1), _c(i, j - 1)), d)
-
-        return ca[i, j]
-
-    return _c(n - 1, m - 1)
+    return float(ca[n - 1, m - 1])
 
 
 def area_between_curves(

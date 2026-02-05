@@ -1,6 +1,6 @@
 # Model names
 GPT5_MINI_MODEL = "gpt-5-mini"
-GEMINI_FLASH_MODEL = "gemini-3.0-flash"
+GEMINI_FLASH_MODEL = "gemini-3-flash-preview"
 
 # API defaults
 API_TIMEOUT_SECONDS = 30
