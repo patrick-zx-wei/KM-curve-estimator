@@ -4,12 +4,20 @@
   "n_curves": 3,
   "pipeline_errors": [
     {
-      "stage": "input_guard",
-      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3.0-fla... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+      "stage": "digitize",
+      "message": "sklearn_extra not installed (needed for KMedoids)"
     }
   ],
   "mmpu": {
-    "error": "no plot_metadata extracted"
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 3,
+    "n_curves_expected": 3,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
   },
   "digitize": {
     "error": "no digitized_curves produced"
