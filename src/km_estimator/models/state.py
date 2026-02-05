@@ -31,6 +31,9 @@ class PipelineConfig(BaseModel):
     # Extraction mode
     single_model_mode: bool = False
 
+    # IPD estimation - used when risk table unavailable
+    estimated_cohort_size: int = 100
+
 
 class PipelineState(BaseModel):
     image_path: str

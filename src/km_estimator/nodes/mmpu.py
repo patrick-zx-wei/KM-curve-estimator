@@ -32,13 +32,21 @@ def mmpu(state: PipelineState) -> PipelineState:
     warnings: list[str] = []
     total_cost = 0.0
 
-    # Stage 1: Tiered OCR Extraction
-    ocr_result = extract_ocr_tiered(
-        image_path,
-        confidence_threshold=cfg.tiered_confidence_threshold,
-        similarity_threshold=cfg.tiered_similarity_threshold,
-        timeout=cfg.api_timeout_seconds,
-    )
+    # Stage 1: Tiered OCR Extraction (with retry for recoverable errors)
+    ocr_result = None
+    for attempt in range(cfg.max_mmpu_retries + 1):
+        ocr_result = extract_ocr_tiered(
+            image_path,
+            confidence_threshold=cfg.tiered_confidence_threshold,
+            similarity_threshold=cfg.tiered_similarity_threshold,
+            timeout=cfg.api_timeout_seconds,
+            skip_verification=cfg.single_model_mode,
+        )
+        if ocr_result.error and ocr_result.error.recoverable:
+            if attempt < cfg.max_mmpu_retries:
+                warnings.append(f"OCR retry {attempt + 1}/{cfg.max_mmpu_retries}")
+                continue
+        break
 
     warnings.extend(ocr_result.warnings)
     if ocr_result.gpt_tokens:
@@ -72,14 +80,22 @@ def mmpu(state: PipelineState) -> PipelineState:
 
     ocr_tokens = ocr_result.result
 
-    # Stage 2: Tiered Metadata Extraction
-    metadata_result = extract_metadata_tiered(
-        image_path,
-        ocr_tokens,
-        confidence_threshold=cfg.tiered_confidence_threshold,
-        similarity_threshold=cfg.tiered_similarity_threshold,
-        timeout=cfg.api_timeout_seconds,
-    )
+    # Stage 2: Tiered Metadata Extraction (with retry for recoverable errors)
+    metadata_result = None
+    for attempt in range(cfg.max_mmpu_retries + 1):
+        metadata_result = extract_metadata_tiered(
+            image_path,
+            ocr_tokens,
+            confidence_threshold=cfg.tiered_confidence_threshold,
+            similarity_threshold=cfg.tiered_similarity_threshold,
+            timeout=cfg.api_timeout_seconds,
+            skip_verification=cfg.single_model_mode,
+        )
+        if metadata_result.error and metadata_result.error.recoverable:
+            if attempt < cfg.max_mmpu_retries:
+                warnings.append(f"Metadata retry {attempt + 1}/{cfg.max_mmpu_retries}")
+                continue
+        break
 
     warnings.extend(metadata_result.warnings)
     if metadata_result.gpt_tokens:
@@ -190,13 +206,21 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
     warnings: list[str] = []
     total_cost = 0.0
 
-    # Stage 1: Tiered OCR Extraction
-    ocr_result = await extract_ocr_tiered_async(
-        image_path,
-        confidence_threshold=cfg.tiered_confidence_threshold,
-        similarity_threshold=cfg.tiered_similarity_threshold,
-        timeout=cfg.api_timeout_seconds,
-    )
+    # Stage 1: Tiered OCR Extraction (with retry for recoverable errors)
+    ocr_result = None
+    for attempt in range(cfg.max_mmpu_retries + 1):
+        ocr_result = await extract_ocr_tiered_async(
+            image_path,
+            confidence_threshold=cfg.tiered_confidence_threshold,
+            similarity_threshold=cfg.tiered_similarity_threshold,
+            timeout=cfg.api_timeout_seconds,
+            skip_verification=cfg.single_model_mode,
+        )
+        if ocr_result.error and ocr_result.error.recoverable:
+            if attempt < cfg.max_mmpu_retries:
+                warnings.append(f"OCR retry {attempt + 1}/{cfg.max_mmpu_retries}")
+                continue
+        break
 
     warnings.extend(ocr_result.warnings)
     if ocr_result.gpt_tokens:
@@ -230,14 +254,22 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
 
     ocr_tokens = ocr_result.result
 
-    # Stage 2: Tiered Metadata Extraction
-    metadata_result = await extract_metadata_tiered_async(
-        image_path,
-        ocr_tokens,
-        confidence_threshold=cfg.tiered_confidence_threshold,
-        similarity_threshold=cfg.tiered_similarity_threshold,
-        timeout=cfg.api_timeout_seconds,
-    )
+    # Stage 2: Tiered Metadata Extraction (with retry for recoverable errors)
+    metadata_result = None
+    for attempt in range(cfg.max_mmpu_retries + 1):
+        metadata_result = await extract_metadata_tiered_async(
+            image_path,
+            ocr_tokens,
+            confidence_threshold=cfg.tiered_confidence_threshold,
+            similarity_threshold=cfg.tiered_similarity_threshold,
+            timeout=cfg.api_timeout_seconds,
+            skip_verification=cfg.single_model_mode,
+        )
+        if metadata_result.error and metadata_result.error.recoverable:
+            if attempt < cfg.max_mmpu_retries:
+                warnings.append(f"Metadata retry {attempt + 1}/{cfg.max_mmpu_retries}")
+                continue
+        break
 
     warnings.extend(metadata_result.warnings)
     if metadata_result.gpt_tokens:

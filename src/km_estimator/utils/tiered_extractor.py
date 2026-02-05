@@ -166,6 +166,7 @@ def extract_ocr_tiered(
     confidence_threshold: float = config.TIERED_CONFIDENCE_THRESHOLD,
     similarity_threshold: float = config.TIERED_SIMILARITY_THRESHOLD,
     timeout: int = config.API_TIMEOUT_SECONDS,
+    skip_verification: bool = False,
 ) -> TieredResult[RawOCRTokens]:
     """Tiered OCR: GPT-5 Mini primary, Gemini Flash verification if low confidence."""
     warnings: list[str] = []
@@ -175,7 +176,15 @@ def extract_ocr_tiered(
     gpt_tokens = (gpt_result.input_tokens, gpt_result.output_tokens)
 
     if gpt_result.error:
-        # GPT failed, fall back to Gemini
+        # GPT failed, fall back to Gemini (unless skip_verification is set)
+        if skip_verification:
+            return TieredResult(
+                None,
+                gpt_result.error,
+                ExtractionRoute.GPT_ONLY,
+                gpt_tokens=gpt_tokens,
+                warnings=["GPT extraction failed, verification skipped"],
+            )
         warnings.append(f"GPT extraction failed: {gpt_result.error.message}")
         gemini_result = extract_ocr(path, timeout=timeout)
         if isinstance(gemini_result, ProcessingError):
@@ -196,8 +205,8 @@ def extract_ocr_tiered(
             warnings=warnings + ["Using Gemini fallback"],
         )
 
-    # Step 2: Check confidence
-    if gpt_result.confidence >= confidence_threshold:
+    # Step 2: Check confidence (or skip verification if requested)
+    if skip_verification or gpt_result.confidence >= confidence_threshold:
         return TieredResult(
             gpt_result.result,
             None,
@@ -256,6 +265,7 @@ def extract_metadata_tiered(
     confidence_threshold: float = config.TIERED_CONFIDENCE_THRESHOLD,
     similarity_threshold: float = config.TIERED_SIMILARITY_THRESHOLD,
     timeout: int = config.API_TIMEOUT_SECONDS,
+    skip_verification: bool = False,
 ) -> TieredResult[PlotMetadata]:
     """Tiered metadata: GPT-5 Mini primary, Gemini Flash verification if low confidence."""
     warnings: list[str] = []
@@ -265,7 +275,15 @@ def extract_metadata_tiered(
     gpt_tokens = (gpt_result.input_tokens, gpt_result.output_tokens)
 
     if gpt_result.error:
-        # GPT failed, fall back to Gemini
+        # GPT failed, fall back to Gemini (unless skip_verification is set)
+        if skip_verification:
+            return TieredResult(
+                None,
+                gpt_result.error,
+                ExtractionRoute.GPT_ONLY,
+                gpt_tokens=gpt_tokens,
+                warnings=["GPT metadata extraction failed, verification skipped"],
+            )
         warnings.append(f"GPT metadata extraction failed: {gpt_result.error.message}")
         gemini_result = extract_metadata(path, ocr, timeout=timeout)
         if isinstance(gemini_result, ProcessingError):
@@ -292,7 +310,7 @@ def extract_metadata_tiered(
     if gpt_result.result and len(gpt_result.result.curves) > 0:
         metadata_confidence = max(metadata_confidence, config.METADATA_MIN_CONFIDENCE_BOOST)
 
-    if metadata_confidence >= confidence_threshold:
+    if skip_verification or metadata_confidence >= confidence_threshold:
         return TieredResult(
             gpt_result.result,
             None,
@@ -357,6 +375,7 @@ async def extract_ocr_tiered_async(
     confidence_threshold: float = config.TIERED_CONFIDENCE_THRESHOLD,
     similarity_threshold: float = config.TIERED_SIMILARITY_THRESHOLD,
     timeout: int = config.API_TIMEOUT_SECONDS,
+    skip_verification: bool = False,
 ) -> TieredResult[RawOCRTokens]:
     """Async tiered OCR: GPT-5 Mini primary, Gemini Flash verification if low confidence."""
     warnings: list[str] = []
@@ -366,7 +385,15 @@ async def extract_ocr_tiered_async(
     gpt_tokens = (gpt_result.input_tokens, gpt_result.output_tokens)
 
     if gpt_result.error:
-        # GPT failed, fall back to Gemini
+        # GPT failed, fall back to Gemini (unless skip_verification is set)
+        if skip_verification:
+            return TieredResult(
+                None,
+                gpt_result.error,
+                ExtractionRoute.GPT_ONLY,
+                gpt_tokens=gpt_tokens,
+                warnings=["GPT extraction failed, verification skipped"],
+            )
         warnings.append(f"GPT extraction failed: {gpt_result.error.message}")
         gemini_result = await extract_ocr_async(path, timeout=timeout)
         if isinstance(gemini_result, ProcessingError):
@@ -387,8 +414,8 @@ async def extract_ocr_tiered_async(
             warnings=warnings + ["Using Gemini fallback"],
         )
 
-    # Step 2: Check confidence
-    if gpt_result.confidence >= confidence_threshold:
+    # Step 2: Check confidence (or skip verification if requested)
+    if skip_verification or gpt_result.confidence >= confidence_threshold:
         return TieredResult(
             gpt_result.result,
             None,
@@ -447,6 +474,7 @@ async def extract_metadata_tiered_async(
     confidence_threshold: float = config.TIERED_CONFIDENCE_THRESHOLD,
     similarity_threshold: float = config.TIERED_SIMILARITY_THRESHOLD,
     timeout: int = config.API_TIMEOUT_SECONDS,
+    skip_verification: bool = False,
 ) -> TieredResult[PlotMetadata]:
     """Async tiered metadata: GPT-5 Mini primary, Gemini Flash verification if low confidence."""
     warnings: list[str] = []
@@ -456,7 +484,15 @@ async def extract_metadata_tiered_async(
     gpt_tokens = (gpt_result.input_tokens, gpt_result.output_tokens)
 
     if gpt_result.error:
-        # GPT failed, fall back to Gemini
+        # GPT failed, fall back to Gemini (unless skip_verification is set)
+        if skip_verification:
+            return TieredResult(
+                None,
+                gpt_result.error,
+                ExtractionRoute.GPT_ONLY,
+                gpt_tokens=gpt_tokens,
+                warnings=["GPT metadata extraction failed, verification skipped"],
+            )
         warnings.append(f"GPT metadata extraction failed: {gpt_result.error.message}")
         gemini_result = await extract_metadata_async(path, ocr, timeout=timeout)
         if isinstance(gemini_result, ProcessingError):
@@ -483,7 +519,7 @@ async def extract_metadata_tiered_async(
     if gpt_result.result and len(gpt_result.result.curves) > 0:
         metadata_confidence = max(metadata_confidence, config.METADATA_MIN_CONFIDENCE_BOOST)
 
-    if metadata_confidence >= confidence_threshold:
+    if skip_verification or metadata_confidence >= confidence_threshold:
         return TieredResult(
             gpt_result.result,
             None,

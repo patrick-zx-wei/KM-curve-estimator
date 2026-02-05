@@ -172,7 +172,10 @@ def _estimate_ipd(
         warnings.append("No coordinates for estimation")
         return patients, warnings
 
-    warnings.append("Using estimated mode without risk table")
+    warnings.append(
+        f"Using estimated mode without risk table (assumed N={initial_n}). "
+        "Patient counts are scaled estimates, not absolute values."
+    )
 
     times = [c[0] for c in coords]
     n_remaining = initial_n
@@ -283,7 +286,9 @@ def reconstruct(state: PipelineState) -> PipelineState:
         if mode == ReconstructionMode.FULL and risk_table:
             patients, warnings = _guyot_ikm(coords, risk_table, name)
         else:
-            patients, warnings = _estimate_ipd(coords, censoring)
+            patients, warnings = _estimate_ipd(
+                coords, censoring, initial_n=state.config.estimated_cohort_size
+            )
 
         all_warnings.extend(warnings)
         curves.append(CurveIPD(

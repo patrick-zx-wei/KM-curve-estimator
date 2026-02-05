@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Generic, TypeVar
 
+from langchain_community.callbacks import get_openai_callback
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
@@ -95,18 +96,21 @@ def _invoke_gpt(
                 {"type": "text", "text": prompt},
             ]
         )
-        result = llm.invoke([msg])
+
+        # Use callback to track token usage
+        with get_openai_callback() as cb:
+            result = llm.invoke([msg])
+
         confidence = (
             getattr(result, "extraction_confidence", None) or config.DEFAULT_EXTRACTION_CONFIDENCE
         )
 
-        # LangChain doesn't expose token usage directly through structured output
         return GPTResult(
             result=result,
             error=None,
             confidence=confidence,
-            input_tokens=0,
-            output_tokens=0,
+            input_tokens=cb.prompt_tokens,
+            output_tokens=cb.completion_tokens,
         )
     except ValidationError as e:
         return GPTResult(
@@ -172,7 +176,11 @@ async def _ainvoke_gpt(
                 {"type": "text", "text": prompt},
             ]
         )
-        result = await llm.ainvoke([msg])
+
+        # Use callback to track token usage
+        with get_openai_callback() as cb:
+            result = await llm.ainvoke([msg])
+
         confidence = (
             getattr(result, "extraction_confidence", None) or config.DEFAULT_EXTRACTION_CONFIDENCE
         )
@@ -181,8 +189,8 @@ async def _ainvoke_gpt(
             result=result,
             error=None,
             confidence=confidence,
-            input_tokens=0,
-            output_tokens=0,
+            input_tokens=cb.prompt_tokens,
+            output_tokens=cb.completion_tokens,
         )
     except ValidationError as e:
         return GPTResult(

@@ -127,6 +127,12 @@ def main(
             out_path = output or Path(f"{img_path.stem}.json")
 
         if state and state.output:
+            # Check for validation failures (output exists but validation threshold exceeded)
+            has_validation_failure = any(
+                e.error_type == "validation_threshold_exceeded" for e in state.errors
+            )
+
+            # Write output (still useful for inspection even if validation failed)
             result = state.output.model_dump(mode="json")
             out_path.write_text(json.dumps(result, indent=2))
 
@@ -138,7 +144,14 @@ def main(
                 for w in state.output.warnings:
                     click.echo(f"  Warning: {w}", err=True)
 
-            success_count += 1
+            # Print any errors (including validation failures)
+            for e in state.errors:
+                click.echo(f"  [{e.stage.value}] {e.message}", err=True)
+
+            if has_validation_failure:
+                fail_count += 1  # Count as failure if validation threshold exceeded
+            else:
+                success_count += 1
         else:
             fail_count += 1
             click.echo(f"Error processing {img_path}:", err=True)
