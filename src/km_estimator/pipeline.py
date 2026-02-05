@@ -4,8 +4,8 @@ from langgraph.graph import END, StateGraph
 
 from km_estimator.models import PipelineConfig, PipelineState, ProcessingStage
 from km_estimator.nodes.digitization import digitize
-from km_estimator.nodes.input_guard import input_guard
-from km_estimator.nodes.mmpu import mmpu
+from km_estimator.nodes.input_guard import input_guard, input_guard_async
+from km_estimator.nodes.mmpu import mmpu, mmpu_async
 from km_estimator.nodes.preprocessing import preprocess
 from km_estimator.nodes.reconstruction import reconstruct, validate
 
@@ -104,6 +104,49 @@ def create_pipeline():
 def run_pipeline(image_path: str, config: PipelineConfig | None = None) -> PipelineState:
     initial = PipelineState(image_path=image_path, config=config or PipelineConfig())
     result = create_pipeline().invoke(initial)
+    return result if isinstance(result, PipelineState) else PipelineState(**result)
+
+
+def create_async_pipeline():
+    """Create async pipeline with async nodes for concurrent processing."""
+    graph = StateGraph(PipelineState)
+
+    graph.add_node("input_guard", input_guard_async)
+    graph.add_node("preprocess", preprocess)
+    graph.add_node("mmpu", mmpu_async)
+    graph.add_node("digitize", digitize)
+    graph.add_node("reconstruct", reconstruct)
+    graph.add_node("validate", validate)
+
+    graph.set_entry_point("input_guard")
+
+    graph.add_conditional_edges(
+        "input_guard", _route_input_guard, {"preprocess": "preprocess", END: END}
+    )
+    graph.add_conditional_edges(
+        "preprocess", _route_preprocess, {"mmpu": "mmpu", END: END}
+    )
+    graph.add_conditional_edges("mmpu", _route_mmpu, {"digitize": "digitize", END: END})
+    graph.add_conditional_edges(
+        "digitize", _route_digitize, {"reconstruct": "reconstruct", END: END}
+    )
+    graph.add_conditional_edges(
+        "reconstruct", _route_reconstruct, {"validate": "validate", END: END}
+    )
+    graph.add_conditional_edges(
+        "validate", _route_validate, {"digitize": "digitize", END: END}
+    )
+
+    return graph.compile()
+
+
+async def run_pipeline_async(
+    image_path: str, config: PipelineConfig | None = None
+) -> PipelineState:
+    """Async pipeline runner for concurrent image processing."""
+    initial = PipelineState(image_path=image_path, config=config or PipelineConfig())
+    graph = create_async_pipeline()
+    result = await graph.ainvoke(initial)
     return result if isinstance(result, PipelineState) else PipelineState(**result)
 
 

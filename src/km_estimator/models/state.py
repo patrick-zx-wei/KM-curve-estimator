@@ -28,6 +28,9 @@ class PipelineConfig(BaseModel):
     tiered_confidence_threshold: float = config.TIERED_CONFIDENCE_THRESHOLD
     tiered_similarity_threshold: float = config.TIERED_SIMILARITY_THRESHOLD
 
+    # Extraction mode
+    single_model_mode: bool = False
+
 
 class PipelineState(BaseModel):
     image_path: str

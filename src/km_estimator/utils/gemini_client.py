@@ -131,3 +131,74 @@ def extract_metadata(path: str, ocr: RawOCRTokens, **kw) -> PlotMetadata | Proce
     """Extract plot metadata using Gemini."""
     prompt = config.ANALYSIS_PROMPT_TEMPLATE.format(ocr_json=ocr.model_dump_json(indent=2))
     return _invoke(path, prompt, PlotMetadata, ProcessingStage.MMPU, **kw)
+
+
+# --- Async Single-Model Extraction ---
+
+
+async def _ainvoke(
+    path: str,
+    prompt: str,
+    output_type: type[T],
+    stage: ProcessingStage,
+    model: str = config.GEMINI_FLASH_MODEL,
+    timeout: int = config.API_TIMEOUT_SECONDS,
+    max_retries: int = config.API_MAX_RETRIES,
+) -> T | ProcessingError:
+    """Async generic LLM invoke with image."""
+    img = _read_image(path)
+    if isinstance(img, ProcessingError):
+        return ProcessingError(
+            stage=stage,
+            error_type=img.error_type,
+            recoverable=img.recoverable,
+            message=img.message,
+            details={"path": path},
+        )
+    data, mime = img
+    try:
+        llm = _get_model(model, output_type, timeout, max_retries)
+        b64 = base64.b64encode(data).decode()
+        msg = HumanMessage(
+            content=[
+                {"type": "image_url", "image_url": f"data:{mime};base64,{b64}"},
+                {"type": "text", "text": prompt},
+            ]
+        )
+        return await llm.ainvoke([msg])
+    except ValidationError as e:
+        return ProcessingError(
+            stage=stage,
+            error_type="validation_error",
+            recoverable=True,
+            message=str(e),
+            details={"errors": e.errors()},
+        )
+    except GoogleAPIError as e:
+        return ProcessingError(
+            stage=stage,
+            error_type=type(e).__name__,
+            recoverable=getattr(e, "retryable", False),
+            message=str(e),
+            details={"model": model, "path": path},
+        )
+
+
+async def validate_image_async(path: str, **kw) -> ValidationResult | ProcessingError:
+    """Async: Validate image is a valid KM curve."""
+    return await _ainvoke(
+        path, config.INPUT_GUARD_PROMPT, ValidationResult, ProcessingStage.INPUT_GUARD, **kw
+    )
+
+
+async def extract_ocr_async(path: str, **kw) -> RawOCRTokens | ProcessingError:
+    """Async: Extract OCR tokens using Gemini with model-specific prompt."""
+    return await _ainvoke(path, config.OCR_PROMPT_GEMINI, RawOCRTokens, ProcessingStage.MMPU, **kw)
+
+
+async def extract_metadata_async(
+    path: str, ocr: RawOCRTokens, **kw
+) -> PlotMetadata | ProcessingError:
+    """Async: Extract plot metadata using Gemini."""
+    prompt = config.ANALYSIS_PROMPT_TEMPLATE.format(ocr_json=ocr.model_dump_json(indent=2))
+    return await _ainvoke(path, prompt, PlotMetadata, ProcessingStage.MMPU, **kw)
