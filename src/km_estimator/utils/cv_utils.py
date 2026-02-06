@@ -310,9 +310,9 @@ def process_in_tiles(
     is_color = len(image.shape) == 3
     channels = image.shape[2] if is_color else 1
     if is_color:
-        output = np.zeros((h, w, channels), dtype=image.dtype)
+        output = np.zeros((h, w, channels), dtype=np.float32)
     else:
-        output = np.zeros((h, w), dtype=image.dtype)
+        output = np.zeros((h, w), dtype=np.float32)
 
     weight_sum = np.zeros((h, w), dtype=np.float32)
     step = tile_size - overlap
@@ -335,35 +335,42 @@ def process_in_tiles(
 
             # Feather edges
             if y0 > 0:
-                for i in range(min(overlap, th)):
-                    weight[i, :] *= i / overlap
+                top_n = min(overlap, th)
+                top_ramp = np.arange(top_n, dtype=np.float32) / max(1, overlap)
+                weight[:top_n, :] *= top_ramp[:, None]
             if x0 > 0:
-                for i in range(min(overlap, tw)):
-                    weight[:, i] *= i / overlap
+                left_n = min(overlap, tw)
+                left_ramp = np.arange(left_n, dtype=np.float32) / max(1, overlap)
+                weight[:, :left_n] *= left_ramp[None, :]
             if y1 < h:
-                for i in range(min(overlap, th)):
-                    weight[th - 1 - i, :] *= i / overlap
+                bottom_n = min(overlap, th)
+                bottom_ramp = np.arange(bottom_n, dtype=np.float32) / max(1, overlap)
+                weight[th - bottom_n:th, :] *= bottom_ramp[::-1, None]
             if x1 < w:
-                for i in range(min(overlap, tw)):
-                    weight[:, tw - 1 - i] *= i / overlap
+                right_n = min(overlap, tw)
+                right_ramp = np.arange(right_n, dtype=np.float32) / max(1, overlap)
+                weight[:, tw - right_n:tw] *= right_ramp[None, ::-1]
 
+            processed_f32 = processed.astype(np.float32)
             if is_color:
-                for c in range(channels):
-                    output[y0:y1, x0:x1, c] += (processed[:, :, c].astype(np.float32) * weight).astype(image.dtype)
+                output[y0:y1, x0:x1, :] += processed_f32 * weight[:, :, None]
             else:
-                output[y0:y1, x0:x1] += (processed.astype(np.float32) * weight).astype(image.dtype)
+                output[y0:y1, x0:x1] += processed_f32 * weight
 
             weight_sum[y0:y1, x0:x1] += weight
 
     weight_sum = np.maximum(weight_sum, 1e-10)
 
     if is_color:
-        for c in range(channels):
-            output[:, :, c] = (output[:, :, c].astype(np.float32) / weight_sum).astype(image.dtype)
+        output = output / weight_sum[:, :, None]
     else:
-        output = (output.astype(np.float32) / weight_sum).astype(image.dtype)
+        output = output / weight_sum
 
-    return output
+    if np.issubdtype(image.dtype, np.integer):
+        info = np.iinfo(image.dtype)
+        output = np.clip(np.rint(output), info.min, info.max)
+
+    return output.astype(image.dtype, copy=False)
 
 
 def downsample_to_limit(image: Image, max_pixels: int = MAX_PIXELS_BEFORE_TILING) -> Image:

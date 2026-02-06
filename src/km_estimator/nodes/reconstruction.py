@@ -1,5 +1,7 @@
 """IPD reconstruction and validation nodes."""
 
+from bisect import bisect_right
+
 import numpy as np
 
 from km_estimator.utils.shape_metrics import (
@@ -19,6 +21,19 @@ from km_estimator.models import (
     RiskGroup,
     RiskTable,
 )
+
+
+def _build_survival_lookup(
+    coords: list[tuple[float, float]],
+) -> tuple[list[float], list[float]]:
+    """Build sorted step-function lookup arrays for fast interpolation."""
+    if not coords:
+        return [], []
+
+    ordered = sorted(coords, key=lambda p: p[0])
+    times = [float(t) for t, _ in ordered]
+    survivals = [float(s) for _, s in ordered]
+    return times, survivals
 
 
 def _find_matching_risk_group(
@@ -54,29 +69,18 @@ def _find_matching_risk_group(
 
 
 def _get_survival_at_time(
-    coords: list[tuple[float, float]], t: float
+    lookup: tuple[list[float], list[float]], t: float
 ) -> float:
-    """Get survival probability at time t from digitized curve (step function)."""
-    if not coords:
+    """Get survival probability at time t from precomputed step-function lookup."""
+    times, survivals = lookup
+    if not times:
         return 1.0
 
-    times = [c[0] for c in coords]
-    survivals = [c[1] for c in coords]
-
-    # Before first observation
-    if t < times[0]:
+    idx = bisect_right(times, t) - 1
+    if idx < 0:
         return 1.0
 
-    # At or after last observation
-    if t >= times[-1]:
-        return survivals[-1]
-
-    # Find the latest time point <= t
-    for i in range(len(times) - 1, -1, -1):
-        if times[i] <= t:
-            return survivals[i]
-
-    return 1.0
+    return survivals[idx]
 
 
 def _guyot_ikm(
@@ -113,6 +117,8 @@ def _guyot_ikm(
         warnings.append("Need at least 2 time points")
         return patients, warnings
 
+    survival_lookup = _build_survival_lookup(coords)
+
     for j in range(len(time_points) - 1):
         t_start = time_points[j]
         t_end = time_points[j + 1]
@@ -122,8 +128,8 @@ def _guyot_ikm(
         if n_start <= 0:
             continue
 
-        s_start = _get_survival_at_time(coords, t_start)
-        s_end = _get_survival_at_time(coords, t_end)
+        s_start = _get_survival_at_time(survival_lookup, t_start)
+        s_end = _get_survival_at_time(survival_lookup, t_end)
 
         if s_start <= 0:
             warnings.append(f"Zero survival at t={t_start}")
@@ -177,7 +183,8 @@ def _estimate_ipd(
         "Patient counts are scaled estimates, not absolute values."
     )
 
-    times = [c[0] for c in coords]
+    survival_lookup = _build_survival_lookup(coords)
+    times = survival_lookup[0]
     n_remaining = initial_n
     prev_s = 1.0
 
@@ -185,7 +192,7 @@ def _estimate_ipd(
     sample_times = np.linspace(times[0], times[-1], min(50, len(times)))
 
     for t in sample_times:
-        s = _get_survival_at_time(coords, t)
+        s = _get_survival_at_time(survival_lookup, float(t))
         if s < prev_s and n_remaining > 0:
             # Survival dropped - estimate events
             drop = prev_s - s
@@ -249,10 +256,11 @@ def _calculate_mae(
     if not original or not reconstructed:
         return 1.0
 
-    # Sample at original timepoints
+    # Sample reconstructed survival at original timepoints.
+    reconstructed_lookup = _build_survival_lookup(reconstructed)
     errors = []
     for t, s_orig in original:
-        s_recon = _get_survival_at_time(reconstructed, t)
+        s_recon = _get_survival_at_time(reconstructed_lookup, t)
         errors.append(abs(s_orig - s_recon))
 
     return float(np.mean(errors)) if errors else 0.0
@@ -325,24 +333,23 @@ def validate(state: PipelineState) -> PipelineState:
     cfg = state.config
     validated_curves = []
 
+    compute_full_metrics = state.config.compute_full_validation_metrics
+
     for curve in state.output.curves:
         original = state.digitized_curves.get(curve.group_name, [])
         reconstructed = _km_from_ipd(curve.patients)
 
-        # Calculate all validation metrics
         mae = _calculate_mae(original, reconstructed)
-        dtw = dtw_distance(original, reconstructed)
-        curve_rmse = rmse(original, reconstructed)
-        curve_max_error = max_error(original, reconstructed)
-        curve_frechet = frechet_distance(original, reconstructed)
+        updates: dict[str, float | None] = {"validation_mae": mae}
+        if compute_full_metrics:
+            updates.update({
+                "validation_dtw": dtw_distance(original, reconstructed),
+                "validation_rmse": rmse(original, reconstructed),
+                "validation_max_error": max_error(original, reconstructed),
+                "validation_frechet": frechet_distance(original, reconstructed),
+            })
 
-        validated_curves.append(curve.model_copy(update={
-            "validation_mae": mae,
-            "validation_dtw": dtw,
-            "validation_rmse": curve_rmse,
-            "validation_max_error": curve_max_error,
-            "validation_frechet": curve_frechet,
-        }))
+        validated_curves.append(curve.model_copy(update=updates))
 
     updated_output = state.output.model_copy(update={"curves": validated_curves})
 
