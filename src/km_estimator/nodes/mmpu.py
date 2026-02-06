@@ -1,5 +1,6 @@
 """MMPU node - tiered extraction with GPT-5 Mini primary, Gemini Flash verification."""
 
+import math
 import re
 import uuid
 from pathlib import Path
@@ -48,6 +49,114 @@ def _normalize_name(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
 
+def _best_non_decreasing_run(nums: list[float]) -> list[float]:
+    """Return longest contiguous non-decreasing run from nums."""
+    if len(nums) < 2:
+        return []
+    best: list[float] = []
+    curr: list[float] = [nums[0]]
+    for value in nums[1:]:
+        if value + 1e-6 >= curr[-1]:
+            curr.append(value)
+        else:
+            if len(curr) > len(best):
+                best = curr
+            curr = [value]
+    if len(curr) > len(best):
+        best = curr
+    return best if len(best) >= 2 else []
+
+
+def _select_time_points(rows: list[list[str]]) -> tuple[list[float], int]:
+    """Select a plausible risk-table time row and return (time_points, header_idx)."""
+    best_idx = -1
+    best_times: list[float] = []
+    best_score = -1.0
+
+    for i, row in enumerate(rows):
+        nums = [v for v in _row_numbers(row) if v >= 0]
+        run = _best_non_decreasing_run(nums)
+        if len(run) < 2:
+            continue
+        capped = run[:12]
+        span = capped[-1] - capped[0]
+        # Prefer longer monotone rows with larger time span.
+        score = len(capped) * 10.0 + max(0.0, span)
+        if score > best_score:
+            best_score = score
+            best_idx = i
+            best_times = capped
+
+    return best_times, best_idx
+
+
+def _select_count_sequence(nums: list[float], target_len: int) -> list[int] | None:
+    """Extract most plausible at-risk count sequence from OCR numbers."""
+    if target_len <= 0:
+        return None
+    if not nums:
+        return None
+
+    vals = [v for v in nums if v >= 0]
+    min_required = max(2, int(math.ceil(target_len * 0.6)))
+    if len(vals) < min_required:
+        return None
+
+    best_window: list[float] = []
+    best_score = -1e9
+    window_len = min(target_len, len(vals))
+    max_start = max(0, len(vals) - window_len)
+
+    for start in range(max_start + 1):
+        window = vals[start : start + window_len]
+        if not window:
+            continue
+        non_increasing = 0
+        for j in range(len(window) - 1):
+            if window[j] + 1e-6 >= window[j + 1]:
+                non_increasing += 1
+        monotone_score = non_increasing / max(1, len(window) - 1)
+        first_bias = window[0] * 0.002
+        integer_penalty = sum(abs(x - round(x)) for x in window) * 0.01
+        score = monotone_score * 5.0 + first_bias - integer_penalty
+        if score > best_score:
+            best_score = score
+            best_window = window
+
+    if not best_window:
+        return None
+
+    counts = [max(0, int(round(v))) for v in best_window]
+    if len(counts) < target_len:
+        counts.extend([counts[-1]] * (target_len - len(counts)))
+    return counts[:target_len]
+
+
+def _name_matches_curve(row_text: str, curve_name: str) -> bool:
+    """Fuzzy row-to-curve name match for OCR-degraded labels."""
+    row_norm = _normalize_name(row_text)
+    curve_norm = _normalize_name(curve_name)
+    if not row_norm or not curve_norm:
+        return False
+    if curve_norm in row_norm or row_norm in curve_norm:
+        return True
+    row_tokens = set(row_norm.split())
+    curve_tokens = [t for t in curve_norm.split() if t]
+    if not curve_tokens:
+        return False
+    overlap = sum(1 for t in curve_tokens if t in row_tokens)
+    return overlap >= max(1, len(curve_tokens) - 1)
+
+
+def _risk_table_quality(rt: RiskTable | None) -> float:
+    """Simple quality score for selecting best recovered risk table."""
+    if rt is None:
+        return -1.0
+    times = rt.time_points
+    monotone = 1.0 if all(times[i] <= times[i + 1] for i in range(len(times) - 1)) else 0.0
+    return len(rt.groups) * 100.0 + len(times) * 2.0 + monotone
+
+
 def _parse_risk_table_from_ocr(
     ocr_tokens: RawOCRTokens,
     curve_names: list[str],
@@ -62,21 +171,7 @@ def _parse_risk_table_from_ocr(
     if len(rows) < 2:
         return None
 
-    # Pick header row with the most numeric entries as time points.
-    header_idx = -1
-    header_numbers: list[float] = []
-    for i, row in enumerate(rows):
-        nums = _row_numbers(row)
-        if len(nums) > len(header_numbers):
-            header_numbers = nums
-            header_idx = i
-    if len(header_numbers) < 2:
-        return None
-
-    # Ensure non-decreasing time points and cap implausible length.
-    time_points = header_numbers[:12]
-    if any(time_points[i] > time_points[i + 1] for i in range(len(time_points) - 1)):
-        time_points = sorted(time_points)
+    time_points, header_idx = _select_time_points(rows)
     if len(time_points) < 2:
         return None
 
@@ -90,18 +185,18 @@ def _parse_risk_table_from_ocr(
         for i, row in enumerate(rows):
             if i in used_row_idxs:
                 continue
-            row_text = _normalize_name(" ".join(row))
-            if norm_name and norm_name in row_text:
-                nums = _row_numbers(row)
-                if len(nums) >= len(time_points):
+            row_text = " ".join(row)
+            if norm_name and _name_matches_curve(row_text, curve_name):
+                counts = _select_count_sequence(_row_numbers(row), len(time_points))
+                if counts is not None:
                     match_idx = i
                     break
         if match_idx is None:
             continue
         used_row_idxs.add(match_idx)
-        nums = _row_numbers(rows[match_idx])[:len(time_points)]
-        counts = [max(0, int(round(v))) for v in nums]
-        groups.append(RiskGroup(name=curve_name, counts=counts))
+        counts = _select_count_sequence(_row_numbers(rows[match_idx]), len(time_points))
+        if counts is not None:
+            groups.append(RiskGroup(name=curve_name, counts=counts))
 
     # Second pass: numeric fallback rows for missing groups.
     missing = [name for name in curve_names if name not in {g.name for g in groups}]
@@ -111,15 +206,15 @@ def _parse_risk_table_from_ocr(
             if i in used_row_idxs:
                 continue
             nums = _row_numbers(row)
-            if len(nums) >= len(time_points):
+            if _select_count_sequence(nums, len(time_points)) is not None:
                 candidate_rows.append(i)
         for curve_name, row_idx in zip(missing, candidate_rows):
             used_row_idxs.add(row_idx)
-            nums = _row_numbers(rows[row_idx])[:len(time_points)]
-            counts = [max(0, int(round(v))) for v in nums]
-            groups.append(RiskGroup(name=curve_name, counts=counts))
+            counts = _select_count_sequence(_row_numbers(rows[row_idx]), len(time_points))
+            if counts is not None:
+                groups.append(RiskGroup(name=curve_name, counts=counts))
 
-    if len(groups) != len(curve_names):
+    if not groups:
         return None
 
     return RiskTable(time_points=[float(t) for t in time_points], groups=groups)
@@ -140,39 +235,52 @@ def _extract_risk_table_from_cropped_region(
         return None, warnings, None, False
 
     h = image.shape[0]
-    y0 = max(0, int(h * 0.52))
-    crop = image[y0:, :]
-    if crop.size == 0:
-        return None, warnings, None, False
-
     tmp_dir = Path(gettempdir()) / "km_estimator"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    crop_path = tmp_dir / f"risk_table_crop_{uuid.uuid4().hex[:10]}.png"
-    save = cv_utils.save_image(crop, crop_path, stage=ProcessingStage.MMPU)
-    if isinstance(save, ProcessingError):
-        return None, warnings, None, False
+    best_rt: RiskTable | None = None
+    best_tokens: tuple[int, int] | None = None
+    best_gemini_used = False
+    best_score = -1.0
 
-    try:
-        ocr_result = extract_ocr_tiered(
-            str(crop_path),
-            confidence_threshold=confidence_threshold,
-            similarity_threshold=similarity_threshold,
-            timeout=timeout,
-            skip_verification=skip_verification,
-        )
-        warnings.extend(ocr_result.warnings)
-        if ocr_result.error or ocr_result.result is None:
-            return None, warnings, ocr_result.gpt_tokens, ocr_result.gemini_used
+    # Sweep multiple lower-region windows to handle diverse risk-table placements.
+    for ratio in (0.45, 0.52, 0.60):
+        y0 = max(0, int(h * ratio))
+        crop = image[y0:, :]
+        if crop.size == 0:
+            continue
+        crop_path = tmp_dir / f"risk_table_crop_{uuid.uuid4().hex[:10]}.png"
+        save = cv_utils.save_image(crop, crop_path, stage=ProcessingStage.MMPU)
+        if isinstance(save, ProcessingError):
+            continue
 
-        rt = _parse_risk_table_from_ocr(ocr_result.result, curve_names)
-        if rt is None:
-            warnings.append("Cropped risk-table OCR could not be parsed into structured table")
-        return rt, warnings, ocr_result.gpt_tokens, ocr_result.gemini_used
-    finally:
         try:
-            crop_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+            ocr_result = extract_ocr_tiered(
+                str(crop_path),
+                confidence_threshold=confidence_threshold,
+                similarity_threshold=similarity_threshold,
+                timeout=timeout,
+                skip_verification=skip_verification,
+            )
+            warnings.extend(ocr_result.warnings)
+            if ocr_result.error or ocr_result.result is None:
+                continue
+
+            rt = _parse_risk_table_from_ocr(ocr_result.result, curve_names)
+            score = _risk_table_quality(rt)
+            if score > best_score and rt is not None:
+                best_score = score
+                best_rt = rt
+                best_tokens = ocr_result.gpt_tokens
+                best_gemini_used = ocr_result.gemini_used
+        finally:
+            try:
+                crop_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    if best_rt is None:
+        warnings.append("Cropped risk-table OCR could not be parsed into structured table")
+    return best_rt, warnings, best_tokens, best_gemini_used
 
 
 def mmpu(state: PipelineState) -> PipelineState:
@@ -510,41 +618,46 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
             image = cv_utils.load_image(image_path, stage=ProcessingStage.MMPU)
             if not isinstance(image, ProcessingError):
                 h = image.shape[0]
-                y0 = max(0, int(h * 0.52))
-                crop = image[y0:, :]
-                if crop.size > 0:
-                    tmp_dir = Path(gettempdir()) / "km_estimator"
-                    tmp_dir.mkdir(parents=True, exist_ok=True)
+                tmp_dir = Path(gettempdir()) / "km_estimator"
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+                best_rt: RiskTable | None = None
+                best_score = -1.0
+                for ratio in (0.45, 0.52, 0.60):
+                    y0 = max(0, int(h * ratio))
+                    crop = image[y0:, :]
+                    if crop.size == 0:
+                        continue
                     crop_path = tmp_dir / f"risk_table_crop_{uuid.uuid4().hex[:10]}.png"
                     save = cv_utils.save_image(crop, crop_path, stage=ProcessingStage.MMPU)
-                    if not isinstance(save, ProcessingError):
-                        try:
-                            ocr_crop = await extract_ocr_tiered_async(
-                                str(crop_path),
-                                confidence_threshold=cfg.tiered_confidence_threshold,
-                                similarity_threshold=cfg.tiered_similarity_threshold,
-                                timeout=cfg.api_timeout_seconds,
-                                skip_verification=cfg.single_model_mode,
+                    if isinstance(save, ProcessingError):
+                        continue
+                    try:
+                        ocr_crop = await extract_ocr_tiered_async(
+                            str(crop_path),
+                            confidence_threshold=cfg.tiered_confidence_threshold,
+                            similarity_threshold=cfg.tiered_similarity_threshold,
+                            timeout=cfg.api_timeout_seconds,
+                            skip_verification=cfg.single_model_mode,
+                        )
+                        warnings.extend(ocr_crop.warnings)
+                        if ocr_crop.gpt_tokens:
+                            total_cost += _calculate_cost(
+                                ocr_crop.gpt_tokens, ocr_crop.gemini_used
                             )
-                            warnings.extend(ocr_crop.warnings)
-                            if ocr_crop.gpt_tokens:
-                                total_cost += _calculate_cost(
-                                    ocr_crop.gpt_tokens, ocr_crop.gemini_used
-                                )
-                            if ocr_crop.result is not None and ocr_crop.error is None:
-                                crop_rt = _parse_risk_table_from_ocr(ocr_crop.result, curve_names)
-                                if crop_rt is not None:
-                                    plot_metadata = plot_metadata.model_copy(
-                                        update={"risk_table": crop_rt}
-                                    )
-                                    warnings.append(
-                                        "Recovered risk table from cropped lower-region OCR"
-                                    )
-                        finally:
-                            try:
-                                crop_path.unlink(missing_ok=True)
-                            except OSError:
-                                pass
+                        if ocr_crop.result is not None and ocr_crop.error is None:
+                            crop_rt = _parse_risk_table_from_ocr(ocr_crop.result, curve_names)
+                            score = _risk_table_quality(crop_rt)
+                            if crop_rt is not None and score > best_score:
+                                best_score = score
+                                best_rt = crop_rt
+                    finally:
+                        try:
+                            crop_path.unlink(missing_ok=True)
+                        except OSError:
+                            pass
+                if best_rt is not None:
+                    plot_metadata = plot_metadata.model_copy(update={"risk_table": best_rt})
+                    warnings.append("Recovered risk table from cropped lower-region OCR")
 
     # Validate: at least one curve must be detected
     if len(plot_metadata.curves) == 0:
