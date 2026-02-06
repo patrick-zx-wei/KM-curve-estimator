@@ -1,0 +1,297 @@
+{
+  "generated_at": "2026-02-05T20:54:42.459367",
+  "fixtures_dir": "tests/fixtures/difficult",
+  "cases": [
+    {
+      "case_name": "low_res_overlap",
+      "difficulty": 5,
+      "n_curves": 3,
+      "elapsed_seconds": 0.71,
+      "pipeline_errors": [
+        {
+          "stage": "input_guard",
+          "type": "validation_error",
+          "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      ],
+      "mmpu_warnings_count": 0,
+      "output_warnings_count": 0,
+      "mmpu_warnings_sample": [],
+      "output_warnings_sample": [],
+      "digitize_compare": {
+        "error": "no digitized_curves"
+      },
+      "reconstruction_compare": {
+        "error": "no pipeline output"
+      },
+      "hard_points": {
+        "error": "no pipeline output"
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Treatment": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Arm A": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        }
+      },
+      "validation": {}
+    },
+    {
+      "case_name": "truncated_noisy",
+      "difficulty": 5,
+      "n_curves": 2,
+      "elapsed_seconds": 0.69,
+      "pipeline_errors": [
+        {
+          "stage": "input_guard",
+          "type": "validation_error",
+          "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      ],
+      "mmpu_warnings_count": 0,
+      "output_warnings_count": 0,
+      "mmpu_warnings_sample": [],
+      "output_warnings_sample": [],
+      "digitize_compare": {
+        "error": "no digitized_curves"
+      },
+      "reconstruction_compare": {
+        "error": "no pipeline output"
+      },
+      "hard_points": {
+        "error": "no pipeline output"
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Treatment": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        }
+      },
+      "validation": {}
+    },
+    {
+      "case_name": "crossing_compressed",
+      "difficulty": 5,
+      "n_curves": 2,
+      "elapsed_seconds": 0.69,
+      "pipeline_errors": [
+        {
+          "stage": "input_guard",
+          "type": "validation_error",
+          "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      ],
+      "mmpu_warnings_count": 0,
+      "output_warnings_count": 0,
+      "mmpu_warnings_sample": [],
+      "output_warnings_sample": [],
+      "digitize_compare": {
+        "error": "no digitized_curves"
+      },
+      "reconstruction_compare": {
+        "error": "no pipeline output"
+      },
+      "hard_points": {
+        "error": "no pipeline output"
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Treatment": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        }
+      },
+      "validation": {}
+    },
+    {
+      "case_name": "four_arm_lowres",
+      "difficulty": 5,
+      "n_curves": 4,
+      "elapsed_seconds": 0.66,
+      "pipeline_errors": [
+        {
+          "stage": "input_guard",
+          "type": "validation_error",
+          "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      ],
+      "mmpu_warnings_count": 0,
+      "output_warnings_count": 0,
+      "mmpu_warnings_sample": [],
+      "output_warnings_sample": [],
+      "digitize_compare": {
+        "error": "no digitized_curves"
+      },
+      "reconstruction_compare": {
+        "error": "no pipeline output"
+      },
+      "hard_points": {
+        "error": "no pipeline output"
+      },
+      "per_curve_diagnostics": {
+        "Arm A": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Arm B": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Arm C": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Arm D": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        }
+      },
+      "validation": {}
+    },
+    {
+      "case_name": "sparse_degraded",
+      "difficulty": 5,
+      "n_curves": 2,
+      "elapsed_seconds": 0.73,
+      "pipeline_errors": [
+        {
+          "stage": "input_guard",
+          "type": "validation_error",
+          "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
+        }
+      ],
+      "mmpu_warnings_count": 0,
+      "output_warnings_count": 0,
+      "mmpu_warnings_sample": [],
+      "output_warnings_sample": [],
+      "digitize_compare": {
+        "error": "no digitized_curves"
+      },
+      "reconstruction_compare": {
+        "error": "no pipeline output"
+      },
+      "hard_points": {
+        "error": "no pipeline output"
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        },
+        "Treatment": {
+          "n_points": 0,
+          "t_min": null,
+          "t_max": null,
+          "coverage_ratio": 0.0,
+          "tail_unique_y": 0,
+          "digitize_mae": null
+        }
+      },
+      "validation": {}
+    }
+  ],
+  "summary_rows": [
+    {
+      "case": "low_res_overlap",
+      "time": 0.7,
+      "digitize": null,
+      "reconstruct": null,
+      "errors": 1,
+      "warnings": 0
+    },
+    {
+      "case": "truncated_noisy",
+      "time": 0.7,
+      "digitize": null,
+      "reconstruct": null,
+      "errors": 1,
+      "warnings": 0
+    },
+    {
+      "case": "crossing_compressed",
+      "time": 0.7,
+      "digitize": null,
+      "reconstruct": null,
+      "errors": 1,
+      "warnings": 0
+    },
+    {
+      "case": "four_arm_lowres",
+      "time": 0.7,
+      "digitize": null,
+      "reconstruct": null,
+      "errors": 1,
+      "warnings": 0
+    },
+    {
+      "case": "sparse_degraded",
+      "time": 0.7,
+      "digitize": null,
+      "reconstruct": null,
+      "errors": 1,
+      "warnings": 0
+    }
+  ]
+}

@@ -29,6 +29,9 @@ MAX_KMEDOIDS_FIT_SAMPLES = 15_000
 LABEL_ASSIGNMENT_CHUNK_SIZE = 100_000
 POSITION_FEATURE_WEIGHT = 1.0
 COLOR_FEATURE_WEIGHT = 2.5
+LOW_SIGNAL_MASK_MULTIPLIER = 3
+MIN_PRIMARY_MASK_DENSITY = 0.0002
+MIN_COMPONENT_AREA_RATIO = 0.000003
 
 MIN_COVERAGE_RATIO = 0.8
 MAX_START_OFFSET_RATIO = 0.15
@@ -73,6 +76,79 @@ def _assign_to_nearest_medoids(
         labels[start:end] = np.argmin(d2, axis=1).astype(np.int32)
 
     return labels
+
+
+def _remove_small_components(mask: NDArray, min_area: int) -> NDArray:
+    """Remove tiny connected components from binary mask."""
+    if min_area <= 1:
+        return mask
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    cleaned = np.zeros_like(mask)
+
+    for label_idx in range(1, num_labels):
+        area = int(stats[label_idx, cv2.CC_STAT_AREA])
+        if area >= min_area:
+            cleaned[labels == label_idx] = 255
+
+    return cleaned
+
+
+def _adaptive_curve_mask(roi: NDArray, roi_area: int) -> NDArray:
+    """Build adaptive curve mask for low-signal/noisy images."""
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    sat = hsv[:, :, 1].astype(np.float32)
+    val = hsv[:, :, 2].astype(np.float32)
+
+    sat_threshold = int(max(5, np.percentile(sat, 45)))
+    val_low = int(max(20, np.percentile(val, 8)))
+    val_high = int(min(245, np.percentile(val, 98)))
+
+    relaxed = cv2.inRange(
+        hsv,
+        np.array([0, max(5, sat_threshold - 8), val_low], dtype=np.uint8),
+        np.array([180, 255, val_high], dtype=np.uint8),
+    )
+
+    kernel_size = 3 if min(roi.shape[:2]) < 1400 else 5
+    kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
+    relaxed = cv2.morphologyEx(relaxed, cv2.MORPH_CLOSE, kernel)
+    relaxed = cv2.morphologyEx(relaxed, cv2.MORPH_OPEN, kernel)
+
+    min_component_area = max(4, int(roi_area * MIN_COMPONENT_AREA_RATIO))
+    return _remove_small_components(relaxed, min_component_area)
+
+
+def _extract_curve_mask(
+    roi: NDArray,
+    min_pixels: int,
+) -> NDArray:
+    """Extract curve mask with low-signal rescue fallback."""
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    roi_area = roi.shape[0] * roi.shape[1]
+
+    primary = cv2.inRange(
+        hsv,
+        np.array([0, 10, 50], dtype=np.uint8),
+        np.array([180, 255, 230], dtype=np.uint8),
+    )
+    primary_count = int(np.count_nonzero(primary))
+    primary_density = primary_count / max(1, roi_area)
+
+    low_signal = (
+        primary_count < max(min_pixels * LOW_SIGNAL_MASK_MULTIPLIER, 1)
+        or primary_density < MIN_PRIMARY_MASK_DENSITY
+    )
+    if not low_signal:
+        return primary
+
+    adaptive = _adaptive_curve_mask(roi, roi_area)
+    adaptive_count = int(np.count_nonzero(adaptive))
+    adaptive_density = adaptive_count / max(1, roi_area)
+
+    if adaptive_count > primary_count and adaptive_density >= primary_density * 0.9:
+        return adaptive
+    return primary
 
 
 def _coverage_issue(
@@ -170,14 +246,8 @@ def isolate_curves(
     # Adaptive minimum pixel threshold: 0.005% of ROI area, but at least 5 pixels
     min_pixels = max(5, int(roi_area * 0.00005))
 
-    # Convert to HSV for color filtering
-    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-
-    # Mask: exclude white background and black axes/grid
-    # Keep pixels with some saturation or mid-range value
-    lower_bound = np.array([0, 10, 50])
-    upper_bound = np.array([180, 255, 230])
-    mask = cv2.inRange(hsv, lower_bound, upper_bound)
+    # Extract curve mask with fallback for sparse/degraded cases.
+    mask = _extract_curve_mask(roi, min_pixels)
 
     # Get pixel coordinates
     ys, xs = np.where(mask > 0)

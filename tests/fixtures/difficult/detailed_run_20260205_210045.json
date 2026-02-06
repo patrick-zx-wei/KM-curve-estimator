@@ -1,0 +1,1074 @@
+{
+  "generated_at": "2026-02-05T20:55:31.812875",
+  "fixtures_dir": "tests/fixtures/difficult",
+  "cases": [
+    {
+      "case_name": "low_res_overlap",
+      "difficulty": 5,
+      "n_curves": 3,
+      "elapsed_seconds": 100.07,
+      "pipeline_errors": [],
+      "mmpu_warnings_count": 9,
+      "output_warnings_count": 9,
+      "mmpu_warnings_sample": [
+        "Low GPT confidence (0.60), verifying with Gemini",
+        "GPT/Gemini disagreement (similarity=0.35), using Gemini",
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "Control: anchor constraints adjusted 323/1700 points",
+        "Arm A: anchor constraints adjusted 317/1896 points",
+        "Control: anchor constraints adjusted 323/1700 points",
+        "Arm A: anchor constraints adjusted 317/1896 points",
+        "Control: anchor constraints adjusted 323/1700 points",
+        "Arm A: anchor constraints adjusted 317/1896 points"
+      ],
+      "output_warnings_sample": [
+        "Low GPT confidence (0.60), verifying with Gemini",
+        "GPT/Gemini disagreement (similarity=0.35), using Gemini",
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "Control: anchor constraints adjusted 323/1700 points",
+        "Arm A: anchor constraints adjusted 317/1896 points",
+        "Control: anchor constraints adjusted 323/1700 points",
+        "Arm A: anchor constraints adjusted 317/1896 points",
+        "Control: anchor constraints adjusted 323/1700 points",
+        "Arm A: anchor constraints adjusted 317/1896 points"
+      ],
+      "digitize_compare": {
+        "Control": {
+          "mae": 0.07412953744225652,
+          "rmse": 0.08865273822455866,
+          "dtw": 0.0028443656899417667,
+          "frechet": 0.09832290515853548,
+          "max_error": 0.23306593622205946
+        },
+        "Treatment": {
+          "mae": 0.0414797854397634,
+          "rmse": 0.05302305048055133,
+          "dtw": 0.005061838439331886,
+          "frechet": 0.03649472173235288,
+          "max_error": 0.11862513399478869
+        },
+        "Arm A": {
+          "mae": 0.04402846495228742,
+          "rmse": 0.05169054940338596,
+          "dtw": 0.008524710906060393,
+          "frechet": 0.07794209527149737,
+          "max_error": 0.09731984011601053
+        }
+      },
+      "reconstruction_compare": {
+        "Control": {
+          "mae": 0.06227367546056021,
+          "rmse": 0.07312188584936319,
+          "dtw": 0.0050852039158308495,
+          "frechet": 0.10185299985904173,
+          "max_error": 0.14483859273003435
+        },
+        "Treatment": {
+          "mae": 0.022666862454220265,
+          "rmse": 0.03057409864790421,
+          "dtw": 0.00879242113909251,
+          "frechet": 0.1686908837792612,
+          "max_error": 0.12130107401624898
+        },
+        "Arm A": {
+          "mae": 0.03695207453854733,
+          "rmse": 0.042930387815725106,
+          "dtw": 0.011304142623841306,
+          "frechet": 0.21013825731840569,
+          "max_error": 0.09093735101583363
+        }
+      },
+      "hard_points": {
+        "Control": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.8166,
+              "actual": 0.7155,
+              "error": 0.1011,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.6056,
+              "actual": 0.593,
+              "error": 0.0126,
+              "pass": true
+            },
+            {
+              "time": 24,
+              "expected": 0.4686,
+              "actual": 0.5526,
+              "error": 0.084,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.2705,
+              "actual": 0.3435,
+              "error": 0.073,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.1019,
+              "actual": 0.0,
+              "error": 0.1019,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Treatment": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.8369,
+              "actual": 0.8186,
+              "error": 0.0183,
+              "pass": true
+            },
+            {
+              "time": 12,
+              "expected": 0.6562,
+              "actual": 0.6497,
+              "error": 0.0065,
+              "pass": true
+            },
+            {
+              "time": 24,
+              "expected": 0.4102,
+              "actual": 0.441,
+              "error": 0.0308,
+              "pass": true
+            },
+            {
+              "time": 36,
+              "expected": 0.2045,
+              "actual": 0.2594,
+              "error": 0.0549,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.1687,
+              "actual": 0.0,
+              "error": 0.1687,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Arm A": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.8906,
+              "actual": 0.8423,
+              "error": 0.0483,
+              "pass": true
+            },
+            {
+              "time": 12,
+              "expected": 0.7506,
+              "actual": 0.6977,
+              "error": 0.0529,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.4746,
+              "actual": 0.4623,
+              "error": 0.0123,
+              "pass": true
+            },
+            {
+              "time": 36,
+              "expected": 0.3035,
+              "actual": 0.2859,
+              "error": 0.0176,
+              "pass": true
+            },
+            {
+              "time": 48,
+              "expected": 0.2101,
+              "actual": 0.0,
+              "error": 0.2101,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        }
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 2023,
+          "t_min": 0.0,
+          "t_max": 47.8569725864124,
+          "coverage_ratio": 0.997020262216925,
+          "tail_unique_y": 4,
+          "digitize_mae": 0.07412953744225652
+        },
+        "Treatment": {
+          "n_points": 1932,
+          "t_min": 0.0,
+          "t_max": 47.8569725864124,
+          "coverage_ratio": 0.997020262216925,
+          "tail_unique_y": 52,
+          "digitize_mae": 0.0414797854397634
+        },
+        "Arm A": {
+          "n_points": 2117,
+          "t_min": 0.0,
+          "t_max": 47.8569725864124,
+          "coverage_ratio": 0.997020262216925,
+          "tail_unique_y": 31,
+          "digitize_mae": 0.04402846495228742
+        }
+      },
+      "validation": {
+        "Control": {
+          "mae": 0.029691828514608203,
+          "dtw": 0.0033004231479515367,
+          "rmse": 0.05070600404819476
+        },
+        "Treatment": {
+          "mae": 0.041477835436573685,
+          "dtw": 0.003479683815872632,
+          "rmse": 0.048809774898659494
+        },
+        "Arm A": {
+          "mae": 0.020053968695380994,
+          "dtw": 0.0028510762319073906,
+          "rmse": 0.02647774181381267
+        }
+      }
+    },
+    {
+      "case_name": "truncated_noisy",
+      "difficulty": 5,
+      "n_curves": 2,
+      "elapsed_seconds": 34.01,
+      "pipeline_errors": [],
+      "mmpu_warnings_count": 1,
+      "output_warnings_count": 3,
+      "mmpu_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini"
+      ],
+      "output_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values.",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values."
+      ],
+      "digitize_compare": {
+        "Control": {
+          "mae": 0.061659617190332784,
+          "rmse": 0.08134858609520607,
+          "dtw": 0.0030929766985975824,
+          "frechet": 0.16806998775621854,
+          "max_error": 0.19374664339419978
+        },
+        "Treatment": {
+          "mae": 0.2811933097697008,
+          "rmse": 0.3285746064140458,
+          "dtw": 0.01205793889980217,
+          "frechet": 0.3976973684210525,
+          "max_error": 0.5934435947101255
+        }
+      },
+      "reconstruction_compare": {
+        "Control": {
+          "mae": 0.10916463045659201,
+          "rmse": 0.12400225339603062,
+          "dtw": 0.019683871037079543,
+          "frechet": 0.09664013072288535,
+          "max_error": 0.2252508549387863
+        },
+        "Treatment": {
+          "mae": 0.38291793429776894,
+          "rmse": 0.4478284002243441,
+          "dtw": 0.10611274335655432,
+          "frechet": 0.2533041117242559,
+          "max_error": 0.7641546270987896
+        }
+      },
+      "hard_points": {
+        "Control": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.9419,
+              "actual": 0.7638,
+              "error": 0.1781,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.8824,
+              "actual": 0.7638,
+              "error": 0.1186,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.7002,
+              "actual": 0.6415,
+              "error": 0.0587,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.5462,
+              "actual": 0.4185,
+              "error": 0.1277,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.3469,
+              "actual": 0.1397,
+              "error": 0.2072,
+              "pass": false
+            },
+            {
+              "time": 60,
+              "expected": 0.2364,
+              "actual": 0.1397,
+              "error": 0.0967,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Treatment": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.9793,
+              "actual": 0.2308,
+              "error": 0.7485,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.9189,
+              "actual": 0.2308,
+              "error": 0.6881,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.6584,
+              "actual": 0.2308,
+              "error": 0.4276,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.4209,
+              "actual": 0.2308,
+              "error": 0.1901,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.232,
+              "actual": 0.2308,
+              "error": 0.0012,
+              "pass": true
+            },
+            {
+              "time": 60,
+              "expected": 0.082,
+              "actual": 0.2308,
+              "error": 0.1488,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        }
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 1897,
+          "t_min": 0.0,
+          "t_max": 59.96627318718381,
+          "coverage_ratio": 0.9994378864530635,
+          "tail_unique_y": 1,
+          "digitize_mae": 0.061659617190332784
+        },
+        "Treatment": {
+          "n_points": 1781,
+          "t_min": 0.0,
+          "t_max": 59.96627318718381,
+          "coverage_ratio": 0.9994378864530635,
+          "tail_unique_y": 1,
+          "digitize_mae": 0.2811933097697008
+        }
+      },
+      "validation": {
+        "Control": {
+          "mae": 0.12673871595558536,
+          "dtw": 0.017227572219150923,
+          "rmse": 0.15637038280473373
+        },
+        "Treatment": {
+          "mae": 0.16880306282540022,
+          "dtw": 0.08585921996013066,
+          "rmse": 0.16954331020163832
+        }
+      }
+    },
+    {
+      "case_name": "crossing_compressed",
+      "difficulty": 5,
+      "n_curves": 2,
+      "elapsed_seconds": 65.12,
+      "pipeline_errors": [],
+      "mmpu_warnings_count": 2,
+      "output_warnings_count": 4,
+      "mmpu_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "GPT/Gemini metadata disagreement (similarity=0.60), using Gemini"
+      ],
+      "output_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "GPT/Gemini metadata disagreement (similarity=0.60), using Gemini",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values.",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values."
+      ],
+      "digitize_compare": {
+        "Control": {
+          "mae": 0.014884532185999355,
+          "rmse": 0.016613385786917827,
+          "dtw": 0.0017457210527414492,
+          "frechet": 0.04194078947368418,
+          "max_error": 0.04194078947368418
+        },
+        "Treatment": {
+          "mae": 0.19047506058575975,
+          "rmse": 0.2215380043798379,
+          "dtw": 0.002035726545913362,
+          "frechet": 0.06057358348839659,
+          "max_error": 0.37892480985444366
+        }
+      },
+      "reconstruction_compare": {
+        "Control": {
+          "mae": 0.048525999602315587,
+          "rmse": 0.06606533511037324,
+          "dtw": 0.023601308477114193,
+          "frechet": 0.2274715797086089,
+          "max_error": 0.2274715797086089
+        },
+        "Treatment": {
+          "mae": 0.20003332618467576,
+          "rmse": 0.2494406847947966,
+          "dtw": 0.07081253732833262,
+          "frechet": 0.2725408619271452,
+          "max_error": 0.5014205078746007
+        }
+      },
+      "hard_points": {
+        "Control": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.6718,
+              "actual": 0.6542,
+              "error": 0.0176,
+              "pass": true
+            },
+            {
+              "time": 12,
+              "expected": 0.5497,
+              "actual": 0.51,
+              "error": 0.0397,
+              "pass": true
+            },
+            {
+              "time": 24,
+              "expected": 0.4523,
+              "actual": 0.377,
+              "error": 0.0753,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.3645,
+              "actual": 0.2694,
+              "error": 0.0951,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.3266,
+              "actual": 0.1502,
+              "error": 0.1764,
+              "pass": false
+            },
+            {
+              "time": 60,
+              "expected": 0.2713,
+              "actual": 0.0438,
+              "error": 0.2275,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Treatment": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 1.0,
+              "actual": 0.8516,
+              "error": 0.1484,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.9242,
+              "actual": 0.7895,
+              "error": 0.1347,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.6418,
+              "actual": 0.7321,
+              "error": 0.0903,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.2981,
+              "actual": 0.6606,
+              "error": 0.3625,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.1186,
+              "actual": 0.607,
+              "error": 0.4884,
+              "pass": false
+            },
+            {
+              "time": 60,
+              "expected": 0.0414,
+              "actual": 0.0,
+              "error": 0.0414,
+              "pass": true
+            }
+          ],
+          "all_pass": false
+        }
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 1965,
+          "t_min": 0.0,
+          "t_max": 58.381112984822934,
+          "coverage_ratio": 0.9730185497470489,
+          "tail_unique_y": 21,
+          "digitize_mae": 0.014884532185999355
+        },
+        "Treatment": {
+          "n_points": 1994,
+          "t_min": 0.0,
+          "t_max": 58.381112984822934,
+          "coverage_ratio": 0.9730185497470489,
+          "tail_unique_y": 25,
+          "digitize_mae": 0.19047506058575975
+        }
+      },
+      "validation": {
+        "Control": {
+          "mae": 0.09729598193976423,
+          "dtw": 0.007390323020111389,
+          "rmse": 0.11843930179622007
+        },
+        "Treatment": {
+          "mae": 0.2453377853882504,
+          "dtw": 0.10954836568917564,
+          "rmse": 0.25171302438578774
+        }
+      }
+    },
+    {
+      "case_name": "four_arm_lowres",
+      "difficulty": 5,
+      "n_curves": 4,
+      "elapsed_seconds": 66.41,
+      "pipeline_errors": [],
+      "mmpu_warnings_count": 1,
+      "output_warnings_count": 5,
+      "mmpu_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini"
+      ],
+      "output_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values.",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values.",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values.",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values."
+      ],
+      "digitize_compare": {
+        "Arm A": {
+          "mae": 0.0904539894173095,
+          "rmse": 0.0971878251516624,
+          "dtw": 0.003252689914560441,
+          "frechet": 0.13792432806650387,
+          "max_error": 0.14950919367980467
+        },
+        "Arm B": {
+          "mae": 0.07747284486416858,
+          "rmse": 0.08523963434479066,
+          "dtw": 0.004832710482064962,
+          "frechet": 0.10613680367502304,
+          "max_error": 0.14133672287669974
+        },
+        "Arm C": {
+          "mae": 0.10015837270483409,
+          "rmse": 0.13332659079510434,
+          "dtw": 0.004458085258705329,
+          "frechet": 0.3430295928433277,
+          "max_error": 0.3430295928433277
+        },
+        "Arm D": {
+          "mae": 0.1272976018296892,
+          "rmse": 0.19532012875011956,
+          "dtw": 0.008448976111189926,
+          "frechet": 0.4127272727272727,
+          "max_error": 0.4127272727272727
+        }
+      },
+      "reconstruction_compare": {
+        "Arm A": {
+          "mae": 0.05671433034193522,
+          "rmse": 0.07181429552448074,
+          "dtw": 0.025935818090344287,
+          "frechet": 0.1738938537516779,
+          "max_error": 0.1738938537516779
+        },
+        "Arm B": {
+          "mae": 0.0566714044423956,
+          "rmse": 0.07287575642809585,
+          "dtw": 0.03480779458119331,
+          "frechet": 0.24969563456343025,
+          "max_error": 0.1771929492787901
+        },
+        "Arm C": {
+          "mae": 0.25618643545504255,
+          "rmse": 0.3043410708127562,
+          "dtw": 0.03497109802718286,
+          "frechet": 0.24878858897485412,
+          "max_error": 0.5085743547087417
+        },
+        "Arm D": {
+          "mae": 0.3154354631454359,
+          "rmse": 0.34003537669306994,
+          "dtw": 0.15088934659848208,
+          "frechet": 0.29353302803918047,
+          "max_error": 0.5690426421404683
+        }
+      },
+      "hard_points": {
+        "Arm A": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.7205,
+              "actual": 0.7324,
+              "error": 0.0119,
+              "pass": true
+            },
+            {
+              "time": 12,
+              "expected": 0.5168,
+              "actual": 0.4648,
+              "error": 0.052,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.2956,
+              "actual": 0.1408,
+              "error": 0.1548,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.1739,
+              "actual": 0.0,
+              "error": 0.1739,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Arm B": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.7557,
+              "actual": 0.7286,
+              "error": 0.0271,
+              "pass": true
+            },
+            {
+              "time": 12,
+              "expected": 0.5735,
+              "actual": 0.5429,
+              "error": 0.0306,
+              "pass": true
+            },
+            {
+              "time": 24,
+              "expected": 0.395,
+              "actual": 0.2556,
+              "error": 0.1394,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.2739,
+              "actual": 0.0242,
+              "error": 0.2497,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Arm C": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.7725,
+              "actual": 0.5476,
+              "error": 0.2249,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.5636,
+              "actual": 0.119,
+              "error": 0.4446,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.3646,
+              "actual": 0.0,
+              "error": 0.3646,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.2488,
+              "actual": 0.0,
+              "error": 0.2488,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Arm D": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.7601,
+              "actual": 0.4058,
+              "error": 0.3543,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.6061,
+              "actual": 0.4058,
+              "error": 0.2003,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.3832,
+              "actual": 0.1304,
+              "error": 0.2528,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.2313,
+              "actual": 0.0,
+              "error": 0.2313,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        }
+      },
+      "per_curve_diagnostics": {
+        "Arm A": {
+          "n_points": 2109,
+          "t_min": 0.5294117647058824,
+          "t_max": 35.97882352941176,
+          "coverage_ratio": 0.9847058823529411,
+          "tail_unique_y": 56,
+          "digitize_mae": 0.0904539894173095
+        },
+        "Arm B": {
+          "n_points": 1849,
+          "t_min": 0.5294117647058824,
+          "t_max": 35.97882352941176,
+          "coverage_ratio": 0.9847058823529411,
+          "tail_unique_y": 16,
+          "digitize_mae": 0.07747284486416858
+        },
+        "Arm C": {
+          "n_points": 1774,
+          "t_min": 0.5294117647058824,
+          "t_max": 35.97882352941176,
+          "coverage_ratio": 0.9847058823529411,
+          "tail_unique_y": 1,
+          "digitize_mae": 0.10015837270483409
+        },
+        "Arm D": {
+          "n_points": 1730,
+          "t_min": 0.5294117647058824,
+          "t_max": 35.97882352941176,
+          "coverage_ratio": 0.9847058823529411,
+          "tail_unique_y": 25,
+          "digitize_mae": 0.1272976018296892
+        }
+      },
+      "validation": {
+        "Arm A": {
+          "mae": 0.18619630277895657,
+          "dtw": 0.01010873465284136,
+          "rmse": 0.2063394976822605
+        },
+        "Arm B": {
+          "mae": 0.18013256346811982,
+          "dtw": 0.011641873783937757,
+          "rmse": 0.2060602175597452
+        },
+        "Arm C": {
+          "mae": 0.4625889837332904,
+          "dtw": 0.02482083681068946,
+          "rmse": 0.4994938218990421
+        },
+        "Arm D": {
+          "mae": 0.23984765473280176,
+          "dtw": 0.09138082508929221,
+          "rmse": 0.2458794491385726
+        }
+      }
+    },
+    {
+      "case_name": "sparse_degraded",
+      "difficulty": 5,
+      "n_curves": 2,
+      "elapsed_seconds": 46.9,
+      "pipeline_errors": [],
+      "mmpu_warnings_count": 2,
+      "output_warnings_count": 4,
+      "mmpu_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "GPT/Gemini metadata disagreement (similarity=0.60), using Gemini"
+      ],
+      "output_warnings_sample": [
+        "Low GPT metadata confidence (0.70), verifying with Gemini",
+        "GPT/Gemini metadata disagreement (similarity=0.60), using Gemini",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values.",
+        "Using estimated mode without risk table (assumed N=100). Patient counts are scaled estimates, not absolute values."
+      ],
+      "digitize_compare": {
+        "Control": {
+          "mae": 0.21141306952367805,
+          "rmse": 0.2761662292923963,
+          "dtw": 0.07803355204606996,
+          "frechet": 0.39638157894736836,
+          "max_error": 0.4576206140350877
+        },
+        "Treatment": {
+          "mae": 0.36651906869855383,
+          "rmse": 0.4480780030052715,
+          "dtw": 0.004493063488466619,
+          "frechet": 0.34621710526315796,
+          "max_error": 0.7583630747620684
+        }
+      },
+      "reconstruction_compare": {
+        "Control": {
+          "mae": 0.1696119216475658,
+          "rmse": 0.22728183189444864,
+          "dtw": 0.06231289656643088,
+          "frechet": 0.3946750610828753,
+          "max_error": 0.5860326664563906
+        },
+        "Treatment": {
+          "mae": 0.20094159264968733,
+          "rmse": 0.2419239928188619,
+          "dtw": 0.09123113590676248,
+          "frechet": 0.3079758426516801,
+          "max_error": 0.4528543373735462
+        }
+      },
+      "hard_points": {
+        "Control": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.6,
+              "actual": 0.7415,
+              "error": 0.1415,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.3273,
+              "actual": 0.6045,
+              "error": 0.2772,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.3273,
+              "actual": 0.586,
+              "error": 0.2587,
+              "pass": false
+            },
+            {
+              "time": 36,
+              "expected": 0.0,
+              "actual": 0.3947,
+              "error": 0.3947,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.0,
+              "actual": 0.3947,
+              "error": 0.3947,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        },
+        "Treatment": {
+          "landmarks": [
+            {
+              "time": 6,
+              "expected": 0.83,
+              "actual": 0.308,
+              "error": 0.522,
+              "pass": false
+            },
+            {
+              "time": 12,
+              "expected": 0.4931,
+              "actual": 0.308,
+              "error": 0.1851,
+              "pass": false
+            },
+            {
+              "time": 24,
+              "expected": 0.3288,
+              "actual": 0.308,
+              "error": 0.0208,
+              "pass": true
+            },
+            {
+              "time": 36,
+              "expected": 0.0,
+              "actual": 0.308,
+              "error": 0.308,
+              "pass": false
+            },
+            {
+              "time": 48,
+              "expected": 0.0,
+              "actual": 0.308,
+              "error": 0.308,
+              "pass": false
+            }
+          ],
+          "all_pass": false
+        }
+      },
+      "per_curve_diagnostics": {
+        "Control": {
+          "n_points": 1802,
+          "t_min": 0.0269209197980931,
+          "t_max": 47.973079080201906,
+          "coverage_ratio": 0.9988782950084127,
+          "tail_unique_y": 1,
+          "digitize_mae": 0.21141306952367805
+        },
+        "Treatment": {
+          "n_points": 1785,
+          "t_min": 0.0269209197980931,
+          "t_max": 47.973079080201906,
+          "coverage_ratio": 0.9988782950084127,
+          "tail_unique_y": 1,
+          "digitize_mae": 0.36651906869855383
+        }
+      },
+      "validation": {
+        "Control": {
+          "mae": 0.2512768170063637,
+          "dtw": 0.15195891094534839,
+          "rmse": 0.25263025196200645
+        },
+        "Treatment": {
+          "mae": 0.29103189011158004,
+          "dtw": 0.28853900211140976,
+          "rmse": 0.29673199852725196
+        }
+      }
+    }
+  ],
+  "summary_rows": [
+    {
+      "case": "low_res_overlap",
+      "time": 100.1,
+      "digitize": 0.0532,
+      "reconstruct": 0.0406,
+      "errors": 0,
+      "warnings": 18
+    },
+    {
+      "case": "truncated_noisy",
+      "time": 34.0,
+      "digitize": 0.1714,
+      "reconstruct": 0.246,
+      "errors": 0,
+      "warnings": 4
+    },
+    {
+      "case": "crossing_compressed",
+      "time": 65.1,
+      "digitize": 0.1027,
+      "reconstruct": 0.1243,
+      "errors": 0,
+      "warnings": 6
+    },
+    {
+      "case": "four_arm_lowres",
+      "time": 66.4,
+      "digitize": 0.0988,
+      "reconstruct": 0.1713,
+      "errors": 0,
+      "warnings": 6
+    },
+    {
+      "case": "sparse_degraded",
+      "time": 46.9,
+      "digitize": 0.289,
+      "reconstruct": 0.1853,
+      "errors": 0,
+      "warnings": 6
+    }
+  ]
+}

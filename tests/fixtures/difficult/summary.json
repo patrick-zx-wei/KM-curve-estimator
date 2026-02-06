@@ -1,0 +1,17 @@
+{
+  "total": 2,
+  "passed": 0,
+  "failed": 2,
+  "mean_mae": 0.315,
+  "median_mae": 0.3237,
+  "worst_cases": [
+    "truncated_noisy",
+    "sparse_degraded"
+  ],
+  "by_difficulty": {
+    "5": {
+      "n": 2,
+      "pass": 0
+    }
+  }
+}
