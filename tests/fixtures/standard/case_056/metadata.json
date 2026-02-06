@@ -15,11 +15,10 @@
   "modifiers": [
     "CensoringMarks",
     "TruncatedYAxis",
-    "LowResolution",
     "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
   "total_patients": 672,
-  "total_events": 275
+  "total_events": 88
 }

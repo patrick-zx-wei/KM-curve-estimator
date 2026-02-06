@@ -131,14 +131,25 @@ def _generate_and_save(
     return test_case
 
 
+def _pick_line_styles(
+    rng: np.random.Generator, n_curves: int
+) -> list[str]:
+    """Pick line styles: 75% all-solid, 25% mixed (solid + dashed)."""
+    if rng.random() < 0.75:
+        return ["solid"] * n_curves
+    # Mixed: first curve solid, rest dashed
+    return ["solid"] + ["dashed"] * (n_curves - 1)
+
+
 def _apply_tier_modifiers(
     case_rng: np.random.Generator,
     tier: TierConfig,
     lhs_censoring_sample: float,
-) -> tuple[list[Modifier], float, float]:
+    n_curves: int,
+) -> tuple[list[Modifier], float, float, list[str]]:
     """Build modifier list and censoring_rate for a case in the given tier.
 
-    Returns (modifiers, censoring_rate, y_start).
+    Returns (modifiers, censoring_rate, y_start, line_styles).
     """
     modifiers: list[Modifier] = [CensoringMarks()]
 
@@ -160,6 +171,9 @@ def _apply_tier_modifiers(
     if case_rng.random() < tier.thin_lines_prob:
         modifiers.append(ThinLines(linewidth=case_rng.uniform(0.8, 1.2)))
 
+    # Line styles (75% solid, 20% mixed, 5% dotted)
+    line_styles = _pick_line_styles(case_rng, n_curves)
+
     # Censoring rate
     if case_rng.random() < tier.high_censoring_prob:
         lo, hi = tier.high_censoring_range
@@ -171,7 +185,7 @@ def _apply_tier_modifiers(
     # Post-render degradation (tier-specific)
     _apply_post_render(case_rng, tier, modifiers)
 
-    return modifiers, censoring_rate, y_start
+    return modifiers, censoring_rate, y_start, line_styles
 
 
 def _apply_post_render(
@@ -460,9 +474,9 @@ def generate_standard(
         n_per_arm = int(50 + sample[3] * 450)  # 50-500
         scale_factor = 0.35 + sample[1] * 0.75
 
-        # Tier-specific modifiers, censoring, y_start
-        modifiers, censoring_rate, y_start = _apply_tier_modifiers(
-            case_rng, tier, sample[2]
+        # Tier-specific modifiers, censoring, y_start, line styles
+        modifiers, censoring_rate, y_start, line_styles = _apply_tier_modifiers(
+            case_rng, tier, sample[2], n_curves
         )
 
         weibull_scale_val = scale_factor * max_time
@@ -496,6 +510,7 @@ def generate_standard(
             modifiers=modifiers,
             difficulty=difficulty,
             tier=tier.name,
+            line_styles=line_styles,
         )
         _generate_and_save(tc, output_dir)
         cases.append(tc)

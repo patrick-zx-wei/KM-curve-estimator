@@ -17,10 +17,11 @@
     "RiskTableDisplay",
     "GridLines",
     "Annotations",
+    "LowResolution",
     "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
   "total_patients": 524,
-  "total_events": 113
+  "total_events": 251
 }

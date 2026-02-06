@@ -3,100 +3,100 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8537,
+        "survival": 0.8455,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6157,
+        "survival": 0.606,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.2336,
+        "survival": 0.2222,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 16.11,
+    "median_survival": 15.98,
     "quartiles": {
-      "25pct": 8.58,
-      "50pct": 16.11,
-      "75pct": 23.36
+      "25pct": 8.91,
+      "50pct": 15.98,
+      "75pct": 23.07
     }
   },
   "Arm B": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8755,
+        "survival": 0.8879,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6025,
+        "survival": 0.597,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.2374,
+        "survival": 0.192,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 15.46,
+    "median_survival": 15.86,
     "quartiles": {
-      "25pct": 8.95,
-      "50pct": 15.46,
-      "75pct": 22.39
+      "25pct": 9.07,
+      "50pct": 15.86,
+      "75pct": 21.57
     }
   },
   "Arm C": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8565,
+        "survival": 0.8584,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6122,
+        "survival": 0.5902,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.1929,
+        "survival": 0.1988,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 15.52,
+    "median_survival": 14.51,
     "quartiles": {
-      "25pct": 8.97,
-      "50pct": 15.52,
-      "75pct": 22.32
+      "25pct": 8.51,
+      "50pct": 14.51,
+      "75pct": 20.83
     }
   },
   "Arm D": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8103,
+        "survival": 0.8233,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5618,
+        "survival": 0.5554,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.1965,
+        "survival": 0.1894,
         "description": "2-year survival"
       }
     ],
     "median_survival": 13.71,
     "quartiles": {
-      "25pct": 6.99,
+      "25pct": 7.46,
       "50pct": 13.71,
-      "75pct": 21.55
+      "75pct": 21.49
     }
   }
 }

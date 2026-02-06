@@ -10,7 +10,7 @@
   ],
   "max_time": 36.0,
   "y_axis_start": 0.3,
-  "difficulty": 3,
+  "difficulty": 4,
   "tier": "standard",
   "dpi": 150,
   "modifiers": [
@@ -19,11 +19,10 @@
     "TruncatedYAxis",
     "Annotations",
     "ThinLines",
-    "LowResolution",
     "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
   "total_patients": 972,
-  "total_events": 384
+  "total_events": 124
 }

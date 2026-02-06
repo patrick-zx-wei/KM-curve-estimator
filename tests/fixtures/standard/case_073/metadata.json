@@ -19,7 +19,6 @@
     "RiskTableDisplay",
     "GridLines",
     "Annotations",
-    "LowResolution",
     "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",

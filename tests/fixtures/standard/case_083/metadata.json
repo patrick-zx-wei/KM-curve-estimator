@@ -17,7 +17,6 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "Annotations",
-    "LowResolution",
     "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",
