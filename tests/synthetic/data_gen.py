@@ -23,7 +23,7 @@ from .modifiers import Modifier
 # Default color/style cycles for multi-arm plots
 COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
 COLOR_NAMES = ["blue", "orange", "green", "red", "purple"]
-LINE_STYLES = ["solid", "dashed", "dotted", "dashdot"]
+LINE_STYLES = ["solid", "dashed"]
 GROUP_NAMES = ["Control", "Treatment", "Arm A", "Arm B", "Arm C"]
 
 
@@ -266,6 +266,7 @@ def generate_test_case(
     include_risk_table: bool = True,
     difficulty: int = 1,
     tier: str = "standard",
+    line_styles: list[str] | None = None,
 ) -> SyntheticTestCase:
     """Generate a complete synthetic test case.
 
@@ -298,6 +299,8 @@ def generate_test_case(
         annotations = []
     if modifiers is None:
         modifiers = []
+    if line_styles is None:
+        line_styles = ["solid"] * n_curves
 
     # Risk table time points
     risk_time_points = _compute_risk_table_intervals(max_time)
@@ -332,7 +335,7 @@ def generate_test_case(
                 n_at_risk=n_at_risk,
                 color=COLORS[i % len(COLORS)],
                 color_name=COLOR_NAMES[i % len(COLOR_NAMES)],
-                line_style=LINE_STYLES[i % len(LINE_STYLES)],
+                line_style=line_styles[i % len(line_styles)],
             )
         )
 
