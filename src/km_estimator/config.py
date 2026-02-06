@@ -128,6 +128,14 @@ CRITICAL - Y-AXIS ATTENTION:
 - Set y_axis.start to the ACTUAL lowest tick mark value shown
 - This is essential for accurate curve digitization
 
+CRITICAL - X-AXIS ENDPOINT:
+- x_axis.end must be the true axis boundary, not just the largest labeled tick value
+- Some plots do not label the final endpoint tick; infer the real axis end from the plot extent
+
+CRITICAL - RISK TABLE:
+- If a number-at-risk table is visible below the plot, you MUST extract it into risk_table
+- Return risk_table as null only when no risk table is visible
+
 Return only valid JSON, no markdown."""
 
 INPUT_GUARD_PROMPT = """Analyze this image and determine if it is a valid Kaplan-Meier survival curve.

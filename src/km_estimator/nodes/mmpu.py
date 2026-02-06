@@ -9,6 +9,7 @@ from tempfile import gettempdir
 from km_estimator import config
 from km_estimator.models import (
     PipelineState,
+    PlotMetadata,
     ProcessingError,
     ProcessingStage,
     RawOCRTokens,
@@ -27,6 +28,7 @@ from km_estimator.utils.tiered_extractor import (
 _NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
 FAST_PHASE_TIMEOUT_SECONDS = 12
 FAST_PHASE_MAX_RETRIES = 1
+RISK_TABLE_CROP_RATIOS = (0.35, 0.45, 0.52, 0.60, 0.70)
 
 
 def _mmpu_retry_phases(api_timeout_seconds: int, api_max_retries: int) -> list[tuple[str, int, int]]:
@@ -233,6 +235,119 @@ def _parse_risk_table_from_ocr(
     return RiskTable(time_points=[float(t) for t in time_points], groups=groups)
 
 
+def _ocr_x_tick_values(ocr_tokens: RawOCRTokens | None) -> list[float]:
+    """Parse numeric x-axis tick labels from OCR output."""
+    if ocr_tokens is None:
+        return []
+    values: list[float] = []
+    for label in ocr_tokens.x_tick_labels:
+        for value in _extract_numeric_tokens(str(label)):
+            if value >= 0:
+                values.append(float(value))
+    return sorted(set(values))
+
+
+def _ocr_y_tick_values(ocr_tokens: RawOCRTokens | None) -> list[float]:
+    """Parse numeric y-axis tick labels from OCR output."""
+    if ocr_tokens is None:
+        return []
+    values: list[float] = []
+    for label in ocr_tokens.y_tick_labels:
+        for value in _extract_numeric_tokens(str(label)):
+            if -0.1 <= value <= 1.5:
+                values.append(float(value))
+    return sorted(set(values))
+
+
+def _maybe_correct_y_axis_start(
+    plot_metadata: PlotMetadata,
+    ocr_tokens: RawOCRTokens | None,
+    warnings: list[str],
+) -> PlotMetadata:
+    """Correct y_axis.start when OCR/tick evidence suggests a nearby better value."""
+    y_axis = plot_metadata.y_axis
+    candidates: list[float] = []
+
+    if y_axis.tick_values:
+        candidates.append(min(float(v) for v in y_axis.tick_values))
+
+    ocr_y_ticks = _ocr_y_tick_values(ocr_tokens)
+    if ocr_y_ticks:
+        candidates.append(min(ocr_y_ticks))
+
+    if not candidates:
+        return plot_metadata
+
+    corrected_start = min(candidates)
+    if not (-0.1 <= corrected_start <= y_axis.end):
+        return plot_metadata
+
+    # Only apply conservative nearby corrections to avoid large accidental shifts.
+    if abs(corrected_start - y_axis.start) < 0.02 or abs(corrected_start - y_axis.start) > 0.12:
+        return plot_metadata
+
+    warnings.append(f"Corrected y_axis.start from {y_axis.start} to {corrected_start}")
+    return plot_metadata.model_copy(
+        update={"y_axis": y_axis.model_copy(update={"start": corrected_start})}
+    )
+
+
+def _maybe_correct_x_axis_end(
+    plot_metadata: PlotMetadata,
+    ocr_tokens: RawOCRTokens | None,
+    warnings: list[str],
+) -> PlotMetadata:
+    """Correct x_axis.end when metadata likely used the last tick instead of true endpoint."""
+    x_axis = plot_metadata.x_axis
+    if not x_axis.tick_values:
+        return plot_metadata
+
+    last_tick = max(x_axis.tick_values)
+    if abs(x_axis.end - last_tick) > 1e-6:
+        return plot_metadata
+
+    corrected_end = x_axis.end
+    source = ""
+
+    if plot_metadata.risk_table and plot_metadata.risk_table.time_points:
+        rt_end = max(plot_metadata.risk_table.time_points)
+        if rt_end > corrected_end + 1e-6:
+            corrected_end = float(rt_end)
+            source = "risk table time points"
+
+    ocr_x_ticks = _ocr_x_tick_values(ocr_tokens)
+    if ocr_x_ticks:
+        ocr_end = max(ocr_x_ticks)
+        if ocr_end > corrected_end + 1e-6:
+            corrected_end = float(ocr_end)
+            source = "OCR x-axis ticks"
+
+    # Conservative fallback: only extrapolate one tick when OCR found more x ticks than metadata.
+    sorted_ticks = sorted(set(float(t) for t in x_axis.tick_values))
+    spacing_matches_interval = False
+    if len(sorted_ticks) >= 2 and x_axis.tick_interval is not None and x_axis.tick_interval > 0:
+        last_gap = sorted_ticks[-1] - sorted_ticks[-2]
+        spacing_matches_interval = abs(last_gap - x_axis.tick_interval) < 1e-3
+
+    if (
+        not source
+        and x_axis.tick_interval is not None
+        and x_axis.tick_interval > 0
+        and spacing_matches_interval
+        and len(ocr_x_ticks) > len(set(x_axis.tick_values))
+    ):
+        corrected_end = float(last_tick + x_axis.tick_interval)
+        source = "tick-interval extrapolation"
+
+    if corrected_end <= x_axis.end + 1e-6:
+        return plot_metadata
+
+    warnings.append(f"Corrected x_axis.end from {x_axis.end} to {corrected_end} via {source}")
+    return plot_metadata.model_copy(
+        update={"x_axis": x_axis.model_copy(update={"end": corrected_end})}
+    )
+
+
 def _extract_risk_table_from_cropped_region(
     image_path: str,
     curve_names: list[str],
@@ -257,7 +372,7 @@ def _extract_risk_table_from_cropped_region(
     best_score = -1.0
 
     # Sweep multiple lower-region windows to handle diverse risk-table placements.
-    for ratio in (0.45, 0.52, 0.60):
+    for ratio in RISK_TABLE_CROP_RATIOS:
         y0 = max(0, int(h * ratio))
         crop = image[y0:, :]
         if crop.size == 0:
@@ -456,6 +571,9 @@ def mmpu(state: PipelineState) -> PipelineState:
                 plot_metadata = plot_metadata.model_copy(update={"risk_table": crop_rt})
                 warnings.append("Recovered risk table from cropped lower-region OCR")
 
+    plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, warnings)
+    plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
+
     # Validate: at least one curve must be detected
     if len(plot_metadata.curves) == 0:
         error = ProcessingError(
@@ -652,7 +770,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                 tmp_dir.mkdir(parents=True, exist_ok=True)
                 best_rt: RiskTable | None = None
                 best_score = -1.0
-                for ratio in (0.45, 0.52, 0.60):
+                for ratio in RISK_TABLE_CROP_RATIOS:
                     y0 = max(0, int(h * ratio))
                     crop = image[y0:, :]
                     if crop.size == 0:
@@ -689,6 +807,9 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                 if best_rt is not None:
                     plot_metadata = plot_metadata.model_copy(update={"risk_table": best_rt})
                     warnings.append("Recovered risk table from cropped lower-region OCR")
+
+    plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, warnings)
+    plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
 
     # Validate: at least one curve must be detected
     if len(plot_metadata.curves) == 0:

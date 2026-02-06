@@ -29,12 +29,12 @@ from .overlap_resolution import enforce_step_function, resolve_overlaps
 
 MAX_IDENTITY_PERMUTATION_CURVES = 7
 IDENTITY_REASSIGN_MIN_IMPROVEMENT = 0.35
-RESCUE_LOCAL_MARGIN = 0.15
-RESCUE_GLOBAL_MARGIN = 0.2
-CATASTROPHIC_CURVE_SCORE = 3.5
-CATASTROPHIC_IMPROVEMENT_MARGIN = 0.8
-DUAL_PATH_AMBIGUITY_THRESHOLD = 0.42
-DUAL_PATH_SELECTION_MARGIN = 0.2
+RESCUE_LOCAL_MARGIN = 0.10
+RESCUE_GLOBAL_MARGIN = 0.15
+CATASTROPHIC_CURVE_SCORE = 3.0
+CATASTROPHIC_IMPROVEMENT_MARGIN = 0.6
+DUAL_PATH_AMBIGUITY_THRESHOLD = 0.35
+DUAL_PATH_SELECTION_MARGIN = 0.12
 OVERLAP_COLLAPSE_PX = 2
 
 
@@ -512,12 +512,16 @@ def _identify_rescue_candidates(
         if unique_y < 3 or tail_unique < 2:
             flagged.add(curve_name)
             continue
+        # Large single-step drops are usually identity/collapse artifacts.
+        if any((ys[i] - ys[i + 1]) > 0.18 for i in range(len(ys) - 1)):
+            flagged.add(curve_name)
+            continue
         y_range = max(1e-6, y_max - y_min)
         low_start_margin = max(0.02, y_range * 0.12)
         if ys[0] < (y_max - low_start_margin):
             flagged.add(curve_name)
             continue
-        if _anchor_violation_ratio(points, anchors.get(curve_name)) > 0.08:
+        if _anchor_violation_ratio(points, anchors.get(curve_name)) > 0.05:
             flagged.add(curve_name)
     return flagged
 
@@ -812,7 +816,7 @@ def digitize(state: PipelineState) -> PipelineState:
                 )
                 accept_by_global = proposed_global_score + RESCUE_GLOBAL_MARGIN < base_global_score
                 allow_catastrophic = catastrophic_recovery and (
-                    proposed_global_score <= base_global_score + 0.05
+                    proposed_global_score <= base_global_score + 0.10
                 )
 
                 if accept_by_global or allow_catastrophic:
