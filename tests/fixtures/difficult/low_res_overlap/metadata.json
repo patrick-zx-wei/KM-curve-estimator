@@ -11,10 +11,13 @@
   "max_time": 48.0,
   "y_axis_start": 0.0,
   "difficulty": 4,
+  "tier": "legacy",
   "dpi": 150,
   "modifiers": [
     "CensoringMarks",
     "RiskTableDisplay",
+    "GridLines",
+    "Annotations",
     "LowResolution",
     "JPEGArtifacts"
   ],

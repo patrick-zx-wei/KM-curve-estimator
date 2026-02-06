@@ -1,11 +1,12 @@
-"""Preset generation profiles: realistic-hard difficult and standard suites.
+"""Preset generation profiles: difficult and standard suites.
 
-generate_difficult(): 5 hand-picked realistic hard scenarios.
-generate_standard(): 100 realistic hard cases for stress evaluation.
+generate_difficult(): 5 hand-picked realistic hard scenarios (Legacy tier).
+generate_standard(): 100 cases across 3 tiers (50 pristine / 35 standard / 15 legacy).
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +30,97 @@ from .modifiers import (
 from .renderer import render_test_case
 
 
+# ---------------------------------------------------------------------------
+# Tier configuration
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class TierConfig:
+    """Configuration for a generation tier."""
+
+    name: str
+    count: int
+    # Figure-stage modifier probabilities
+    risk_table_prob: float
+    annotations_prob: float
+    grid_lines_prob: float
+    truncated_y_prob: float
+    thin_lines_prob: float
+    # Censoring
+    high_censoring_prob: float
+    normal_censoring_range: tuple[float, float]
+    high_censoring_range: tuple[float, float]
+    # Image quality (post-render)
+    lowres_width_range: tuple[int, int]
+    jpeg_quality_range: tuple[int, int]
+    noise_sigma_range: tuple[float, float]
+    # Difficulty
+    min_difficulty: int
+
+
+TIER_PRISTINE = TierConfig(
+    name="pristine",
+    count=50,
+    risk_table_prob=0.60,
+    annotations_prob=0.30,
+    grid_lines_prob=0.30,
+    truncated_y_prob=0.10,
+    thin_lines_prob=0.10,
+    high_censoring_prob=0.10,
+    normal_censoring_range=(0.01, 0.05),
+    high_censoring_range=(0.06, 0.15),
+    # Pristine: native resolution, lossless — no post-render applied
+    lowres_width_range=(1200, 1200),
+    jpeg_quality_range=(100, 100),
+    noise_sigma_range=(0.0, 0.0),
+    min_difficulty=1,
+)
+
+TIER_STANDARD = TierConfig(
+    name="standard",
+    count=35,
+    risk_table_prob=0.70,
+    annotations_prob=0.45,
+    grid_lines_prob=0.50,
+    truncated_y_prob=0.20,
+    thin_lines_prob=0.28,
+    high_censoring_prob=0.43,
+    normal_censoring_range=(0.01, 0.05),
+    high_censoring_range=(0.06, 0.15),
+    # Standard: web-optimized journal (mild JPEG, slight downscale)
+    lowres_width_range=(1000, 1200),
+    jpeg_quality_range=(80, 95),
+    noise_sigma_range=(0.0, 0.0),
+    min_difficulty=2,
+)
+
+TIER_LEGACY = TierConfig(
+    name="legacy",
+    count=15,
+    risk_table_prob=0.80,
+    annotations_prob=0.60,
+    grid_lines_prob=0.55,
+    truncated_y_prob=0.40,
+    thin_lines_prob=0.40,
+    high_censoring_prob=0.66,
+    normal_censoring_range=(0.01, 0.05),
+    high_censoring_range=(0.06, 0.15),
+    # Legacy: scanned / old papers
+    lowres_width_range=(800, 950),
+    jpeg_quality_range=(65, 75),
+    noise_sigma_range=(3.0, 7.0),
+    min_difficulty=4,
+)
+
+TIERS = [TIER_PRISTINE, TIER_STANDARD, TIER_LEGACY]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
 def _generate_and_save(
     test_case: SyntheticTestCase, output_dir: Path
 ) -> SyntheticTestCase:
@@ -39,7 +131,84 @@ def _generate_and_save(
     return test_case
 
 
-# --- Difficult preset definitions ---
+def _apply_tier_modifiers(
+    case_rng: np.random.Generator,
+    tier: TierConfig,
+    lhs_censoring_sample: float,
+) -> tuple[list[Modifier], float, float]:
+    """Build modifier list and censoring_rate for a case in the given tier.
+
+    Returns (modifiers, censoring_rate, y_start).
+    """
+    modifiers: list[Modifier] = [CensoringMarks()]
+
+    # Figure-stage modifiers (probabilistic)
+    if case_rng.random() < tier.risk_table_prob:
+        modifiers.append(RiskTableDisplay())
+
+    y_start = 0.0
+    if case_rng.random() < tier.truncated_y_prob:
+        y_start = float(case_rng.choice([0.2, 0.3]))
+        modifiers.append(TruncatedYAxis(y_start=y_start))
+
+    if case_rng.random() < tier.grid_lines_prob:
+        modifiers.append(GridLines(alpha=0.25))
+
+    if case_rng.random() < tier.annotations_prob:
+        modifiers.append(Annotations())
+
+    if case_rng.random() < tier.thin_lines_prob:
+        modifiers.append(ThinLines(linewidth=case_rng.uniform(0.8, 1.2)))
+
+    # Censoring rate
+    if case_rng.random() < tier.high_censoring_prob:
+        lo, hi = tier.high_censoring_range
+        censoring_rate = lo + lhs_censoring_sample * (hi - lo)
+    else:
+        lo, hi = tier.normal_censoring_range
+        censoring_rate = lo + lhs_censoring_sample * (hi - lo)
+
+    # Post-render degradation (tier-specific)
+    _apply_post_render(case_rng, tier, modifiers)
+
+    return modifiers, censoring_rate, y_start
+
+
+def _apply_post_render(
+    rng: np.random.Generator,
+    tier: TierConfig,
+    modifiers: list[Modifier],
+) -> None:
+    """Apply tier-appropriate post-render degradation."""
+    if tier.name == "pristine":
+        # No degradation — native resolution, lossless PNG
+        return
+
+    if tier.name == "standard":
+        # Web-optimized: mild JPEG, optional slight downscale
+        lo_w, hi_w = tier.lowres_width_range
+        lo_q, hi_q = tier.jpeg_quality_range
+        if rng.random() < 0.5:
+            modifiers.append(
+                LowResolution(target_width=int(rng.integers(lo_w, hi_w + 1)))
+            )
+        modifiers.append(
+            JPEGArtifacts(quality=int(rng.integers(lo_q, hi_q + 1)))
+        )
+        return
+
+    # Legacy: always resolution + JPEG + noise
+    lo_w, hi_w = tier.lowres_width_range
+    lo_q, hi_q = tier.jpeg_quality_range
+    lo_s, hi_s = tier.noise_sigma_range
+    modifiers.append(LowResolution(target_width=int(rng.integers(lo_w, hi_w + 1))))
+    modifiers.append(JPEGArtifacts(quality=int(rng.integers(lo_q, hi_q + 1))))
+    modifiers.append(NoisyBackground(sigma=rng.uniform(lo_s, hi_s)))
+
+
+# ---------------------------------------------------------------------------
+# Difficult preset definitions (Legacy tier)
+# ---------------------------------------------------------------------------
 
 
 def _difficult_low_res_overlap(seed: int) -> SyntheticTestCase:
@@ -55,10 +224,13 @@ def _difficult_low_res_overlap(seed: int) -> SyntheticTestCase:
         modifiers=[
             CensoringMarks(),
             RiskTableDisplay(),
-            LowResolution(target_width=760),
-            JPEGArtifacts(quality=62),
+            GridLines(alpha=0.25),
+            Annotations(),
+            LowResolution(target_width=850),
+            JPEGArtifacts(quality=70),
         ],
         difficulty=4,
+        tier="legacy",
     )
 
 
@@ -76,10 +248,13 @@ def _difficult_truncated_noisy(seed: int) -> SyntheticTestCase:
         modifiers=[
             TruncatedYAxis(y_start=0.25),
             CensoringMarks(),
+            RiskTableDisplay(),
+            GridLines(alpha=0.25),
             ThinLines(linewidth=0.9),
-            NoisyBackground(sigma=9.0),
+            NoisyBackground(sigma=5.0),
         ],
         difficulty=4,
+        tier="legacy",
     )
 
 
@@ -95,10 +270,15 @@ def _difficult_crossing_compressed(seed: int) -> SyntheticTestCase:
         censoring_rate=0.015,
         modifiers=[
             CensoringMarks(),
+            RiskTableDisplay(),
+            Annotations(),
             CompressedTimeAxis(n_ticks=12),
             GridLines(major=True, alpha=0.25),
+            LowResolution(target_width=900),
+            JPEGArtifacts(quality=70),
         ],
         difficulty=4,
+        tier="legacy",
     )
 
 
@@ -116,10 +296,13 @@ def _difficult_four_arm_lowres(seed: int) -> SyntheticTestCase:
         modifiers=[
             CensoringMarks(),
             RiskTableDisplay(),
-            LowResolution(target_width=820),
+            GridLines(alpha=0.25),
+            Annotations(),
+            LowResolution(target_width=880),
             GaussianBlur(kernel_size=3),
         ],
         difficulty=4,
+        tier="legacy",
     )
 
 
@@ -132,14 +315,18 @@ def _difficult_sparse_degraded(seed: int) -> SyntheticTestCase:
         max_time=48.0,
         weibull_ks=[1.0, 1.0],
         weibull_scale=18.0,
-        censoring_rate=0.04,
+        censoring_rate=0.08,
         modifiers=[
             CensoringMarks(),
-            LowResolution(target_width=700),
-            JPEGArtifacts(quality=60),
-            NoisyBackground(sigma=8.0),
+            RiskTableDisplay(),
+            GridLines(alpha=0.25),
+            Annotations(),
+            LowResolution(target_width=820),
+            JPEGArtifacts(quality=68),
+            NoisyBackground(sigma=5.0),
         ],
-        difficulty=4,
+        difficulty=5,
+        tier="legacy",
     )
 
 
@@ -156,7 +343,7 @@ def generate_difficult(
     output_dir: str | Path = "tests/fixtures/difficult",
     base_seed: int = 42,
 ) -> list[SyntheticTestCase]:
-    """Generate 5 difficult test cases."""
+    """Generate 5 difficult test cases (Legacy tier)."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -170,7 +357,9 @@ def generate_difficult(
     return cases
 
 
-# --- Standard generation (100 cases, ~60/25/15 easy/medium/hard) ---
+# ---------------------------------------------------------------------------
+# Standard generation (100 cases: 50 pristine / 35 standard / 15 legacy)
+# ---------------------------------------------------------------------------
 
 
 def _latin_hypercube(n: int, n_dims: int, rng: np.random.Generator) -> np.ndarray:
@@ -197,7 +386,7 @@ def _compute_difficulty(
     score = 0.0
 
     # More curves = harder
-    score += {1: 0, 2: 0.5, 3: 1.5, 4: 2.5}.get(n_curves, 2)
+    score += {1: 0, 2: 0.5, 3: 1.5, 4: 2.5, 5: 3.0}.get(n_curves, 3)
 
     # Extreme Weibull shapes
     for k in weibull_ks:
@@ -210,6 +399,8 @@ def _compute_difficulty(
 
     # Heavy censoring
     if censoring_rate > 0.05:
+        score += 0.5
+    if censoring_rate > 0.10:
         score += 0.5
 
     # Truncated y-axis
@@ -231,7 +422,7 @@ def generate_standard(
     output_dir: str | Path = "tests/fixtures/standard",
     base_seed: int = 1000,
 ) -> list[SyntheticTestCase]:
-    """Generate 100 realistic-hard test cases."""
+    """Generate 100 test cases across 3 tiers (50 pristine / 35 standard / 15 legacy)."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -249,46 +440,32 @@ def generate_standard(
         case_seed = base_seed + 100 + i
         case_rng = np.random.default_rng(case_seed)
 
+        # Determine tier by index range
+        if i < TIER_PRISTINE.count:
+            tier = TIER_PRISTINE
+        elif i < TIER_PRISTINE.count + TIER_STANDARD.count:
+            tier = TIER_STANDARD
+        else:
+            tier = TIER_LEGACY
+
         max_time = max_time_choices[int(sample[4] * 7.99)]
 
-        # Realistic hard-only profile: challenging but still readable.
-        n_curves = case_rng.choice([2, 3, 4], p=[0.45, 0.40, 0.15])
+        # Statistical parameters from LHS
+        n_curves = int(case_rng.choice([2, 3, 4, 5], p=[0.50, 0.30, 0.15, 0.05]))
         log_k = np.log(0.6) + sample[0] * (np.log(2.2) - np.log(0.6))
         base_k = np.exp(log_k)
         weibull_ks = [
             base_k * case_rng.uniform(0.75, 1.35) for _ in range(n_curves)
         ]
-        n_per_arm = int(80 + sample[3] * 180)  # 80-260
-        censoring_rate = 0.01 + sample[2] * 0.04  # 0.01-0.05
+        n_per_arm = int(50 + sample[3] * 450)  # 50-500
         scale_factor = 0.35 + sample[1] * 0.75
-        y_start = 0.0
-        modifiers: list[Modifier] = [CensoringMarks()]
-        if case_rng.random() < 0.7:
-            modifiers.append(RiskTableDisplay())
-        if case_rng.random() < 0.2:
-            y_start = float(case_rng.choice([0.2, 0.3]))
-            modifiers.append(TruncatedYAxis(y_start=y_start))
-        if case_rng.random() < 0.45:
-            modifiers.append(GridLines(alpha=0.25))
-        if case_rng.random() < 0.12:
-            modifiers.append(Annotations())
 
-        # Mild-to-moderate degradation (avoid unreadable adversarial renders).
-        post_roll = case_rng.random()
-        if post_roll < 0.35:
-            modifiers.append(LowResolution(target_width=int(case_rng.integers(650, 900))))
-        elif post_roll < 0.65:
-            modifiers.append(JPEGArtifacts(quality=int(case_rng.integers(55, 76))))
-        elif post_roll < 0.9:
-            modifiers.append(NoisyBackground(sigma=case_rng.uniform(5, 12)))
-        else:
-            modifiers.append(LowResolution(target_width=int(case_rng.integers(700, 900))))
-            modifiers.append(JPEGArtifacts(quality=int(case_rng.integers(60, 78))))
-        if case_rng.random() < 0.15:
-            modifiers.append(ThinLines(linewidth=case_rng.uniform(0.8, 1.2)))
+        # Tier-specific modifiers, censoring, y_start
+        modifiers, censoring_rate, y_start = _apply_tier_modifiers(
+            case_rng, tier, sample[2]
+        )
 
         weibull_scale_val = scale_factor * max_time
-        group_names = None
         if n_curves <= 2:
             group_names = ["Control", "Treatment"][:n_curves]
         elif n_curves == 3:
@@ -303,7 +480,7 @@ def generate_standard(
         difficulty = _compute_difficulty(
             n_curves, weibull_ks, censoring_rate, y_start, n_per_arm, has_post
         )
-        difficulty = max(4, difficulty)
+        difficulty = max(tier.min_difficulty, difficulty)
 
         tc = generate_test_case(
             name=f"case_{i + 1:03d}",
@@ -318,6 +495,7 @@ def generate_standard(
             group_names=group_names,
             modifiers=modifiers,
             difficulty=difficulty,
+            tier=tier.name,
         )
         _generate_and_save(tc, output_dir)
         cases.append(tc)

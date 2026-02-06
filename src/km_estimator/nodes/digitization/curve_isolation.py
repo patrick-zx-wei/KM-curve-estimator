@@ -417,6 +417,29 @@ def isolate_curves(
             details={"n_pixels": int(len(xs)), "n_curves": int(len(meta.curves))},
         )
 
+    expected_names = [curve.name for curve in meta.curves]
+    all_colors_ok, named_colors = _all_curves_have_distinct_colors(meta)
+
+    # Fast path: if colors are distinct and assignment has full coverage, skip clustering.
+    if all_colors_ok:
+        color_first = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
+        min_curve_pixels = max(5, min_pixels // max(1, len(expected_names)))
+        color_empty = [
+            curve_name
+            for curve_name in expected_names
+            if len(color_first.get(curve_name, [])) < min_curve_pixels
+        ]
+        color_issues = [
+            curve_name
+            for curve_name in expected_names
+            if _coverage_issue(color_first.get(curve_name, []), x0, x1)
+        ]
+        if not color_empty and not color_issues:
+            for curve_name, points in list(color_first.items()):
+                if _coverage_issue(points, x0, x1) or len(points) < SPARSE_MIN_POINTS_FOR_COMPLETION:
+                    color_first[curve_name] = _complete_curve_topology(points, x0, x1)
+            return color_first
+
     # Build feature matrix: (x, y, R, G, B) with stronger color weighting.
     pixels = np.column_stack([
         (xs / roi.shape[1]) * POSITION_FEATURE_WEIGHT,
@@ -552,14 +575,12 @@ def isolate_curves(
 
     # Coverage enforcement: if clustering splits curves into partial time windows,
     # fall back to color-prior assignment when MMPU colors are available.
-    expected_names = [curve.name for curve in meta.curves]
     coverage_issues = [
         curve_name
         for curve_name in expected_names
         if _coverage_issue(curves.get(curve_name, []), x0, x1)
     ]
 
-    all_colors_ok, named_colors = _all_curves_have_distinct_colors(meta)
     if coverage_issues and all_colors_ok:
         color_guided = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
         min_curve_pixels = max(5, min_pixels // max(1, len(expected_names)))

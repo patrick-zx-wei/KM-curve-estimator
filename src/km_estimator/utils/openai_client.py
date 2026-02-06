@@ -46,9 +46,7 @@ def _get_model(output_type: type, timeout: int, retries: int) -> Runnable:
         max_retries=retries,
         timeout=timeout,
     )
-    return base.with_structured_output(output_type).with_retry(
-        stop_after_attempt=retries, wait_exponential_jitter=True
-    )
+    return base.with_structured_output(output_type)
 
 
 def _read_image(path: str) -> tuple[bytes, str] | ProcessingError:
