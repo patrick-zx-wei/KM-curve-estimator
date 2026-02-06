@@ -42,7 +42,7 @@ DEFAULT_EXTRACTION_CONFIDENCE = 0.5
 METADATA_MIN_CONFIDENCE_BOOST = 0.7
 
 # Concurrency
-DEFAULT_MAX_CONCURRENCY = 10
+DEFAULT_MAX_CONCURRENCY = 5
 
 # Prompts
 OCR_PROMPT = """Extract all text from this Kaplan-Meier survival curve image.

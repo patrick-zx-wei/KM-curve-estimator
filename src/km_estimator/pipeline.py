@@ -163,9 +163,9 @@ async def run_pipeline_async(
 ) -> PipelineState:
     """Async pipeline runner for concurrent image processing."""
     initial = PipelineState(image_path=image_path, config=config or PipelineConfig())
-    graph = create_async_pipeline()
-    result = await graph.ainvoke(initial)
+    result = await async_pipeline.ainvoke(initial)
     return result if isinstance(result, PipelineState) else PipelineState(**result)
 
 
 pipeline = create_pipeline()
+async_pipeline = create_async_pipeline()
