@@ -20,6 +20,7 @@ from .censoring_detection import detect_censoring
 from .curve_isolation import (
     _all_curves_have_distinct_colors,
     _assign_by_expected_color,
+    _coverage_issue,
     _extract_curve_mask,
     isolate_curves,
     parse_curve_color,
@@ -32,6 +33,9 @@ RESCUE_LOCAL_MARGIN = 0.15
 RESCUE_GLOBAL_MARGIN = 0.2
 CATASTROPHIC_CURVE_SCORE = 3.5
 CATASTROPHIC_IMPROVEMENT_MARGIN = 0.8
+DUAL_PATH_AMBIGUITY_THRESHOLD = 0.42
+DUAL_PATH_SELECTION_MARGIN = 0.2
+OVERLAP_COLLAPSE_PX = 2
 
 
 def _validate_curves_not_empty(
@@ -258,6 +262,97 @@ def _global_curve_set_score(
         _curve_rescue_score(points, y_max=y_max, anchor_points=anchors.get(name))
         for name, points in curves.items()
     )
+
+
+def _curve_overlap_ambiguity(
+    curves: dict[str, list[tuple[int, int]]],
+    mapping: AxisMapping,
+) -> float:
+    """
+    Estimate overlap ambiguity in [0,1] from coverage gaps and column collisions.
+
+    Higher values indicate higher risk that one identity track collapses in overlaps.
+    """
+    if not curves:
+        return 1.0
+
+    x0, _, x1, _ = mapping.plot_region
+    n_curves = max(1, len(curves))
+    coverage_issues = sum(
+        1 for points in curves.values() if _coverage_issue(points, x0, x1)
+    ) / n_curves
+
+    x_to_curve_y: dict[int, list[int]] = {}
+    for points in curves.values():
+        by_x: dict[int, list[int]] = {}
+        for px, py in points:
+            by_x.setdefault(int(px), []).append(int(py))
+        for px, ys in by_x.items():
+            x_to_curve_y.setdefault(px, []).append(int(round(float(np.median(ys)))))
+
+    overlap_cols = 0
+    collapsed_cols = 0
+    for ys in x_to_curve_y.values():
+        if len(ys) < 2:
+            continue
+        overlap_cols += 1
+        min_sep = min(abs(a - b) for i, a in enumerate(ys) for b in ys[i + 1 :])
+        if min_sep <= OVERLAP_COLLAPSE_PX:
+            collapsed_cols += 1
+
+    overlap_ratio = overlap_cols / max(1, len(x_to_curve_y))
+    collapse_ratio = collapsed_cols / max(1, overlap_cols)
+
+    score = 0.45 * coverage_issues + 0.3 * overlap_ratio + 0.25 * collapse_ratio
+    return float(np.clip(score, 0.0, 1.0))
+
+
+def _pixel_curve_set_score(
+    curves: dict[str, list[tuple[int, int]]],
+    mapping: AxisMapping,
+) -> float:
+    """Lower-is-better score for selecting between overlap-tracing strategies."""
+    x0, _, x1, _ = mapping.plot_region
+    x_span = max(1, x1 - x0)
+    score = 0.0
+
+    for points in curves.values():
+        if not points:
+            score += 8.0
+            continue
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+        min_x = min(xs)
+        max_x = max(xs)
+        coverage_ratio = (max_x - min_x) / x_span
+        score += max(0.0, 0.85 - coverage_ratio) * 6.0
+        score += max(0.0, (min_x - x0) / x_span) * 3.0
+        score += max(0.0, (x1 - max_x) / x_span) * 3.0
+
+        unique_y = len(set(ys))
+        tail = ys[-80:] if len(ys) > 80 else ys
+        tail_unique = len(set(tail))
+        if unique_y < 3:
+            score += 2.5
+        if tail_unique < 2:
+            score += 1.5
+
+    x_to_curve_y: dict[int, list[int]] = {}
+    for points in curves.values():
+        by_x: dict[int, list[int]] = {}
+        for px, py in points:
+            by_x.setdefault(int(px), []).append(int(py))
+        for px, ys in by_x.items():
+            x_to_curve_y.setdefault(px, []).append(int(round(float(np.median(ys)))))
+
+    for ys in x_to_curve_y.values():
+        if len(ys) < 2:
+            continue
+        min_sep = min(abs(a - b) for i, a in enumerate(ys) for b in ys[i + 1 :])
+        if min_sep <= OVERLAP_COLLAPSE_PX:
+            score += (OVERLAP_COLLAPSE_PX - min_sep + 1) * 0.2
+
+    return float(score)
 
 
 def _sample_curve_rgb(
@@ -569,6 +664,9 @@ def digitize(state: PipelineState) -> PipelineState:
                 }
             )
 
+    dual_path_warnings: list[str] = []
+    ambiguity_score = _curve_overlap_ambiguity(raw_curves, mapping)
+
     # Step 3: Clean up overlaps with joint tracing and color identity priors.
     clean_curves = resolve_overlaps(
         raw_curves,
@@ -576,6 +674,27 @@ def digitize(state: PipelineState) -> PipelineState:
         image=image,
         curve_color_priors=expected_colors,
     )
+    has_color_priors = any(color is not None for color in expected_colors.values())
+    if has_color_priors and ambiguity_score >= DUAL_PATH_AMBIGUITY_THRESHOLD:
+        neutral_clean_curves = resolve_overlaps(
+            raw_curves,
+            mapping,
+            image=image,
+            curve_color_priors=None,
+        )
+        color_score = _pixel_curve_set_score(clean_curves, mapping)
+        neutral_score = _pixel_curve_set_score(neutral_clean_curves, mapping)
+        if neutral_score + DUAL_PATH_SELECTION_MARGIN < color_score:
+            clean_curves = neutral_clean_curves
+            dual_path_warnings.append(
+                "Ambiguous overlap: selected neutral tracing "
+                f"(score {color_score:.2f} -> {neutral_score:.2f})"
+            )
+        else:
+            dual_path_warnings.append(
+                "Ambiguous overlap: kept color-prior tracing "
+                f"(score {color_score:.2f} vs {neutral_score:.2f})"
+            )
 
     # Step 4: Convert to real coordinates
     digitized: dict[str, list[tuple[float, float]]] = {}
@@ -723,6 +842,7 @@ def digitize(state: PipelineState) -> PipelineState:
     validation_warnings: list[str] = (
         list(axis_config_warnings)
         + list(empty_warnings)
+        + list(dual_path_warnings)
         + list(identity_warnings)
         + list(anchor_constraint_warnings)
         + list(origin_warnings)
