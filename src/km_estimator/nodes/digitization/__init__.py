@@ -1,5 +1,7 @@
 """Curve digitization pipeline."""
 
+from bisect import bisect_right
+
 from km_estimator.models import PipelineState, ProcessingError, ProcessingStage
 from km_estimator.utils import cv_utils
 
@@ -32,7 +34,9 @@ def _validate_curves_not_empty(
     for name, pixels in raw_curves.items():
         if len(pixels) < min_points:
             empty_names.append(name)
-            warnings.append(f"Curve '{name}' has only {len(pixels)} pixels (minimum: {min_points})")
+            warnings.append(
+                f"Curve '{name}' has only {len(pixels)} pixels (minimum: {min_points})"
+            )
 
     return warnings, empty_names
 
@@ -64,10 +68,83 @@ def _validate_curve_shape(
         # Check survival is generally decreasing (KM curves shouldn't increase overall)
         if len(y_values) >= 2 and y_values[0] < y_values[-1] - 0.05:
             warnings.append(
-                f"Curve '{name}' survival increases from {y_values[0]:.3f} to {y_values[-1]:.3f} (invalid)"
+                f"Curve '{name}' survival increases from "
+                f"{y_values[0]:.3f} to {y_values[-1]:.3f} (invalid)"
             )
 
     return warnings
+
+
+def _anchor_lower_bound(
+    anchor_points: list[tuple[float, float]],
+    t: float,
+) -> float:
+    """Interpolate anchor lower bound at time t."""
+    if not anchor_points:
+        return 0.0
+
+    points = sorted(anchor_points, key=lambda p: p[0])
+    times = [p[0] for p in points]
+    values = [p[1] for p in points]
+
+    if t <= times[0]:
+        return values[0]
+    if t >= times[-1]:
+        return values[-1]
+
+    idx = bisect_right(times, t)
+    t0, s0 = times[idx - 1], values[idx - 1]
+    t1, s1 = times[idx], values[idx]
+    if t1 == t0:
+        return min(s0, s1)
+
+    ratio = (t - t0) / (t1 - t0)
+    return float(s0 + ratio * (s1 - s0))
+
+
+def _apply_anchor_constraints(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    tolerance: float = 0.01,
+) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
+    """
+    Enforce anchor lower bounds directly on digitized curves.
+
+    Curves are projected to satisfy:
+    - survival(t) >= interpolated_anchor(t) - tolerance
+    - survival is monotonically non-increasing over time
+    """
+    adjusted_curves: dict[str, list[tuple[float, float]]] = {}
+    warnings: list[str] = []
+
+    for curve_name, points in digitized_curves.items():
+        anchor_points = anchors.get(curve_name)
+        if not points or not anchor_points:
+            adjusted_curves[curve_name] = points
+            continue
+
+        adjusted: list[list[float]] = []
+        changed = 0
+        for t, s in points:
+            lower = _anchor_lower_bound(anchor_points, t) - tolerance
+            new_s = max(s, lower)
+            new_s = min(max(new_s, 0.0), 1.0)
+            if abs(new_s - s) > 1e-6:
+                changed += 1
+            adjusted.append([t, new_s])
+
+        # Enforce monotone non-increasing survival after anchor projection.
+        for i in range(len(adjusted) - 2, -1, -1):
+            if adjusted[i][1] < adjusted[i + 1][1]:
+                adjusted[i][1] = adjusted[i + 1][1]
+
+        adjusted_curves[curve_name] = [(float(t), float(s)) for t, s in adjusted]
+        if changed > 0:
+            warnings.append(
+                f"{curve_name}: anchor constraints adjusted {changed}/{len(points)} points"
+            )
+
+    return adjusted_curves, warnings
 
 
 def digitize(state: PipelineState) -> PipelineState:
@@ -77,9 +154,10 @@ def digitize(state: PipelineState) -> PipelineState:
     Steps:
     1. Axis calibration (pixel↔unit mapping)
     2. Curve isolation (k-medoids clustering)
-    3. Overlap resolution (clean traces)
+    3. Overlap resolution (graph-based clean traces)
     4. Censoring detection (+ marks)
-    5. Convert to real coordinates
+    5. Convert to real coordinates and enforce KM step shape
+    6. Apply risk-table anchor constraints (if available)
     """
     if state.plot_metadata is None:
         return state.model_copy(
@@ -148,16 +226,26 @@ def digitize(state: PipelineState) -> PipelineState:
         # Step 5b: Enforce proper step function format
         digitized[name] = enforce_step_function(real_coords)
 
-    # Step 6: Validate curve shapes (not flat, generally decreasing)
-    validation_warnings: list[str] = list(axis_config_warnings) + list(empty_warnings)
-    shape_warnings = _validate_curve_shape(digitized)
-    validation_warnings.extend(shape_warnings)
-
-    # Step 7: Validate against anchors from risk table (if available)
     curve_names = [c.name for c in state.plot_metadata.curves]
     anchors = calculate_anchors_from_risk_table(
         state.plot_metadata.risk_table, curve_names
     )
+    anchor_constraint_warnings: list[str] = []
+    if anchors:
+        digitized, anchor_constraint_warnings = _apply_anchor_constraints(digitized, anchors)
+        for curve_name, curve_points in digitized.items():
+            digitized[curve_name] = enforce_step_function(curve_points)
+
+    # Step 6: Validate curve shapes (not flat, generally decreasing)
+    validation_warnings: list[str] = (
+        list(axis_config_warnings)
+        + list(empty_warnings)
+        + list(anchor_constraint_warnings)
+    )
+    shape_warnings = _validate_curve_shape(digitized)
+    validation_warnings.extend(shape_warnings)
+
+    # Step 7: Validate against anchors from risk table (if available)
     if anchors:
         anchor_warnings = validate_against_anchors(digitized, anchors)
         validation_warnings.extend(anchor_warnings)
