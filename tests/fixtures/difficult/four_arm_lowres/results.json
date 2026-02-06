@@ -2,26 +2,233 @@
   "case_name": "four_arm_lowres",
   "difficulty": 4,
   "n_curves": 4,
-  "pipeline_errors": [
-    {
-      "stage": "input_guard",
-      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
-    }
-  ],
+  "pipeline_errors": [],
   "mmpu": {
-    "error": "no plot_metadata extracted"
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 4,
+    "n_curves_expected": 4,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
   },
   "digitize": {
-    "error": "no digitized_curves produced"
+    "Arm A": {
+      "mae": 0.01865221598250614,
+      "rmse": 0.021160751159172004,
+      "dtw": 0.0022439129869716583,
+      "frechet": 0.017485340125729776,
+      "max_error": 0.04343068707112052
+    },
+    "Arm B": {
+      "mae": 0.020059566673395778,
+      "rmse": 0.029713884467381102,
+      "dtw": 0.007223495848091891,
+      "frechet": 0.0595514269928758,
+      "max_error": 0.08875072497542902
+    },
+    "Arm C": {
+      "mae": 0.028132834313864562,
+      "rmse": 0.03410704962171923,
+      "dtw": 0.0032077344408185018,
+      "frechet": 0.03129970035611765,
+      "max_error": 0.07539962410265733
+    },
+    "Arm D": {
+      "mae": 0.026197326720919272,
+      "rmse": 0.030125610529173587,
+      "dtw": 0.002506168061848073,
+      "frechet": 0.018932245552082783,
+      "max_error": 0.08920218171304484
+    }
   },
   "hard_points": {
-    "error": "no pipeline output"
+    "Arm A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7507,
+          "actual": 0.7522,
+          "error": 0.0015,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.5818,
+          "actual": 0.5184,
+          "error": 0.0634,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.3644,
+          "actual": 0.2474,
+          "error": 0.117,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2549,
+          "actual": 0.0856,
+          "error": 0.1693,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm B": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7574,
+          "actual": 0.7331,
+          "error": 0.0243,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.5875,
+          "actual": 0.5374,
+          "error": 0.0501,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.3431,
+          "actual": 0.2287,
+          "error": 0.1144,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2255,
+          "actual": 0.0,
+          "error": 0.2255,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm C": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7935,
+          "actual": 0.7523,
+          "error": 0.0412,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6218,
+          "actual": 0.5256,
+          "error": 0.0962,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.3756,
+          "actual": 0.2459,
+          "error": 0.1297,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2403,
+          "actual": 0.0388,
+          "error": 0.2015,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm D": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7646,
+          "actual": 0.7513,
+          "error": 0.0133,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.5863,
+          "actual": 0.5397,
+          "error": 0.0466,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.3113,
+          "actual": 0.2266,
+          "error": 0.0847,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.1622,
+          "actual": 0.0,
+          "error": 0.1622,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
   },
   "reconstruction": {
-    "error": "no pipeline output"
+    "Arm A": {
+      "mae": 0.046201609192891124,
+      "rmse": 0.0729161686764583,
+      "dtw": 0.012665147088203238,
+      "frechet": 0.16931428061585083,
+      "max_error": 0.20686733961663892
+    },
+    "Arm B": {
+      "mae": 0.05666609779624298,
+      "rmse": 0.07173592752212055,
+      "dtw": 0.019788188264469226,
+      "frechet": 0.22545480678401197,
+      "max_error": 0.20786413466242612
+    },
+    "Arm C": {
+      "mae": 0.07671825995033647,
+      "rmse": 0.09248209006915725,
+      "dtw": 0.013573555779135299,
+      "frechet": 0.20152450556812834,
+      "max_error": 0.20152450556812834
+    },
+    "Arm D": {
+      "mae": 0.035099161655707166,
+      "rmse": 0.04538862469295591,
+      "dtw": 0.007862507923266841,
+      "frechet": 0.16215102041396406,
+      "max_error": 0.16215102041396406
+    }
   },
   "validation": {
-    "error": "no pipeline output"
+    "Arm A": {
+      "mae": 0.09791269684759152,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm B": {
+      "mae": 0.06449960592293026,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm C": {
+      "mae": 0.09706401337347405,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm D": {
+      "mae": 0.06923730758556414,
+      "dtw": null,
+      "rmse": null
+    }
   },
   "passed": false
 }

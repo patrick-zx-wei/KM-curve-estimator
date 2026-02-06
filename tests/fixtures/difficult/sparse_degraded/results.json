@@ -2,26 +2,143 @@
   "case_name": "sparse_degraded",
   "difficulty": 5,
   "n_curves": 2,
-  "pipeline_errors": [
-    {
-      "stage": "input_guard",
-      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
-    }
-  ],
+  "pipeline_errors": [],
   "mmpu": {
-    "error": "no plot_metadata extracted"
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
   },
   "digitize": {
-    "error": "no digitized_curves produced"
+    "Control": {
+      "mae": 0.10607487136883262,
+      "rmse": 0.14745565522102153,
+      "dtw": 0.13935522414576867,
+      "frechet": 0.2232911661595408,
+      "max_error": 0.3317152010783865
+    },
+    "Treatment": {
+      "mae": 0.06899871936107149,
+      "rmse": 0.08260675067449677,
+      "dtw": 0.12720497929296365,
+      "frechet": 0.24782370092646938,
+      "max_error": 0.15413321156757176
+    }
   },
   "hard_points": {
-    "error": "no pipeline output"
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7336,
+          "actual": 0.7431,
+          "error": 0.0095,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.4882,
+          "actual": 0.3851,
+          "error": 0.1031,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.2242,
+          "actual": 0.0167,
+          "error": 0.2075,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2242,
+          "actual": 0.0167,
+          "error": 0.2075,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.2242,
+          "actual": 0.0167,
+          "error": 0.2075,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.6741,
+          "actual": 0.7337,
+          "error": 0.0596,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.4612,
+          "actual": 0.4523,
+          "error": 0.0089,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.2504,
+          "actual": 0.083,
+          "error": 0.1674,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2504,
+          "actual": 0.0208,
+          "error": 0.2296,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.2504,
+          "actual": 0.0208,
+          "error": 0.2296,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
   },
   "reconstruction": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.04509959435440004,
+      "rmse": 0.0603985486219884,
+      "dtw": 0.025467695477601686,
+      "frechet": 0.20741382245736922,
+      "max_error": 0.14623583308205307
+    },
+    "Treatment": {
+      "mae": 0.05572870555795423,
+      "rmse": 0.06031493418634522,
+      "dtw": 0.027255621186057174,
+      "frechet": 0.22967033469079276,
+      "max_error": 0.09299282721817703
+    }
   },
   "validation": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.06603332394600521,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.03772565761662625,
+      "dtw": null,
+      "rmse": null
+    }
   },
   "passed": false
 }

@@ -2,8 +2,8 @@
   "total": 5,
   "passed": 0,
   "failed": 5,
-  "mean_mae": null,
-  "median_mae": null,
+  "mean_mae": 0.0452,
+  "median_mae": 0.0274,
   "worst_cases": [
     "low_res_overlap",
     "truncated_noisy",

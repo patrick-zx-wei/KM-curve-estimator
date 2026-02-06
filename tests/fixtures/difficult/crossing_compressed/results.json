@@ -2,26 +2,157 @@
   "case_name": "crossing_compressed",
   "difficulty": 4,
   "n_curves": 2,
-  "pipeline_errors": [
-    {
-      "stage": "input_guard",
-      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
-    }
-  ],
+  "pipeline_errors": [],
   "mmpu": {
-    "error": "no plot_metadata extracted"
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
   },
   "digitize": {
-    "error": "no digitized_curves produced"
+    "Control": {
+      "mae": 0.01756560474269737,
+      "rmse": 0.018711563131974463,
+      "dtw": 0.0016549568213176558,
+      "frechet": 0.009516256938937317,
+      "max_error": 0.03833634298030486
+    },
+    "Treatment": {
+      "mae": 0.12912647004321,
+      "rmse": 0.1405327620453825,
+      "dtw": 0.002255133777413589,
+      "frechet": 0.08433493017376112,
+      "max_error": 0.25845330361016594
+    }
   },
   "hard_points": {
-    "error": "no pipeline output"
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7788,
+          "actual": 0.7931,
+          "error": 0.0143,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.623,
+          "actual": 0.5951,
+          "error": 0.0279,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.4596,
+          "actual": 0.3977,
+          "error": 0.0619,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.362,
+          "actual": 0.2715,
+          "error": 0.0905,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.2803,
+          "actual": 0.1518,
+          "error": 0.1285,
+          "pass": false
+        },
+        {
+          "time": 60,
+          "expected": 0.2189,
+          "actual": 0.0537,
+          "error": 0.1652,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9876,
+          "actual": 0.8715,
+          "error": 0.1161,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.8961,
+          "actual": 0.7374,
+          "error": 0.1587,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.6102,
+          "actual": 0.4636,
+          "error": 0.1466,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2857,
+          "actual": 0.3689,
+          "error": 0.0832,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.1071,
+          "actual": 0.2027,
+          "error": 0.0956,
+          "pass": false
+        },
+        {
+          "time": 60,
+          "expected": 0.0803,
+          "actual": 0.0405,
+          "error": 0.0398,
+          "pass": true
+        }
+      ],
+      "all_pass": false
+    }
   },
   "reconstruction": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.044137554635730034,
+      "rmse": 0.055176242821581865,
+      "dtw": 0.00955193891223095,
+      "frechet": 0.165253656973828,
+      "max_error": 0.1351906514736095
+    },
+    "Treatment": {
+      "mae": 0.12092690421279871,
+      "rmse": 0.1302208182425723,
+      "dtw": 0.003202976001226373,
+      "frechet": 0.03980376019494132,
+      "max_error": 0.18162535850901618
+    }
   },
   "validation": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.08354020914709546,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.025695329904490662,
+      "dtw": null,
+      "rmse": null
+    }
   },
   "passed": false
 }
