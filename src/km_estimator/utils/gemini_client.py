@@ -62,6 +62,14 @@ def _read_image(path: str) -> tuple[bytes, str] | ProcessingError:
             recoverable=False,
             message=f"Permission denied: {path}",
         )
+    except Exception as e:
+        return ProcessingError(
+            stage=ProcessingStage.MMPU,
+            error_type="io_error",
+            recoverable=False,
+            message=f"Failed reading image: {e}",
+            details={"path": path, "error_type": type(e).__name__},
+        )
 
 
 def _invoke(
@@ -108,6 +116,14 @@ def _invoke(
             error_type=type(e).__name__,
             recoverable=getattr(e, "retryable", False),
             message=str(e),
+            details={"model": model, "path": path},
+        )
+    except Exception as e:
+        return ProcessingError(
+            stage=stage,
+            error_type=type(e).__name__,
+            recoverable=True,
+            message=f"Gemini invocation failed: {e}",
             details={"model": model, "path": path},
         )
 
@@ -180,6 +196,14 @@ async def _ainvoke(
             error_type=type(e).__name__,
             recoverable=getattr(e, "retryable", False),
             message=str(e),
+            details={"model": model, "path": path},
+        )
+    except Exception as e:
+        return ProcessingError(
+            stage=stage,
+            error_type=type(e).__name__,
+            recoverable=True,
+            message=f"Gemini invocation failed: {e}",
             details={"model": model, "path": path},
         )
 

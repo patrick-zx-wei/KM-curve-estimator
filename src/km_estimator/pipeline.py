@@ -120,7 +120,7 @@ def create_pipeline():
 
 def run_pipeline(image_path: str, config: PipelineConfig | None = None) -> PipelineState:
     initial = PipelineState(image_path=image_path, config=config or PipelineConfig())
-    result = create_pipeline().invoke(initial)
+    result = pipeline.invoke(initial)
     return result if isinstance(result, PipelineState) else PipelineState(**result)
 
 

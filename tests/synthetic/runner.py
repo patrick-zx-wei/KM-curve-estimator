@@ -51,7 +51,24 @@ def run_case(
     if not image_path.exists():
         return {"error": f"graph.png not found in {case_dir}"}
 
-    state = run_pipeline(str(image_path))
+    try:
+        state = run_pipeline(str(image_path))
+    except Exception as e:
+        return {
+            "case_name": case_name,
+            "difficulty": test_case.difficulty,
+            "n_curves": len(test_case.curves),
+            "pipeline_errors": [{
+                "stage": "runtime",
+                "message": f"Unhandled exception: {type(e).__name__}: {e}",
+            }],
+            "mmpu": {"error": "pipeline exception"},
+            "digitize": {"error": "pipeline exception"},
+            "hard_points": {"error": "pipeline exception"},
+            "reconstruction": {"error": "pipeline exception"},
+            "validation": {"error": "pipeline exception"},
+            "passed": False,
+        }
 
     results: dict = {
         "case_name": case_name,
