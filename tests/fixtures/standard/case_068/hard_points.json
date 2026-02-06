@@ -3,75 +3,75 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6124,
+        "survival": 0.5803,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.302,
+        "survival": 0.2723,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.113,
+        "survival": 0.0258,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 7.7,
+    "median_survival": 7.25,
     "quartiles": {
-      "25pct": 4.15,
-      "50pct": 7.7,
-      "75pct": 13.43
+      "25pct": 3.51,
+      "50pct": 7.25,
+      "75pct": 13.67
     }
   },
   "Treatment A": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6164,
+        "survival": 0.5222,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.309,
+        "survival": 0.3005,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.0526,
+        "survival": 0.0,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 7.59,
+    "median_survival": 6.55,
     "quartiles": {
-      "25pct": 3.97,
-      "50pct": 7.59,
-      "75pct": 13.62
+      "25pct": 2.85,
+      "50pct": 6.55,
+      "75pct": 14.36
     }
   },
   "Treatment B": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.5508,
+        "survival": 0.5018,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.3231,
+        "survival": 0.2126,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.0647,
+        "survival": 0.097,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 7.19,
+    "median_survival": 6.11,
     "quartiles": {
-      "25pct": 2.46,
-      "50pct": 7.19,
-      "75pct": 15.63
+      "25pct": 2.81,
+      "50pct": 6.11,
+      "75pct": 9.82
     }
   }
 }

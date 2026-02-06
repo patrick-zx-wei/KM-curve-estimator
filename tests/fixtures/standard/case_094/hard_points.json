@@ -3,39 +3,39 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7513,
+        "survival": 0.7293,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5898,
+        "survival": 0.5492,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3593,
+        "survival": 0.3343,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.2485,
+        "survival": 0.2455,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.1742,
+        "survival": 0.1739,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.1129,
+        "survival": 0.0696,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 15.95,
+    "median_survival": 14.98,
     "quartiles": {
-      "25pct": 6.14,
-      "50pct": 15.95,
+      "25pct": 5.35,
+      "50pct": 14.98,
       "75pct": 32.37
     }
   },
@@ -43,40 +43,40 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8793,
+        "survival": 0.9029,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6694,
+        "survival": 0.659,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.4497,
+        "survival": 0.436,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.3253,
+        "survival": 0.2949,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.1631,
+        "survival": 0.1707,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.0815,
+        "survival": 0.1195,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 21.42,
+    "median_survival": 22.37,
     "quartiles": {
-      "25pct": 9.99,
-      "50pct": 21.42,
-      "75pct": 40.81
+      "25pct": 8.64,
+      "50pct": 22.37,
+      "75pct": 39.04
     }
   }
 }

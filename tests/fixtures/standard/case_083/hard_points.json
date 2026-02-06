@@ -3,75 +3,75 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8714,
+        "survival": 0.8712,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5625,
+        "survival": 0.5377,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.1298,
+        "survival": 0.0673,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 13.16,
+    "median_survival": 12.68,
     "quartiles": {
-      "25pct": 8.62,
-      "50pct": 13.16,
-      "75pct": 18.94
+      "25pct": 8.02,
+      "50pct": 12.68,
+      "75pct": 17.59
     }
   },
   "Treatment A": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9353,
+        "survival": 0.8876,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5705,
+        "survival": 0.5976,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.0778,
+        "survival": 0.0692,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 13.02,
+    "median_survival": 13.57,
     "quartiles": {
-      "25pct": 9.28,
-      "50pct": 13.02,
-      "75pct": 17.8
+      "25pct": 9.56,
+      "50pct": 13.57,
+      "75pct": 17.78
     }
   },
   "Treatment B": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8691,
+        "survival": 0.8813,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5974,
+        "survival": 0.5234,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.1199,
+        "survival": 0.0459,
         "description": "2-year survival"
       }
     ],
-    "median_survival": 14.16,
+    "median_survival": 12.34,
     "quartiles": {
-      "25pct": 9.31,
-      "50pct": 14.16,
-      "75pct": 18.28
+      "25pct": 8.74,
+      "50pct": 12.34,
+      "75pct": 16.32
     }
   }
 }
