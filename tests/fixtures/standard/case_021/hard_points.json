@@ -23,20 +23,20 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.467,
+        "survival": 0.4698,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.1865,
+        "survival": 0.1896,
         "description": "1-year survival"
       }
     ],
-    "median_survival": 5.42,
+    "median_survival": 5.45,
     "quartiles": {
       "25pct": 2.3,
-      "50pct": 5.42,
-      "75pct": 9.87
+      "50pct": 5.45,
+      "75pct": 9.88
     }
   }
 }

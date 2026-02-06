@@ -62,7 +62,7 @@ class TierConfig:
 TIER_PRISTINE = TierConfig(
     name="pristine",
     count=50,
-    risk_table_prob=0.60,
+    risk_table_prob=0.70,
     annotations_prob=0.30,
     grid_lines_prob=0.30,
     truncated_y_prob=0.10,
@@ -80,7 +80,7 @@ TIER_PRISTINE = TierConfig(
 TIER_STANDARD = TierConfig(
     name="standard",
     count=35,
-    risk_table_prob=0.70,
+    risk_table_prob=0.75,
     annotations_prob=0.45,
     grid_lines_prob=0.50,
     truncated_y_prob=0.20,

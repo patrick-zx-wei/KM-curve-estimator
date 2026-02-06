@@ -33,12 +33,12 @@
       },
       {
         "time": 12,
-        "survival": 0.5242,
+        "survival": 0.524,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.122,
+        "survival": 0.1219,
         "description": "2-year survival"
       }
     ],

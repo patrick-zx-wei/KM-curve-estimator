@@ -15,31 +15,6 @@
         "time": 24,
         "survival": 0.7365,
         "description": "2-year survival"
-      },
-      {
-        "time": 36,
-        "survival": 0.58,
-        "description": "3-year survival"
-      },
-      {
-        "time": 48,
-        "survival": 0.58,
-        "description": "4-year survival"
-      },
-      {
-        "time": 60,
-        "survival": 0.58,
-        "description": "5-year survival"
-      },
-      {
-        "time": 96,
-        "survival": 0.58,
-        "description": "8-year survival"
-      },
-      {
-        "time": 120,
-        "survival": 0.58,
-        "description": "10-year survival"
       }
     ],
     "median_survival": null,
@@ -56,38 +31,8 @@
       },
       {
         "time": 12,
-        "survival": 0.899,
+        "survival": 0.8994,
         "description": "1-year survival"
-      },
-      {
-        "time": 24,
-        "survival": 0.8543,
-        "description": "2-year survival"
-      },
-      {
-        "time": 36,
-        "survival": 0.8543,
-        "description": "3-year survival"
-      },
-      {
-        "time": 48,
-        "survival": 0.8543,
-        "description": "4-year survival"
-      },
-      {
-        "time": 60,
-        "survival": 0.8543,
-        "description": "5-year survival"
-      },
-      {
-        "time": 96,
-        "survival": 0.8543,
-        "description": "8-year survival"
-      },
-      {
-        "time": 120,
-        "survival": 0.8543,
-        "description": "10-year survival"
       }
     ],
     "median_survival": null,

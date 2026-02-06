@@ -88,9 +88,11 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
     for curve in test_case.curves:
         patients = curve.patients
         step_coords = curve.step_coords
-        max_time = test_case.x_axis.end
 
-        # Standard clinical time points (only those within follow-up)
+        # The curve is only drawn up to the last event time
+        last_event_t = step_coords[-1][0] if len(step_coords) > 1 else 0.0
+
+        # Standard clinical time points (only those within the drawn curve)
         candidate_times = [6, 12, 24, 36, 48, 60, 96, 120]
         time_labels = {
             6: "6-month survival",
@@ -105,7 +107,7 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
 
         landmarks = []
         for t in candidate_times:
-            if t <= max_time:
+            if t <= last_event_t:
                 s = _get_survival_at_step(step_coords, float(t))
                 landmarks.append({
                     "time": t,

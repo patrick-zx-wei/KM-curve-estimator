@@ -35,11 +35,6 @@
         "time": 96,
         "survival": 0.1714,
         "description": "8-year survival"
-      },
-      {
-        "time": 120,
-        "survival": 0.1143,
-        "description": "10-year survival"
       }
     ],
     "median_survival": 50.25,
@@ -68,34 +63,29 @@
       },
       {
         "time": 36,
-        "survival": 0.5238,
+        "survival": 0.5348,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.3733,
+        "survival": 0.3811,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.3047,
+        "survival": 0.3111,
         "description": "5-year survival"
       },
       {
         "time": 96,
-        "survival": 0.1773,
+        "survival": 0.181,
         "description": "8-year survival"
-      },
-      {
-        "time": 120,
-        "survival": 0.0355,
-        "description": "10-year survival"
       }
     ],
-    "median_survival": 40.33,
+    "median_survival": 41.62,
     "quartiles": {
       "25pct": 20.47,
-      "50pct": 40.33,
+      "50pct": 41.62,
       "75pct": 74.5
     }
   },
@@ -108,38 +98,33 @@
       },
       {
         "time": 12,
-        "survival": 0.9227,
+        "survival": 0.9222,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.829,
+        "survival": 0.8275,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.6661,
+        "survival": 0.6789,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.5175,
+        "survival": 0.5157,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.4007,
+        "survival": 0.3994,
         "description": "5-year survival"
       },
       {
         "time": 96,
-        "survival": 0.263,
+        "survival": 0.2621,
         "description": "8-year survival"
-      },
-      {
-        "time": 120,
-        "survival": 0.1403,
-        "description": "10-year survival"
       }
     ],
     "median_survival": 49.63,

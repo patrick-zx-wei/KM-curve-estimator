@@ -14,6 +14,7 @@
   "dpi": 150,
   "modifiers": [
     "CensoringMarks",
+    "RiskTableDisplay",
     "GridLines",
     "Annotations"
   ],
