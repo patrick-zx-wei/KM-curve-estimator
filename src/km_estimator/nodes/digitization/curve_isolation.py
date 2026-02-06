@@ -36,15 +36,20 @@ MAX_END_GAP_RATIO = 0.15
 MIN_COLOR_SEPARATION = 0.15
 
 
-def _parse_color(curve: CurveInfo) -> tuple[float, float, float] | None:
-    """Extract RGB from color_description like 'solid blue' or 'dashed red'."""
-    if not curve.color_description:
+def parse_curve_color(color_description: str | None) -> tuple[float, float, float] | None:
+    """Extract RGB from color description like 'solid blue' or 'dashed red'."""
+    if not color_description:
         return None
-    desc = curve.color_description.lower()
+    desc = color_description.lower()
     for color_name, rgb in COLOR_MAP.items():
         if color_name in desc:
             return rgb
     return None
+
+
+def _parse_color(curve: CurveInfo) -> tuple[float, float, float] | None:
+    """Extract expected RGB for one curve."""
+    return parse_curve_color(curve.color_description)
 
 
 def _color_distance(c1: tuple[float, float, float], c2: tuple[float, float, float]) -> float:
