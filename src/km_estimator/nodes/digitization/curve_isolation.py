@@ -27,6 +27,13 @@ COLOR_MAP: dict[str, tuple[float, float, float]] = {
 
 MAX_KMEDOIDS_FIT_SAMPLES = 15_000
 LABEL_ASSIGNMENT_CHUNK_SIZE = 100_000
+POSITION_FEATURE_WEIGHT = 1.0
+COLOR_FEATURE_WEIGHT = 2.5
+
+MIN_COVERAGE_RATIO = 0.8
+MAX_START_OFFSET_RATIO = 0.15
+MAX_END_GAP_RATIO = 0.15
+MIN_COLOR_SEPARATION = 0.15
 
 
 def _parse_color(curve: CurveInfo) -> tuple[float, float, float] | None:
@@ -61,6 +68,77 @@ def _assign_to_nearest_medoids(
         labels[start:end] = np.argmin(d2, axis=1).astype(np.int32)
 
     return labels
+
+
+def _coverage_issue(
+    points: list[tuple[int, int]],
+    plot_x0: int,
+    plot_x1: int,
+) -> bool:
+    """Check if a curve misses substantial start/end coverage."""
+    if not points:
+        return True
+
+    xs = [p[0] for p in points]
+    min_x = min(xs)
+    max_x = max(xs)
+    x_range = max(1, plot_x1 - plot_x0)
+    coverage_ratio = (max_x - min_x) / x_range
+
+    starts_too_late = min_x > plot_x0 + int(x_range * MAX_START_OFFSET_RATIO)
+    ends_too_early = max_x < plot_x1 - int(x_range * MAX_END_GAP_RATIO)
+    return coverage_ratio < MIN_COVERAGE_RATIO or starts_too_late or ends_too_early
+
+
+def _all_curves_have_distinct_colors(
+    meta: PlotMetadata,
+) -> tuple[bool, list[tuple[str, tuple[float, float, float]]]]:
+    """Return whether all curves have parseable and sufficiently distinct colors."""
+    parsed: list[tuple[str, tuple[float, float, float]]] = []
+    for curve in meta.curves:
+        rgb = _parse_color(curve)
+        if rgb is None:
+            return False, []
+        parsed.append((curve.name, rgb))
+
+    for i in range(len(parsed)):
+        for j in range(i + 1, len(parsed)):
+            if _color_distance(parsed[i][1], parsed[j][1]) < MIN_COLOR_SEPARATION:
+                return False, []
+    return True, parsed
+
+
+def _assign_by_expected_color(
+    roi: NDArray,
+    xs: NDArray,
+    ys: NDArray,
+    named_colors: list[tuple[str, tuple[float, float, float]]],
+    x0: int,
+    y0: int,
+) -> dict[str, list[tuple[int, int]]]:
+    """
+    Assign pixels to curves by nearest expected RGB color.
+
+    This enforces identity priors from MMPU colors and is robust to overlaps/crossings.
+    """
+    pixel_rgb = np.column_stack([
+        roi[ys, xs, 2] / 255,  # R
+        roi[ys, xs, 1] / 255,  # G
+        roi[ys, xs, 0] / 255,  # B
+    ]).astype(np.float32)
+    expected_rgb = np.asarray([rgb for _, rgb in named_colors], dtype=np.float32)
+
+    d2 = np.sum((pixel_rgb[:, None, :] - expected_rgb[None, :, :]) ** 2, axis=2)
+    nearest = np.argmin(d2, axis=1).astype(np.int32)
+
+    curves: dict[str, list[tuple[int, int]]] = {}
+    for curve_idx, (curve_name, _) in enumerate(named_colors):
+        curve_mask = nearest == curve_idx
+        curve_xs = xs[curve_mask] + x0
+        curve_ys = ys[curve_mask] + y0
+        curves[curve_name] = list(zip(curve_xs.tolist(), curve_ys.tolist()))
+
+    return curves
 
 
 def isolate_curves(
@@ -119,13 +197,13 @@ def isolate_curves(
             details={"n_pixels": int(len(xs)), "n_curves": int(len(meta.curves))},
         )
 
-    # Build feature matrix: (x, y, R, G, B) normalized
+    # Build feature matrix: (x, y, R, G, B) with stronger color weighting.
     pixels = np.column_stack([
-        xs / roi.shape[1],
-        ys / roi.shape[0],
-        roi[ys, xs, 2] / 255,  # R (BGR order)
-        roi[ys, xs, 1] / 255,  # G
-        roi[ys, xs, 0] / 255,  # B
+        (xs / roi.shape[1]) * POSITION_FEATURE_WEIGHT,
+        (ys / roi.shape[0]) * POSITION_FEATURE_WEIGHT,
+        (roi[ys, xs, 2] / 255) * COLOR_FEATURE_WEIGHT,  # R (BGR order)
+        (roi[ys, xs, 1] / 255) * COLOR_FEATURE_WEIGHT,  # G
+        (roi[ys, xs, 0] / 255) * COLOR_FEATURE_WEIGHT,  # B
     ]).astype(np.float32)
 
     k = len(meta.curves)
@@ -250,5 +328,25 @@ def isolate_curves(
             cluster_xs = xs[cluster_mask] + x0
             cluster_ys = ys[cluster_mask] + y0
             curves[curve_info.name] = list(zip(cluster_xs.tolist(), cluster_ys.tolist()))
+
+    # Coverage enforcement: if clustering splits curves into partial time windows,
+    # fall back to color-prior assignment when MMPU colors are available.
+    expected_names = [curve.name for curve in meta.curves]
+    coverage_issues = [
+        curve_name
+        for curve_name in expected_names
+        if _coverage_issue(curves.get(curve_name, []), x0, x1)
+    ]
+
+    all_colors_ok, named_colors = _all_curves_have_distinct_colors(meta)
+    if coverage_issues and all_colors_ok:
+        color_guided = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
+        color_issues = [
+            curve_name
+            for curve_name in expected_names
+            if _coverage_issue(color_guided.get(curve_name, []), x0, x1)
+        ]
+        if len(color_issues) < len(coverage_issues):
+            curves = color_guided
 
     return curves
