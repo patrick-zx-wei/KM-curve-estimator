@@ -1,0 +1,293 @@
+{
+  "case_name": "case_100",
+  "difficulty": 4,
+  "n_curves": 5,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 2.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 5,
+    "n_curves_expected": 5,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Arm A": {
+      "mae": 0.028919882678094266,
+      "rmse": 0.03874005372814665,
+      "dtw": 0.005383990820453554,
+      "frechet": 0.07127793239112024,
+      "max_error": 0.11119262420194231
+    },
+    "Arm B": {
+      "mae": 0.021283160848743342,
+      "rmse": 0.02665971981104123,
+      "dtw": 0.0028718208997687562,
+      "frechet": 0.07025030476933458,
+      "max_error": 0.07077597220662979
+    },
+    "Arm C": {
+      "mae": 0.21646379533641857,
+      "rmse": 0.22806727210924582,
+      "dtw": 0.06433197448514491,
+      "frechet": 0.1262482552595216,
+      "max_error": 0.30813570041844685
+    },
+    "Arm D": {
+      "mae": 0.021167129550523526,
+      "rmse": 0.02528647649503877,
+      "dtw": 0.006966806691757417,
+      "frechet": 0.029317118650732166,
+      "max_error": 0.05558999106535345
+    },
+    "Arm E": {
+      "mae": 0.01913742943363679,
+      "rmse": 0.024357213094225127,
+      "dtw": 0.013438411024197421,
+      "frechet": 0.07793977336441468,
+      "max_error": 0.08209409623761746
+    }
+  },
+  "hard_points": {
+    "Arm A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8292,
+          "actual": 0.7106,
+          "error": 0.1186,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.631,
+          "actual": 0.6098,
+          "error": 0.0212,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.4499,
+          "actual": 0.3415,
+          "error": 0.1084,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2828,
+          "actual": 0.2809,
+          "error": 0.0019,
+          "pass": true
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm B": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8661,
+          "actual": 0.8618,
+          "error": 0.0043,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.7464,
+          "actual": 0.7056,
+          "error": 0.0408,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.5038,
+          "actual": 0.4698,
+          "error": 0.034,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.2952,
+          "actual": 0.243,
+          "error": 0.0522,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm C": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9122,
+          "actual": 0.7638,
+          "error": 0.1484,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.7617,
+          "actual": 0.4882,
+          "error": 0.2735,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.3903,
+          "actual": 0.1339,
+          "error": 0.2564,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2542,
+          "actual": 0.0157,
+          "error": 0.2385,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm D": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9121,
+          "actual": 0.8588,
+          "error": 0.0533,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.7415,
+          "actual": 0.7146,
+          "error": 0.0269,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.5446,
+          "actual": 0.404,
+          "error": 0.1406,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.3695,
+          "actual": 0.3315,
+          "error": 0.038,
+          "pass": true
+        },
+        {
+          "time": 48,
+          "expected": 0.1232,
+          "actual": 0.0947,
+          "error": 0.0285,
+          "pass": true
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm E": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7823,
+          "actual": 0.8041,
+          "error": 0.0218,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6021,
+          "actual": 0.6113,
+          "error": 0.0092,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.3612,
+          "actual": 0.3262,
+          "error": 0.035,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.2739,
+          "actual": 0.2061,
+          "error": 0.0678,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
+  },
+  "reconstruction": {
+    "Arm A": {
+      "mae": 0.05036063743936241,
+      "rmse": 0.059469874353723716,
+      "dtw": 0.0137084537154241,
+      "frechet": 0.07244719945625377,
+      "max_error": 0.12296879280197048
+    },
+    "Arm B": {
+      "mae": 0.025641778972491376,
+      "rmse": 0.03128637814686273,
+      "dtw": 0.004857288105089889,
+      "frechet": 0.021401255736061303,
+      "max_error": 0.06792870725285827
+    },
+    "Arm C": {
+      "mae": 0.18867438157371863,
+      "rmse": 0.201912145992188,
+      "dtw": 0.015992616778548824,
+      "frechet": 0.12709499531032603,
+      "max_error": 0.31982934115295686
+    },
+    "Arm D": {
+      "mae": 0.02745819784577923,
+      "rmse": 0.03771499508661887,
+      "dtw": 0.0068473214743633316,
+      "frechet": 0.02845640396448873,
+      "max_error": 0.10430963796169201
+    },
+    "Arm E": {
+      "mae": 0.022347545287976542,
+      "rmse": 0.025894201868498928,
+      "dtw": 0.00603868132460195,
+      "frechet": 0.08217347361843672,
+      "max_error": 0.06780233650742568
+    }
+  },
+  "validation": {
+    "Arm A": {
+      "mae": 0.05086920724784479,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm B": {
+      "mae": 0.04212914946238749,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm C": {
+      "mae": 0.01854027530413256,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm D": {
+      "mae": 0.05414452230272044,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm E": {
+      "mae": 0.04008303845737973,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "passed": false
+}

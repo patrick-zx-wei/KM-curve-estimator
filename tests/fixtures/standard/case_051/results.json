@@ -1,0 +1,109 @@
+{
+  "case_name": "case_051",
+  "difficulty": 4,
+  "n_curves": 2,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Control": {
+      "mae": 0.018271176848576008,
+      "rmse": 0.02530279787093871,
+      "dtw": 0.0038682502949059934,
+      "frechet": 0.03737820021550031,
+      "max_error": 0.08729407481143714
+    },
+    "Treatment": {
+      "mae": 0.023016837261846813,
+      "rmse": 0.03437190721384719,
+      "dtw": 0.1183508305644506,
+      "frechet": 0.2740539440830245,
+      "max_error": 0.0885993986284791
+    }
+  },
+  "hard_points": {
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9233,
+          "actual": 0.9221,
+          "error": 0.0012,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.8453,
+          "actual": 0.8136,
+          "error": 0.0317,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.7365,
+          "actual": 0.5356,
+          "error": 0.2009,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9673,
+          "actual": 0.9391,
+          "error": 0.0282,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.8994,
+          "actual": 0.8149,
+          "error": 0.0845,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
+  },
+  "reconstruction": {
+    "Control": {
+      "mae": 0.022557226982314174,
+      "rmse": 0.04490694106967999,
+      "dtw": 0.013663474781054653,
+      "frechet": 0.19660746516175887,
+      "max_error": 0.15968933631822724
+    },
+    "Treatment": {
+      "mae": 0.0514253593053679,
+      "rmse": 0.09224111099245139,
+      "dtw": 0.11576309375692675,
+      "frechet": 0.5173139472911981,
+      "max_error": 0.319780202935688
+    }
+  },
+  "validation": {
+    "Control": {
+      "mae": 0.12915917295663368,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.1465485751648299,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "passed": false
+}
