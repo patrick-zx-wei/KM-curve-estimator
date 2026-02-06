@@ -2,7 +2,7 @@
   "name": "four_arm_lowres",
   "seed": 45,
   "n_groups": 4,
-  "n_patients_per_arm": 80,
+  "n_patients_per_arm": 130,
   "groups": [
     "Arm A",
     "Arm B",
@@ -11,7 +11,7 @@
   ],
   "max_time": 36.0,
   "y_axis_start": 0.0,
-  "difficulty": 5,
+  "difficulty": 4,
   "dpi": 150,
   "modifiers": [
     "CensoringMarks",
@@ -21,6 +21,6 @@
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
-  "total_patients": 320,
-  "total_events": 208
+  "total_patients": 520,
+  "total_events": 320
 }

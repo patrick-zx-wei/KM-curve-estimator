@@ -242,20 +242,17 @@ def upscale_espcn(
         return resize_lanczos(image, scale_factor=float(scale_factor))
 
     try:
+        # Some OpenCV builds expose dnn_superres without the creator function.
+        if not hasattr(cv2.dnn_superres, "DnnSuperResImpl_create"):  # type: ignore[attr-defined]
+            return resize_lanczos(image, scale_factor=float(scale_factor))
+
         sr = cv2.dnn_superres.DnnSuperResImpl_create()  # type: ignore[attr-defined]
         sr.readModel(model_path)
         sr.setModel("espcn", scale_factor)
         return sr.upsample(image)
-    except cv2.error:
+    except Exception:
+        # Any ESPCN failure is recoverable; continue with deterministic fallback.
         return resize_lanczos(image, scale_factor=float(scale_factor))
-    except Exception as e:
-        return ProcessingError(
-            stage=ProcessingStage.PREPROCESS,
-            error_type="upscale_failed",
-            recoverable=True,
-            message=f"ESPCN failed: {e}",
-            details={"scale_factor": scale_factor, "error": str(e)},
-        )
 
 
 def resize_lanczos(

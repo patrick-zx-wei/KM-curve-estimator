@@ -9,7 +9,7 @@
   ],
   "max_time": 60.0,
   "y_axis_start": 0.0,
-  "difficulty": 5,
+  "difficulty": 4,
   "dpi": 150,
   "modifiers": [
     "CensoringMarks",
@@ -19,5 +19,5 @@
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
   "total_patients": 360,
-  "total_events": 233
+  "total_events": 215
 }

@@ -1,24 +1,26 @@
 {
-  "generated_at": "2026-02-05T18:07:53.240746",
+  "generated_at": "2026-02-06T00:52:35.054324",
   "n_cases": 100,
   "cases": [
     {
       "name": "case_001",
       "seed": 1100,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_001/"
     },
     {
       "name": "case_002",
       "seed": 1101,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "LowResolution",
+        "RiskTableDisplay",
         "JPEGArtifacts"
       ],
       "n_curves": 4,
@@ -27,25 +29,27 @@
     {
       "name": "case_003",
       "seed": 1102,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "GridLines",
         "RiskTableDisplay",
         "TruncatedYAxis",
-        "Annotations"
+        "GridLines",
+        "Annotations",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_003/"
     },
     {
       "name": "case_004",
       "seed": 1103,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "LowResolution"
+        "Annotations",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_004/"
@@ -53,11 +57,13 @@
     {
       "name": "case_005",
       "seed": 1104,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay",
-        "TruncatedYAxis"
+        "GridLines",
+        "Annotations",
+        "LowResolution",
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_005/"
@@ -65,36 +71,48 @@
     {
       "name": "case_006",
       "seed": 1105,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "LowResolution"
+      ],
+      "n_curves": 3,
       "dir": "case_006/"
     },
     {
       "name": "case_007",
       "seed": 1106,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_007/"
     },
     {
       "name": "case_008",
       "seed": 1107,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 3,
       "dir": "case_008/"
     },
     {
       "name": "case_009",
       "seed": 1108,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "TruncatedYAxis"
+        "RiskTableDisplay",
+        "GridLines",
+        "Annotations",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_009/"
@@ -102,9 +120,11 @@
     {
       "name": "case_010",
       "seed": 1109,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "TruncatedYAxis",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_010/"
@@ -112,48 +132,61 @@
     {
       "name": "case_011",
       "seed": 1110,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "GridLines"
+        "GridLines",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_011/"
     },
     {
       "name": "case_012",
       "seed": 1111,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution"
+      ],
+      "n_curves": 4,
       "dir": "case_012/"
     },
     {
       "name": "case_013",
       "seed": 1112,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_013/"
     },
     {
       "name": "case_014",
       "seed": 1113,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_014/"
     },
     {
       "name": "case_015",
       "seed": 1114,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "LowResolution"
       ],
       "n_curves": 2,
       "dir": "case_015/"
@@ -161,32 +194,35 @@
     {
       "name": "case_016",
       "seed": 1115,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "NoisyBackground"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_016/"
     },
     {
       "name": "case_017",
       "seed": 1116,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 4,
       "dir": "case_017/"
     },
     {
       "name": "case_018",
       "seed": 1117,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "TruncatedYAxis",
         "GridLines",
-        "LowResolution",
-        "JPEGArtifacts"
+        "LowResolution"
       ],
       "n_curves": 3,
       "dir": "case_018/"
@@ -194,10 +230,14 @@
     {
       "name": "case_019",
       "seed": 1118,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "Annotations",
+        "NoisyBackground",
+        "ThinLines"
       ],
       "n_curves": 2,
       "dir": "case_019/"
@@ -205,10 +245,11 @@
     {
       "name": "case_020",
       "seed": 1119,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "JPEGArtifacts",
+        "ThinLines"
       ],
       "n_curves": 3,
       "dir": "case_020/"
@@ -216,37 +257,48 @@
     {
       "name": "case_021",
       "seed": 1120,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 1,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "TruncatedYAxis",
+        "GridLines",
+        "LowResolution"
+      ],
+      "n_curves": 2,
       "dir": "case_021/"
     },
     {
       "name": "case_022",
       "seed": 1121,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "JPEGArtifacts"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_022/"
     },
     {
       "name": "case_023",
       "seed": 1122,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "NoisyBackground"
       ],
-      "n_curves": 3,
+      "n_curves": 4,
       "dir": "case_023/"
     },
     {
       "name": "case_024",
       "seed": 1123,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_024/"
@@ -254,84 +306,109 @@
     {
       "name": "case_025",
       "seed": 1124,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "JPEGArtifacts"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_025/"
     },
     {
       "name": "case_026",
       "seed": 1125,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_026/"
     },
     {
       "name": "case_027",
       "seed": 1126,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 1,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "GridLines",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 2,
       "dir": "case_027/"
     },
     {
       "name": "case_028",
       "seed": 1127,
-      "difficulty": 2,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 3,
       "dir": "case_028/"
     },
     {
       "name": "case_029",
       "seed": 1128,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution"
       ],
-      "n_curves": 3,
+      "n_curves": 4,
       "dir": "case_029/"
     },
     {
       "name": "case_030",
       "seed": 1129,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 3,
       "dir": "case_030/"
     },
     {
       "name": "case_031",
       "seed": 1130,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 1,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
+      ],
+      "n_curves": 2,
       "dir": "case_031/"
     },
     {
       "name": "case_032",
       "seed": 1131,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_032/"
     },
     {
       "name": "case_033",
       "seed": 1132,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "TruncatedYAxis",
+        "LowResolution"
       ],
       "n_curves": 2,
       "dir": "case_033/"
@@ -339,10 +416,14 @@
     {
       "name": "case_034",
       "seed": 1133,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "LowResolution",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
       "n_curves": 2,
       "dir": "case_034/"
@@ -350,84 +431,113 @@
     {
       "name": "case_035",
       "seed": 1134,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "GridLines",
+        "NoisyBackground"
+      ],
+      "n_curves": 3,
       "dir": "case_035/"
     },
     {
       "name": "case_036",
       "seed": 1135,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "GridLines",
+        "LowResolution"
+      ],
+      "n_curves": 3,
       "dir": "case_036/"
     },
     {
       "name": "case_037",
       "seed": 1136,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_037/"
     },
     {
       "name": "case_038",
       "seed": 1137,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 1,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "GridLines",
+        "LowResolution"
+      ],
+      "n_curves": 2,
       "dir": "case_038/"
     },
     {
       "name": "case_039",
       "seed": 1138,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "NoisyBackground"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_039/"
     },
     {
       "name": "case_040",
       "seed": 1139,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "GridLines",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_040/"
     },
     {
       "name": "case_041",
       "seed": 1140,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution",
+        "JPEGArtifacts"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_041/"
     },
     {
       "name": "case_042",
       "seed": 1141,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 1,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "TruncatedYAxis",
+        "GridLines",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 2,
       "dir": "case_042/"
     },
     {
       "name": "case_043",
       "seed": 1142,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "TruncatedYAxis"
+        "RiskTableDisplay",
+        "GridLines",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_043/"
@@ -435,22 +545,26 @@
     {
       "name": "case_044",
       "seed": 1143,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "GridLines",
+        "LowResolution",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_044/"
     },
     {
       "name": "case_045",
       "seed": 1144,
-      "difficulty": 3,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "JPEGArtifacts"
+        "LowResolution"
       ],
       "n_curves": 3,
       "dir": "case_045/"
@@ -458,9 +572,11 @@
     {
       "name": "case_046",
       "seed": 1145,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_046/"
@@ -468,9 +584,11 @@
     {
       "name": "case_047",
       "seed": 1146,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_047/"
@@ -478,10 +596,12 @@
     {
       "name": "case_048",
       "seed": 1147,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "Annotations"
+        "RiskTableDisplay",
+        "Annotations",
+        "LowResolution"
       ],
       "n_curves": 3,
       "dir": "case_048/"
@@ -489,56 +609,62 @@
     {
       "name": "case_049",
       "seed": 1148,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "LowResolution",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_049/"
     },
     {
       "name": "case_050",
       "seed": 1149,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "GridLines",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_050/"
     },
     {
       "name": "case_051",
       "seed": 1150,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_051/"
     },
     {
       "name": "case_052",
       "seed": 1151,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay",
-        "GridLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_052/"
     },
     {
       "name": "case_053",
       "seed": 1152,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
-        "LowResolution"
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_053/"
@@ -546,10 +672,12 @@
     {
       "name": "case_054",
       "seed": 1153,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution",
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_054/"
@@ -560,8 +688,6 @@
       "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "TruncatedYAxis",
-        "GridLines",
         "JPEGArtifacts"
       ],
       "n_curves": 3,
@@ -570,10 +696,11 @@
     {
       "name": "case_056",
       "seed": 1155,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "TruncatedYAxis",
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_056/"
@@ -581,31 +708,39 @@
     {
       "name": "case_057",
       "seed": 1156,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "GridLines",
+        "LowResolution",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_057/"
     },
     {
       "name": "case_058",
       "seed": 1157,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_058/"
     },
     {
       "name": "case_059",
       "seed": 1158,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_059/"
     },
     {
@@ -615,8 +750,7 @@
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "LowResolution",
-        "JPEGArtifacts"
+        "LowResolution"
       ],
       "n_curves": 4,
       "dir": "case_060/"
@@ -624,11 +758,11 @@
     {
       "name": "case_061",
       "seed": 1160,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "JPEGArtifacts",
-        "ThinLines"
+        "RiskTableDisplay",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_061/"
@@ -636,9 +770,11 @@
     {
       "name": "case_062",
       "seed": 1161,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "JPEGArtifacts"
       ],
       "n_curves": 3,
       "dir": "case_062/"
@@ -646,9 +782,13 @@
     {
       "name": "case_063",
       "seed": 1162,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution",
+        "ThinLines"
       ],
       "n_curves": 2,
       "dir": "case_063/"
@@ -656,32 +796,35 @@
     {
       "name": "case_064",
       "seed": 1163,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "JPEGArtifacts"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_064/"
     },
     {
       "name": "case_065",
       "seed": 1164,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_065/"
     },
     {
       "name": "case_066",
       "seed": 1165,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "GridLines",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution"
       ],
       "n_curves": 3,
       "dir": "case_066/"
@@ -689,22 +832,24 @@
     {
       "name": "case_067",
       "seed": 1166,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
-      "n_curves": 3,
+      "n_curves": 4,
       "dir": "case_067/"
     },
     {
       "name": "case_068",
       "seed": 1167,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "LowResolution"
+        "NoisyBackground"
       ],
       "n_curves": 3,
       "dir": "case_068/"
@@ -712,10 +857,12 @@
     {
       "name": "case_069",
       "seed": 1168,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution",
+        "JPEGArtifacts"
       ],
       "n_curves": 2,
       "dir": "case_069/"
@@ -723,73 +870,90 @@
     {
       "name": "case_070",
       "seed": 1169,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "JPEGArtifacts"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_070/"
     },
     {
       "name": "case_071",
       "seed": 1170,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "RiskTableDisplay"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "NoisyBackground"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_071/"
     },
     {
       "name": "case_072",
       "seed": 1171,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 3,
       "dir": "case_072/"
     },
     {
       "name": "case_073",
       "seed": 1172,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "GridLines",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_073/"
     },
     {
       "name": "case_074",
       "seed": 1173,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_074/"
     },
     {
       "name": "case_075",
       "seed": 1174,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "TruncatedYAxis"
+        "TruncatedYAxis",
+        "Annotations",
+        "LowResolution"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_075/"
     },
     {
       "name": "case_076",
       "seed": 1175,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "GridLines",
-        "NoisyBackground"
+        "JPEGArtifacts"
       ],
       "n_curves": 3,
       "dir": "case_076/"
@@ -797,78 +961,33 @@
     {
       "name": "case_077",
       "seed": 1176,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_077/"
     },
     {
       "name": "case_078",
       "seed": 1177,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "LowResolution",
+        "ThinLines"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_078/"
     },
     {
       "name": "case_079",
       "seed": 1178,
-      "difficulty": 1,
-      "modifiers": [
-        "RiskTableDisplay"
-      ],
-      "n_curves": 1,
-      "dir": "case_079/"
-    },
-    {
-      "name": "case_080",
-      "seed": 1179,
-      "difficulty": 1,
-      "modifiers": [
-        "CensoringMarks",
-        "RiskTableDisplay"
-      ],
-      "n_curves": 1,
-      "dir": "case_080/"
-    },
-    {
-      "name": "case_081",
-      "seed": 1180,
-      "difficulty": 1,
-      "modifiers": [
-        "RiskTableDisplay"
-      ],
-      "n_curves": 2,
-      "dir": "case_081/"
-    },
-    {
-      "name": "case_082",
-      "seed": 1181,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
-      "dir": "case_082/"
-    },
-    {
-      "name": "case_083",
-      "seed": 1182,
-      "difficulty": 1,
-      "modifiers": [
-        "RiskTableDisplay"
-      ],
-      "n_curves": 2,
-      "dir": "case_083/"
-    },
-    {
-      "name": "case_084",
-      "seed": 1183,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
@@ -876,25 +995,98 @@
         "LowResolution"
       ],
       "n_curves": 2,
+      "dir": "case_079/"
+    },
+    {
+      "name": "case_080",
+      "seed": 1179,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "TruncatedYAxis",
+        "GridLines",
+        "NoisyBackground"
+      ],
+      "n_curves": 2,
+      "dir": "case_080/"
+    },
+    {
+      "name": "case_081",
+      "seed": 1180,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "NoisyBackground"
+      ],
+      "n_curves": 3,
+      "dir": "case_081/"
+    },
+    {
+      "name": "case_082",
+      "seed": 1181,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "Annotations",
+        "NoisyBackground"
+      ],
+      "n_curves": 2,
+      "dir": "case_082/"
+    },
+    {
+      "name": "case_083",
+      "seed": 1182,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "Annotations",
+        "NoisyBackground"
+      ],
+      "n_curves": 3,
+      "dir": "case_083/"
+    },
+    {
+      "name": "case_084",
+      "seed": 1183,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "Annotations",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 2,
       "dir": "case_084/"
     },
     {
       "name": "case_085",
       "seed": 1184,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "NoisyBackground"
+      ],
+      "n_curves": 3,
       "dir": "case_085/"
     },
     {
       "name": "case_086",
       "seed": 1185,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "GridLines",
         "RiskTableDisplay",
-        "TruncatedYAxis"
+        "TruncatedYAxis",
+        "LowResolution"
       ],
       "n_curves": 3,
       "dir": "case_086/"
@@ -902,45 +1094,50 @@
     {
       "name": "case_087",
       "seed": 1186,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "GridLines",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_087/"
     },
     {
       "name": "case_088",
       "seed": 1187,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "TruncatedYAxis",
         "GridLines",
-        "LowResolution",
-        "JPEGArtifacts"
+        "LowResolution"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_088/"
     },
     {
       "name": "case_089",
       "seed": 1188,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "JPEGArtifacts"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_089/"
     },
     {
       "name": "case_090",
       "seed": 1189,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "Annotations"
+        "TruncatedYAxis",
+        "GridLines",
+        "NoisyBackground"
       ],
       "n_curves": 3,
       "dir": "case_090/"
@@ -948,20 +1145,24 @@
     {
       "name": "case_091",
       "seed": 1190,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "Annotations",
+        "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 3,
       "dir": "case_091/"
     },
     {
       "name": "case_092",
       "seed": 1191,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "TruncatedYAxis"
+        "RiskTableDisplay",
+        "GridLines",
+        "NoisyBackground"
       ],
       "n_curves": 2,
       "dir": "case_092/"
@@ -969,23 +1170,25 @@
     {
       "name": "case_093",
       "seed": 1192,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "NoisyBackground"
       ],
-      "n_curves": 2,
+      "n_curves": 4,
       "dir": "case_093/"
     },
     {
       "name": "case_094",
       "seed": 1193,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "GridLines",
+        "LowResolution"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_094/"
     },
     {
@@ -994,8 +1197,9 @@
       "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
-        "TruncatedYAxis",
-        "JPEGArtifacts"
+        "RiskTableDisplay",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
       "n_curves": 3,
       "dir": "case_095/"
@@ -1003,12 +1207,11 @@
     {
       "name": "case_096",
       "seed": 1195,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
-        "LowResolution",
-        "JPEGArtifacts"
+        "NoisyBackground"
       ],
       "n_curves": 4,
       "dir": "case_096/"
@@ -1016,27 +1219,37 @@
     {
       "name": "case_097",
       "seed": 1196,
-      "difficulty": 1,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "TruncatedYAxis",
+        "JPEGArtifacts",
+        "ThinLines"
       ],
-      "n_curves": 1,
+      "n_curves": 2,
       "dir": "case_097/"
     },
     {
       "name": "case_098",
       "seed": 1197,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "GridLines",
+        "JPEGArtifacts"
+      ],
+      "n_curves": 3,
       "dir": "case_098/"
     },
     {
       "name": "case_099",
       "seed": 1198,
-      "difficulty": 2,
+      "difficulty": 4,
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution",
+        "ThinLines"
       ],
       "n_curves": 2,
       "dir": "case_099/"
@@ -1044,9 +1257,13 @@
     {
       "name": "case_100",
       "seed": 1199,
-      "difficulty": 1,
-      "modifiers": [],
-      "n_curves": 2,
+      "difficulty": 4,
+      "modifiers": [
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "LowResolution"
+      ],
+      "n_curves": 4,
       "dir": "case_100/"
     }
   ]

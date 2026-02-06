@@ -31,6 +31,9 @@ OVERLAP_PENALTY = 3.0
 MIN_VERTICAL_SEPARATION_PX = 2
 SWAP_PENALTY = 1.2
 CROSSING_MARGIN_PX = 2
+COVERAGE_MISSING_STATE_PENALTY = 0.55
+IDENTITY_DRIFT_WEIGHT = 0.04
+LAB_DISTANCE_NORMALIZER = 180.0
 
 
 def enforce_step_function(
@@ -143,6 +146,16 @@ def _find_nearest_x(xs_sorted: list[int], target_x: int) -> int | None:
     return right
 
 
+def _rgb01_to_lab(rgb: tuple[float, float, float]) -> tuple[float, float, float]:
+    """Convert normalized RGB (0-1) to OpenCV LAB."""
+    r = int(np.clip(round(rgb[0] * 255), 0, 255))
+    g = int(np.clip(round(rgb[1] * 255), 0, 255))
+    b = int(np.clip(round(rgb[2] * 255), 0, 255))
+    pixel = np.array([[[b, g, r]]], dtype=np.uint8)
+    lab = cv2.cvtColor(pixel, cv2.COLOR_BGR2LAB)[0, 0].astype(np.float32)
+    return float(lab[0]), float(lab[1]), float(lab[2])
+
+
 def _build_color_prior_maps(
     image: NDArray[Any],
     radius: int = COLOR_PATCH_RADIUS,
@@ -151,14 +164,13 @@ def _build_color_prior_maps(
     Precompute local color and saturation maps for all pixels.
 
     Returns tuple of:
-    - local RGB map (float32, normalized, shape [H,W,3], RGB channel order)
+    - local LAB map (float32, shape [H,W,3], OpenCV LAB channel order)
     - local saturation confidence map (float32 in [0, 1], shape [H,W])
     """
     kernel = max(1, radius * 2 + 1)
 
-    bgr_f32 = image.astype(np.float32) / 255.0
-    local_bgr = cv2.blur(bgr_f32, (kernel, kernel))
-    local_rgb = local_bgr[:, :, ::-1].astype(np.float32, copy=False)
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)
+    local_lab = cv2.blur(lab, (kernel, kernel))
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     sat = hsv[:, :, 1].astype(np.float32)
@@ -167,7 +179,7 @@ def _build_color_prior_maps(
         np.float32, copy=False
     )
 
-    return local_rgb, sat_confidence
+    return local_lab, sat_confidence
 
 
 def _sample_color_prior(
@@ -176,12 +188,12 @@ def _sample_color_prior(
     y: int,
 ) -> tuple[tuple[float, float, float], float]:
     """Sample precomputed color and confidence maps at clamped image coordinates."""
-    rgb_map, sat_map = color_maps
-    h, w = rgb_map.shape[:2]
+    lab_map, sat_map = color_maps
+    h, w = lab_map.shape[:2]
     cx = int(np.clip(x, 0, w - 1))
     cy = int(np.clip(y, 0, h - 1))
-    rgb = rgb_map[cy, cx]
-    return (float(rgb[0]), float(rgb[1]), float(rgb[2])), float(sat_map[cy, cx])
+    lab = lab_map[cy, cx]
+    return (float(lab[0]), float(lab[1]), float(lab[2])), float(sat_map[cy, cx])
 
 
 def _state_overlap_penalty(y_values: tuple[int | None, ...]) -> float:
@@ -246,7 +258,7 @@ def _curve_candidates_for_x(
     sorted_keys: list[int],
     x: int,
     color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
-    expected_rgb: tuple[float, float, float] | None,
+    expected_lab: tuple[float, float, float] | None,
     max_fallback_gap_px: int,
 ) -> tuple[list[int | None], list[float]]:
     """Generate y-candidates and local costs for one curve at one x."""
@@ -267,13 +279,15 @@ def _curve_candidates_for_x(
         gap_ratio = nearest_gap / max(1, max_fallback_gap_px)
         nearest_ys = x_map[nearest_x]
         nearest_y = int(np.median(nearest_ys))
+        in_span = bool(sorted_keys) and sorted_keys[0] <= x <= sorted_keys[-1]
         candidates = [nearest_y, None]
         base_costs = [
             MISSING_COLUMN_PENALTY * (1.0 + gap_ratio),
-            MISSING_COLUMN_PENALTY * (1.3 + 0.4 * gap_ratio),
+            MISSING_COLUMN_PENALTY * (1.3 + 0.4 * gap_ratio)
+            + (COVERAGE_MISSING_STATE_PENALTY if in_span else 0.0),
         ]
 
-    if color_maps is None or expected_rgb is None:
+    if color_maps is None or expected_lab is None:
         return candidates, base_costs
 
     costs = []
@@ -281,13 +295,46 @@ def _curve_candidates_for_x(
         if candidate_y is None:
             costs.append(base)
             continue
-        rgb, sat_confidence = _sample_color_prior(color_maps, x, candidate_y)
-        color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, expected_rgb))))
+        lab, sat_confidence = _sample_color_prior(color_maps, x, candidate_y)
+        color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
+        color_dist /= LAB_DISTANCE_NORMALIZER
         color_weight = COLOR_PRIOR_WEIGHT * (
             MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
         )
         costs.append(base + color_dist * color_weight)
     return candidates, costs
+
+
+def _state_identity_penalty(
+    x: int,
+    ys: tuple[int | None, ...],
+    curve_names: list[str],
+    sorted_keys: dict[str, list[int]],
+    x_maps: dict[str, dict[int, list[int]]],
+) -> float:
+    """Coverage-aware identity penalty to reduce swaps/truncation in overlaps."""
+    penalty = 0.0
+    for idx, name in enumerate(curve_names):
+        y = ys[idx]
+        keys = sorted_keys[name]
+        if not keys:
+            continue
+        min_x = keys[0]
+        max_x = keys[-1]
+        in_span = min_x <= x <= max_x
+
+        if y is None:
+            if in_span:
+                penalty += COVERAGE_MISSING_STATE_PENALTY
+            continue
+
+        nearest_x = _find_nearest_x(keys, x)
+        if nearest_x is None:
+            continue
+        ref_y = int(np.median(x_maps[name][nearest_x]))
+        x_gap = abs(nearest_x - x)
+        penalty += IDENTITY_DRIFT_WEIGHT * (abs(y - ref_y) / max(1, x_gap + 1))
+    return penalty
 
 
 def _trace_curves_joint(
@@ -305,19 +352,27 @@ def _trace_curves_joint(
     x_maps, _ = _build_curve_x_maps(raw_curves)
     sorted_keys = {name: sorted(x_maps[name].keys()) for name in curve_names}
     color_maps = _build_color_prior_maps(image) if image is not None else None
+    expected_labs: dict[str, tuple[float, float, float] | None] = {
+        name: (
+            _rgb01_to_lab(curve_color_priors[name])
+            if curve_color_priors and curve_color_priors.get(name) is not None
+            else None
+        )
+        for name in curve_names
+    }
 
     states_by_x: list[list[tuple[tuple[int | None, ...], float]]] = []
     for x in x_values:
         curve_candidates: list[list[int | None]] = []
         curve_costs: list[list[float]] = []
         for name in curve_names:
-            expected_rgb = curve_color_priors.get(name) if curve_color_priors else None
+            expected_lab = expected_labs.get(name)
             candidates, costs = _curve_candidates_for_x(
                 x_maps[name],
                 sorted_keys[name],
                 x,
                 color_maps,
-                expected_rgb,
+                expected_lab,
                 max_fallback_gap_px,
             )
             curve_candidates.append(candidates)
@@ -329,6 +384,7 @@ def _trace_curves_joint(
             ys = tuple(curve_candidates[i][choice] for i, choice in enumerate(combo))
             cost = sum(curve_costs[i][choice] for i, choice in enumerate(combo))
             cost += _state_overlap_penalty(ys)
+            cost += _state_identity_penalty(x, ys, curve_names, sorted_keys, x_maps)
             states.append((ys, float(cost)))
 
         states.sort(key=lambda s: s[1])
