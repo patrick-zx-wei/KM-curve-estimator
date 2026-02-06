@@ -1,6 +1,9 @@
 """Curve digitization pipeline."""
 
 from bisect import bisect_right
+from itertools import permutations
+
+import numpy as np
 
 from km_estimator.models import PipelineState, ProcessingError, ProcessingStage
 from km_estimator.utils import cv_utils
@@ -22,6 +25,13 @@ from .curve_isolation import (
     parse_curve_color,
 )
 from .overlap_resolution import enforce_step_function, resolve_overlaps
+
+MAX_IDENTITY_PERMUTATION_CURVES = 7
+IDENTITY_REASSIGN_MIN_IMPROVEMENT = 0.35
+RESCUE_LOCAL_MARGIN = 0.15
+RESCUE_GLOBAL_MARGIN = 0.2
+CATASTROPHIC_CURVE_SCORE = 3.5
+CATASTROPHIC_IMPROVEMENT_MARGIN = 0.8
 
 
 def _validate_curves_not_empty(
@@ -238,9 +248,160 @@ def _curve_rescue_score(
     return score
 
 
+def _global_curve_set_score(
+    curves: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    y_max: float,
+) -> float:
+    """Aggregate multi-curve rescue score (lower is better)."""
+    return sum(
+        _curve_rescue_score(points, y_max=y_max, anchor_points=anchors.get(name))
+        for name, points in curves.items()
+    )
+
+
+def _sample_curve_rgb(
+    image: np.ndarray,
+    pixel_points: list[tuple[int, int]],
+    max_samples: int = 160,
+) -> tuple[float, float, float] | None:
+    """Sample representative RGB color from a traced pixel curve."""
+    if image.size == 0 or not pixel_points:
+        return None
+
+    h, w = image.shape[:2]
+    step = max(1, len(pixel_points) // max_samples)
+    samples: list[tuple[float, float, float]] = []
+    for px, py in pixel_points[::step]:
+        cx = min(max(int(px), 0), w - 1)
+        cy = min(max(int(py), 0), h - 1)
+        b, g, r = image[cy, cx]
+        samples.append((float(r) / 255.0, float(g) / 255.0, float(b) / 255.0))
+
+    if not samples:
+        return None
+
+    arr = np.asarray(samples, dtype=np.float32)
+    median_rgb = np.median(arr, axis=0)
+    return float(median_rgb[0]), float(median_rgb[1]), float(median_rgb[2])
+
+
+def _identity_pair_score(
+    curve_points: list[tuple[float, float]],
+    sampled_rgb: tuple[float, float, float] | None,
+    expected_rgb: tuple[float, float, float] | None,
+    anchor_points: list[tuple[float, float]] | None,
+    y_max: float,
+) -> float:
+    """Per-pair identity score combining color + anchors + continuity."""
+    score = _curve_rescue_score(
+        curve_points,
+        y_max=y_max,
+        anchor_points=anchor_points,
+    ) * 0.7
+    if expected_rgb is None:
+        return score
+    if sampled_rgb is None:
+        return score + 1.0
+
+    color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(sampled_rgb, expected_rgb))))
+    return score + color_dist * 2.8
+
+
+def _optimize_curve_identity_assignment(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    pixel_curves: dict[str, list[tuple[int, int]]],
+    image: np.ndarray,
+    curve_order: list[str],
+    expected_colors: dict[str, tuple[float, float, float] | None],
+    anchors: dict[str, list[tuple[float, float]]],
+    y_max: float,
+    min_improvement: float = IDENTITY_REASSIGN_MIN_IMPROVEMENT,
+) -> tuple[
+    dict[str, list[tuple[float, float]]],
+    dict[str, list[tuple[int, int]]],
+    list[str],
+]:
+    """
+    Globally optimize curve identity assignment over all curves via permutation search.
+
+    Uses color fit and anchor/continuity quality to avoid one-curve-collapse identity failures.
+    """
+    expected_names = [name for name in curve_order if name in digitized_curves]
+    track_names = [name for name in digitized_curves if name in expected_names]
+
+    if (
+        len(expected_names) < 2
+        or len(track_names) != len(expected_names)
+        or len(expected_names) > MAX_IDENTITY_PERMUTATION_CURVES
+    ):
+        return digitized_curves, pixel_curves, []
+
+    track_colors = {
+        name: _sample_curve_rgb(image, pixel_curves.get(name, []))
+        for name in track_names
+    }
+
+    baseline_assignment: dict[str, str] = {}
+    for expected in expected_names:
+        if expected in track_names:
+            baseline_assignment[expected] = expected
+    remaining = [name for name in track_names if name not in baseline_assignment.values()]
+    for expected in expected_names:
+        if expected not in baseline_assignment and remaining:
+            baseline_assignment[expected] = remaining.pop(0)
+
+    def assignment_score(assignment: dict[str, str]) -> float:
+        return sum(
+            _identity_pair_score(
+                digitized_curves.get(track_name, []),
+                track_colors.get(track_name),
+                expected_colors.get(expected_name),
+                anchors.get(expected_name),
+                y_max=y_max,
+            )
+            for expected_name, track_name in assignment.items()
+        )
+
+    baseline_score = assignment_score(baseline_assignment)
+    best_assignment = dict(baseline_assignment)
+    best_score = baseline_score
+
+    for perm in permutations(track_names, len(expected_names)):
+        assignment = dict(zip(expected_names, perm))
+        score = assignment_score(assignment)
+        if score < best_score:
+            best_score = score
+            best_assignment = assignment
+
+    if best_assignment == baseline_assignment or best_score + min_improvement >= baseline_score:
+        return digitized_curves, pixel_curves, []
+
+    remapped_digitized: dict[str, list[tuple[float, float]]] = {}
+    remapped_pixels: dict[str, list[tuple[int, int]]] = {}
+    for expected_name in expected_names:
+        source_name = best_assignment[expected_name]
+        remapped_digitized[expected_name] = digitized_curves.get(source_name, [])
+        remapped_pixels[expected_name] = pixel_curves.get(source_name, [])
+
+    for name, points in digitized_curves.items():
+        if name not in remapped_digitized:
+            remapped_digitized[name] = points
+    for name, points in pixel_curves.items():
+        if name not in remapped_pixels:
+            remapped_pixels[name] = points
+
+    warnings = [
+        "Applied global identity reassignment "
+        f"(score {baseline_score:.2f} -> {best_score:.2f})"
+    ]
+    return remapped_digitized, remapped_pixels, warnings
+
+
 def _identify_rescue_candidates(
     digitized: dict[str, list[tuple[float, float]]],
     anchors: dict[str, list[tuple[float, float]]],
+    y_min: float,
     y_max: float,
 ) -> set[str]:
     """Find per-curve rescue candidates based on collapse and anchor inconsistency."""
@@ -256,7 +417,9 @@ def _identify_rescue_candidates(
         if unique_y < 3 or tail_unique < 2:
             flagged.add(curve_name)
             continue
-        if ys[0] < (y_max - 0.12):
+        y_range = max(1e-6, y_max - y_min)
+        low_start_margin = max(0.02, y_range * 0.12)
+        if ys[0] < (y_max - low_start_margin):
             flagged.add(curve_name)
             continue
         if _anchor_violation_ratio(points, anchors.get(curve_name)) > 0.08:
@@ -269,6 +432,7 @@ def _postprocess_digitized_curves(
     anchors: dict[str, list[tuple[float, float]]],
     x_start: float,
     x_end: float,
+    y_start: float,
     y_max: float,
 ) -> tuple[dict[str, list[tuple[float, float]]], list[str], list[str]]:
     """
@@ -294,6 +458,40 @@ def _postprocess_digitized_curves(
     for curve_name, curve_points in curves.items():
         curves[curve_name] = enforce_step_function(curve_points)
 
+    # Tail stabilization and range completion:
+    # 1) If a curve ends early but still above baseline, extend horizontal tail to x_end.
+    # 2) If anchor exists at x_end, prevent implausible terminal collapse below anchor floor.
+    tail_warnings: list[str] = []
+    x_range = max(1e-6, x_end - x_start)
+    min_tail_extension_gap = x_range * 0.04
+    for curve_name, curve_points in list(curves.items()):
+        if not curve_points:
+            continue
+        ordered = sorted(curve_points, key=lambda p: p[0])
+        last_t, last_s = ordered[-1]
+        baseline_margin = max(0.01, (y_max - y_start) * 0.02)
+
+        if last_t < x_end - min_tail_extension_gap and last_s > (y_start + baseline_margin):
+            ordered.append((x_end, last_s))
+            tail_warnings.append(
+                f"{curve_name}: extended tail to x_end={x_end:.2f} at survival {last_s:.3f}"
+            )
+
+        anchor_points = anchors.get(curve_name)
+        if anchor_points:
+            floor = _anchor_lower_bound(anchor_points, x_end) - 0.02
+            floor = min(max(floor, y_start), y_max)
+            if ordered[-1][1] < floor:
+                ordered[-1] = (ordered[-1][0], floor)
+                if ordered[-1][0] < x_end:
+                    ordered.append((x_end, floor))
+                tail_warnings.append(
+                    f"{curve_name}: lifted terminal tail floor to anchor-compatible {floor:.3f}"
+                )
+
+        curves[curve_name] = enforce_step_function(ordered)
+
+    origin_warnings.extend(tail_warnings)
     return curves, anchor_constraint_warnings, origin_warnings
 
 
@@ -337,6 +535,14 @@ def digitize(state: PipelineState) -> PipelineState:
     # Step 1b: Validate axis configurations
     axis_config_warnings = validate_axis_config(state.plot_metadata.x_axis, "x_axis")
     axis_config_warnings.extend(validate_axis_config(state.plot_metadata.y_axis, "y_axis"))
+    curve_names = [c.name for c in state.plot_metadata.curves]
+    anchors = calculate_anchors_from_risk_table(
+        state.plot_metadata.risk_table, curve_names
+    )
+    expected_colors = {
+        curve.name: parse_curve_color(curve.color_description)
+        for curve in state.plot_metadata.curves
+    }
 
     # Step 2: Curve isolation
     raw_curves = isolate_curves(image, state.plot_metadata, mapping)
@@ -364,36 +570,40 @@ def digitize(state: PipelineState) -> PipelineState:
             )
 
     # Step 3: Clean up overlaps with joint tracing and color identity priors.
-    color_priors = {
-        curve.name: parse_curve_color(curve.color_description)
-        for curve in state.plot_metadata.curves
-    }
     clean_curves = resolve_overlaps(
         raw_curves,
         mapping,
         image=image,
-        curve_color_priors=color_priors,
+        curve_color_priors=expected_colors,
     )
 
-    # Step 4: Censoring detection
-    censoring = detect_censoring(image, clean_curves, mapping)
-
-    # Step 5: Convert to real coordinates
+    # Step 4: Convert to real coordinates
     digitized: dict[str, list[tuple[float, float]]] = {}
     for name, pixels in clean_curves.items():
         real_coords = [mapping.px_to_real(px, py) for px, py in pixels]
-        # Step 5b: Enforce proper step function format
+        # Step 4b: Enforce proper step function format
         digitized[name] = enforce_step_function(real_coords)
 
-    curve_names = [c.name for c in state.plot_metadata.curves]
-    anchors = calculate_anchors_from_risk_table(
-        state.plot_metadata.risk_table, curve_names
+    digitized, clean_curves, identity_warnings = _optimize_curve_identity_assignment(
+        digitized_curves=digitized,
+        pixel_curves=clean_curves,
+        image=image,
+        curve_order=curve_names,
+        expected_colors=expected_colors,
+        anchors=anchors,
+        y_max=state.plot_metadata.y_axis.end,
     )
+
+    # Step 5: Censoring detection
+    censoring = detect_censoring(image, clean_curves, mapping)
+
+    # Step 6: Postprocess curves with anchors + origin constraints
     digitized, anchor_constraint_warnings, origin_warnings = _postprocess_digitized_curves(
         digitized,
         anchors=anchors,
         x_start=state.plot_metadata.x_axis.start,
         x_end=state.plot_metadata.x_axis.end,
+        y_start=state.plot_metadata.y_axis.start,
         y_max=state.plot_metadata.y_axis.end,
     )
 
@@ -401,6 +611,7 @@ def digitize(state: PipelineState) -> PipelineState:
     rescue_candidates = _identify_rescue_candidates(
         digitized,
         anchors,
+        y_min=state.plot_metadata.y_axis.start,
         y_max=state.plot_metadata.y_axis.end,
     )
 
@@ -416,29 +627,37 @@ def digitize(state: PipelineState) -> PipelineState:
 
         if all_colors_ok and len(xs) >= len(state.plot_metadata.curves):
             color_raw = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
-            color_priors = {
-                curve.name: parse_curve_color(curve.color_description)
-                for curve in state.plot_metadata.curves
-            }
             color_clean = resolve_overlaps(
                 color_raw,
                 mapping,
                 image=image,
-                curve_color_priors=color_priors,
+                curve_color_priors=expected_colors,
             )
             color_digitized: dict[str, list[tuple[float, float]]] = {}
             for name, pixels in color_clean.items():
                 color_digitized[name] = enforce_step_function(
                     [mapping.px_to_real(px, py) for px, py in pixels]
                 )
+            color_digitized, _, _ = _optimize_curve_identity_assignment(
+                digitized_curves=color_digitized,
+                pixel_curves=color_clean,
+                image=image,
+                curve_order=curve_names,
+                expected_colors=expected_colors,
+                anchors=anchors,
+                y_max=state.plot_metadata.y_axis.end,
+            )
             color_digitized, _, _ = _postprocess_digitized_curves(
                 color_digitized,
                 anchors=anchors,
                 x_start=state.plot_metadata.x_axis.start,
                 x_end=state.plot_metadata.x_axis.end,
+                y_start=state.plot_metadata.y_axis.start,
                 y_max=state.plot_metadata.y_axis.end,
             )
 
+            proposed_digitized = dict(digitized)
+            proposed_swaps: list[tuple[str, float, float]] = []
             for curve_name in sorted(rescue_candidates):
                 base_points = digitized.get(curve_name, [])
                 alt_points = color_digitized.get(curve_name, [])
@@ -454,17 +673,57 @@ def digitize(state: PipelineState) -> PipelineState:
                     y_max=state.plot_metadata.y_axis.end,
                     anchor_points=anchors.get(curve_name),
                 )
-                if alt_score + 0.4 < base_score:
-                    digitized[curve_name] = alt_points
+                if alt_score + RESCUE_LOCAL_MARGIN < base_score:
+                    proposed_digitized[curve_name] = alt_points
+                    proposed_swaps.append((curve_name, base_score, alt_score))
+
+            if proposed_swaps:
+                base_global_score = _global_curve_set_score(
+                    digitized, anchors, y_max=state.plot_metadata.y_axis.end
+                )
+                proposed_global_score = _global_curve_set_score(
+                    proposed_digitized,
+                    anchors,
+                    y_max=state.plot_metadata.y_axis.end,
+                )
+                catastrophic_recovery = any(
+                    base_score >= CATASTROPHIC_CURVE_SCORE
+                    and (base_score - alt_score) >= CATASTROPHIC_IMPROVEMENT_MARGIN
+                    for _, base_score, alt_score in proposed_swaps
+                )
+                accept_by_global = proposed_global_score + RESCUE_GLOBAL_MARGIN < base_global_score
+                allow_catastrophic = catastrophic_recovery and (
+                    proposed_global_score <= base_global_score + 0.05
+                )
+
+                if accept_by_global or allow_catastrophic:
+                    digitized = proposed_digitized
+                    for curve_name, base_score, alt_score in proposed_swaps:
+                        rescue_warnings.append(
+                            f"{curve_name}: applied color-guided rescue "
+                            f"(score {base_score:.2f} -> {alt_score:.2f})"
+                        )
+                    if allow_catastrophic and not accept_by_global:
+                        rescue_warnings.append(
+                            "Rescue accepted for catastrophic curve recovery "
+                            f"(global {base_global_score:.2f} -> {proposed_global_score:.2f})"
+                        )
+                    else:
+                        rescue_warnings.append(
+                            "Rescue accepted by global score gate "
+                            f"({base_global_score:.2f} -> {proposed_global_score:.2f})"
+                        )
+                else:
                     rescue_warnings.append(
-                        f"{curve_name}: applied color-guided rescue "
-                        f"(score {base_score:.2f} -> {alt_score:.2f})"
+                        "Skipped rescue: global score did not improve enough "
+                        f"({base_global_score:.2f} -> {proposed_global_score:.2f})"
                     )
 
-    # Step 6: Validate curve shapes (not flat, generally decreasing)
+    # Step 7: Validate curve shapes (not flat, generally decreasing)
     validation_warnings: list[str] = (
         list(axis_config_warnings)
         + list(empty_warnings)
+        + list(identity_warnings)
         + list(anchor_constraint_warnings)
         + list(origin_warnings)
         + list(rescue_warnings)
@@ -472,12 +731,12 @@ def digitize(state: PipelineState) -> PipelineState:
     shape_warnings = _validate_curve_shape(digitized)
     validation_warnings.extend(shape_warnings)
 
-    # Step 7: Validate against anchors from risk table (if available)
+    # Step 8: Validate against anchors from risk table (if available)
     if anchors:
         anchor_warnings = validate_against_anchors(digitized, anchors)
         validation_warnings.extend(anchor_warnings)
 
-    # Step 8: Validate against axis bounds
+    # Step 9: Validate against axis bounds
     bounds_warnings = validate_axis_bounds(digitized, state.plot_metadata.y_axis)
     validation_warnings.extend(bounds_warnings)
 

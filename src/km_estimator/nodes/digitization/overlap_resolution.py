@@ -14,6 +14,11 @@ from .axis_calibration import AxisMapping
 
 MAX_CANDIDATES_PER_CURVE = 3
 MAX_STATES_PER_X = 128
+MAX_STATES_PER_X_HIGH_AMBIGUITY = 320
+MAX_CANDIDATES_PER_CURVE_AMBIGUOUS = 9
+MAX_CANDIDATES_PER_CURVE_MODERATE = 5
+MIN_DIVERSE_STATES_PER_SIGNATURE = 2
+MAX_DIVERSE_STATES_PER_SIGNATURE = 8
 
 MEDIAN_ATTRACTION_WEIGHT = 0.08
 MISSING_COLUMN_PENALTY = 0.45
@@ -29,11 +34,17 @@ ALLOWED_UPWARD_MOVE_PX = 2
 
 OVERLAP_PENALTY = 3.0
 MIN_VERTICAL_SEPARATION_PX = 2
-SWAP_PENALTY = 1.2
+SWAP_PENALTY = 0.35
 CROSSING_MARGIN_PX = 2
 COVERAGE_MISSING_STATE_PENALTY = 0.55
 IDENTITY_DRIFT_WEIGHT = 0.04
 LAB_DISTANCE_NORMALIZER = 180.0
+
+AMBIGUITY_UNIQUE_Y_THRESHOLD = 5
+AMBIGUITY_SPREAD_PX_THRESHOLD = 8.0
+AMBIGUITY_DENSITY_THRESHOLD = 8
+AMBIGUITY_MODERATE_THRESHOLD = 0.5
+AMBIGUITY_HIGH_THRESHOLD = 0.85
 
 
 def enforce_step_function(
@@ -104,18 +115,188 @@ def enforce_step_function(
 
 def _select_y_candidates(
     ys: list[int],
+    x: int,
+    color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
+    expected_lab: tuple[float, float, float] | None,
     max_candidates: int = MAX_CANDIDATES_PER_CURVE,
 ) -> list[int]:
     """Select representative y candidates for one x-column."""
     arr = np.asarray(ys, dtype=np.float32)
-    unique = np.unique(arr.astype(np.int32))
+    unique, counts = np.unique(arr.astype(np.int32), return_counts=True)
     if unique.size <= max_candidates:
         return unique.tolist()
 
-    quantiles = np.linspace(0.05, 0.95, max_candidates)
-    sampled = np.rint(np.quantile(arr, quantiles)).astype(np.int32)
-    candidates = np.unique(sampled)
-    return candidates.tolist()
+    median_y = float(np.median(arr))
+    spread = float(np.percentile(arr, 90) - np.percentile(arr, 10))
+    spread_scale = max(1.0, spread)
+
+    density_scores = counts.astype(np.float32)
+    if density_scores.max() > 0:
+        density_scores /= density_scores.max()
+
+    centrality_scores = 1.0 / (1.0 + (np.abs(unique - median_y) / spread_scale))
+
+    color_scores = np.ones_like(density_scores, dtype=np.float32)
+    if color_maps is not None and expected_lab is not None:
+        for idx, y_val in enumerate(unique):
+            lab, sat_confidence = _sample_color_prior(color_maps, x, int(y_val))
+            color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
+            color_norm = color_dist / LAB_DISTANCE_NORMALIZER
+            # Higher is better for ranking.
+            color_scores[idx] = 1.0 / (
+                1.0
+                + color_norm
+                * (MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence)
+            )
+
+    ranking = density_scores * 0.5 + color_scores * 0.35 + centrality_scores * 0.15
+    ranked_indices = np.argsort(-ranking)
+    selected: list[int] = []
+
+    # Preserve branch extremes before filling with ranked candidates.
+    for y_anchor in (int(unique[0]), int(unique[-1]), int(round(median_y))):
+        if y_anchor not in selected:
+            selected.append(y_anchor)
+            if len(selected) >= max_candidates:
+                return sorted(selected)
+
+    for idx in ranked_indices:
+        y_val = int(unique[idx])
+        if y_val in selected:
+            continue
+        selected.append(y_val)
+        if len(selected) >= max_candidates:
+            break
+
+    return sorted(selected)
+
+
+def _column_ambiguity(
+    ys: list[int],
+    x: int,
+    color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
+    expected_lab: tuple[float, float, float] | None,
+) -> float:
+    """Estimate ambiguity level for one x-column on one curve in [0, 1]."""
+    if not ys:
+        return 0.4
+
+    arr = np.asarray(ys, dtype=np.float32)
+    unique = np.unique(arr.astype(np.int32))
+    unique_count = int(unique.size)
+    spread = float(np.percentile(arr, 90) - np.percentile(arr, 10)) if arr.size > 1 else 0.0
+    density = int(arr.size)
+
+    score = 0.0
+    if unique_count >= AMBIGUITY_UNIQUE_Y_THRESHOLD:
+        score += min(0.45, (unique_count - AMBIGUITY_UNIQUE_Y_THRESHOLD + 1) * 0.08)
+    if spread >= AMBIGUITY_SPREAD_PX_THRESHOLD:
+        score += min(0.35, (spread - AMBIGUITY_SPREAD_PX_THRESHOLD + 1.0) * 0.03)
+    if density >= AMBIGUITY_DENSITY_THRESHOLD:
+        score += min(0.2, (density - AMBIGUITY_DENSITY_THRESHOLD + 1) * 0.02)
+
+    if color_maps is not None and expected_lab is not None and unique_count > 1:
+        dists = []
+        for y_val in unique[: min(unique_count, 16)]:
+            lab, sat_confidence = _sample_color_prior(color_maps, x, int(y_val))
+            color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
+            color_norm = color_dist / LAB_DISTANCE_NORMALIZER
+            weighted = color_norm * (
+                MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
+            )
+            dists.append(weighted)
+        if dists:
+            dists_arr = np.asarray(dists, dtype=np.float32)
+            # If color separation between nearby branches is weak, ambiguity is higher.
+            if dists_arr.size >= 2:
+                sorted_d = np.sort(dists_arr)
+                if float(sorted_d[1] - sorted_d[0]) < 0.04:
+                    score += 0.2
+
+    return float(np.clip(score, 0.0, 1.0))
+
+
+def _adaptive_candidate_limit(ambiguity: float) -> int:
+    """Scale per-curve candidate count by local ambiguity."""
+    if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
+        return MAX_CANDIDATES_PER_CURVE_AMBIGUOUS
+    if ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
+        return MAX_CANDIDATES_PER_CURVE_MODERATE
+    return MAX_CANDIDATES_PER_CURVE
+
+
+def _adaptive_state_beam(ambiguity: float, n_curves: int) -> int:
+    """Scale DP beam width by column ambiguity and number of curves."""
+    beam = MAX_STATES_PER_X
+    if n_curves >= 4:
+        beam += 16
+    if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
+        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 96)
+    elif ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
+        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 48)
+    return beam
+
+
+def _ordering_signature(ys: tuple[int | None, ...]) -> tuple[int, ...]:
+    """Encode pairwise vertical ordering to preserve identity-path diversity."""
+    signature: list[int] = []
+    n = len(ys)
+    for i in range(n):
+        for j in range(i + 1, n):
+            yi = ys[i]
+            yj = ys[j]
+            if yi is None or yj is None:
+                signature.append(0)
+            elif abs(yi - yj) <= CROSSING_MARGIN_PX:
+                signature.append(0)
+            elif yi < yj:
+                signature.append(-1)
+            else:
+                signature.append(1)
+    return tuple(signature)
+
+
+def _prune_states_with_identity_diversity(
+    states: list[tuple[tuple[int | None, ...], float]],
+    beam_size: int,
+) -> list[tuple[tuple[int | None, ...], float]]:
+    """Keep low-cost states while preserving ordering diversity for crossings."""
+    if len(states) <= beam_size:
+        return states
+
+    sorted_states = sorted(states, key=lambda s: s[1])
+    elite = max(8, beam_size // 4)
+    kept: list[tuple[tuple[int | None, ...], float]] = sorted_states[:elite]
+    kept_idx: set[int] = set(range(elite))
+
+    max_per_signature = int(
+        np.clip(beam_size // 12, MIN_DIVERSE_STATES_PER_SIGNATURE, MAX_DIVERSE_STATES_PER_SIGNATURE)
+    )
+    signature_counts: dict[tuple[int, ...], int] = {}
+    for state in kept:
+        sig = _ordering_signature(state[0])
+        signature_counts[sig] = signature_counts.get(sig, 0) + 1
+
+    for idx in range(elite, len(sorted_states)):
+        if len(kept) >= beam_size:
+            break
+        state = sorted_states[idx]
+        sig = _ordering_signature(state[0])
+        if signature_counts.get(sig, 0) >= max_per_signature:
+            continue
+        kept.append(state)
+        kept_idx.add(idx)
+        signature_counts[sig] = signature_counts.get(sig, 0) + 1
+
+    if len(kept) < beam_size:
+        for idx, state in enumerate(sorted_states):
+            if len(kept) >= beam_size:
+                break
+            if idx in kept_idx:
+                continue
+            kept.append(state)
+
+    return kept
 
 
 def _transition_cost(prev_y: int, curr_y: int, x_gap: int) -> float:
@@ -260,12 +441,20 @@ def _curve_candidates_for_x(
     color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
     expected_lab: tuple[float, float, float] | None,
     max_fallback_gap_px: int,
-) -> tuple[list[int | None], list[float]]:
+) -> tuple[list[int | None], list[float], float]:
     """Generate y-candidates and local costs for one curve at one x."""
     ys = x_map.get(x)
     if ys:
         median_y = float(np.median(ys))
-        candidates = _select_y_candidates(ys)
+        ambiguity = _column_ambiguity(ys, x, color_maps, expected_lab)
+        candidate_limit = _adaptive_candidate_limit(ambiguity)
+        candidates = _select_y_candidates(
+            ys,
+            x=x,
+            color_maps=color_maps,
+            expected_lab=expected_lab,
+            max_candidates=candidate_limit,
+        )
         base_costs = [
             abs(c - median_y) * MEDIAN_ATTRACTION_WEIGHT
             for c in candidates
@@ -274,7 +463,7 @@ def _curve_candidates_for_x(
         nearest_x = _find_nearest_x(sorted_keys, x)
         if nearest_x is None or abs(nearest_x - x) > max_fallback_gap_px:
             # No reliable nearby evidence for this x-column.
-            return [None], [MISSING_COLUMN_PENALTY * 2.0]
+            return [None], [MISSING_COLUMN_PENALTY * 2.0], 0.35
         nearest_gap = abs(nearest_x - x)
         gap_ratio = nearest_gap / max(1, max_fallback_gap_px)
         nearest_ys = x_map[nearest_x]
@@ -286,9 +475,10 @@ def _curve_candidates_for_x(
             MISSING_COLUMN_PENALTY * (1.3 + 0.4 * gap_ratio)
             + (COVERAGE_MISSING_STATE_PENALTY if in_span else 0.0),
         ]
+        ambiguity = 0.6 if in_span else 0.35
 
     if color_maps is None or expected_lab is None:
-        return candidates, base_costs
+        return candidates, base_costs, ambiguity
 
     costs = []
     for candidate_y, base in zip(candidates, base_costs):
@@ -302,7 +492,7 @@ def _curve_candidates_for_x(
             MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
         )
         costs.append(base + color_dist * color_weight)
-    return candidates, costs
+    return candidates, costs, ambiguity
 
 
 def _state_identity_penalty(
@@ -365,9 +555,10 @@ def _trace_curves_joint(
     for x in x_values:
         curve_candidates: list[list[int | None]] = []
         curve_costs: list[list[float]] = []
+        curve_ambiguities: list[float] = []
         for name in curve_names:
             expected_lab = expected_labs.get(name)
-            candidates, costs = _curve_candidates_for_x(
+            candidates, costs, ambiguity = _curve_candidates_for_x(
                 x_maps[name],
                 sorted_keys[name],
                 x,
@@ -377,6 +568,7 @@ def _trace_curves_joint(
             )
             curve_candidates.append(candidates)
             curve_costs.append(costs)
+            curve_ambiguities.append(ambiguity)
 
         combos = product(*(range(len(cands)) for cands in curve_candidates))
         states: list[tuple[tuple[int | None, ...], float]] = []
@@ -387,8 +579,9 @@ def _trace_curves_joint(
             cost += _state_identity_penalty(x, ys, curve_names, sorted_keys, x_maps)
             states.append((ys, float(cost)))
 
-        states.sort(key=lambda s: s[1])
-        states_by_x.append(states[:MAX_STATES_PER_X])
+        x_ambiguity = float(np.mean(curve_ambiguities)) if curve_ambiguities else 0.0
+        beam_size = _adaptive_state_beam(x_ambiguity, len(curve_names))
+        states_by_x.append(_prune_states_with_identity_diversity(states, beam_size))
 
     dp_costs: list[np.ndarray] = []
     parents: list[np.ndarray] = []
