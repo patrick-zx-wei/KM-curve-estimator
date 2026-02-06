@@ -113,6 +113,11 @@ def _cleanup_preprocessed_image(state: PipelineState | None) -> None:
     default=config.TARGET_RESOLUTION,
     help="Target image resolution",
 )
+@click.option(
+    "--full-validation-metrics/--mae-only-validation",
+    default=config.COMPUTE_FULL_VALIDATION_METRICS,
+    help="Compute DTW/RMSE/Frechet in validation (slower, more memory)",
+)
 @click.option("--single-model", is_flag=True, help="Use single model mode (Pro only)")
 @click.option("-v", "--verbose", is_flag=True, help="Verbose output")
 def main(
@@ -123,6 +128,7 @@ def main(
     max_retries: int,
     convergence_threshold: float,
     target_resolution: int,
+    full_validation_metrics: bool,
     single_model: bool,
     verbose: bool,
 ) -> None:
@@ -147,6 +153,7 @@ def main(
         max_validation_retries=max_retries,
         convergence_threshold=convergence_threshold,
         target_resolution=target_resolution,
+        compute_full_validation_metrics=full_validation_metrics,
         single_model_mode=single_model,
     )
 

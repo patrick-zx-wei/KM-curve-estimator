@@ -143,59 +143,45 @@ def _find_nearest_x(xs_sorted: list[int], target_x: int) -> int | None:
     return right
 
 
-def _sample_rgb_at(
+def _build_color_prior_maps(
     image: NDArray[Any],
-    x: int,
-    y: int,
-) -> tuple[float, float, float]:
-    """Sample normalized RGB from BGR image, clamped to bounds."""
-    h, w = image.shape[:2]
-    cx = int(np.clip(x, 0, w - 1))
-    cy = int(np.clip(y, 0, h - 1))
-    b, g, r = image[cy, cx]
-    return float(r) / 255.0, float(g) / 255.0, float(b) / 255.0
-
-
-def _local_color_stats(
-    image: NDArray[Any],
-    x: int,
-    y: int,
     radius: int = COLOR_PATCH_RADIUS,
-) -> tuple[tuple[float, float, float], float]:
+) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
     """
-    Sample robust local color and saturation confidence around (x, y).
+    Precompute local color and saturation maps for all pixels.
 
-    Returns:
-    - median RGB (normalized 0-1)
-    - saturation confidence in [0, 1]
+    Returns tuple of:
+    - local RGB map (float32, normalized, shape [H,W,3], RGB channel order)
+    - local saturation confidence map (float32 in [0, 1], shape [H,W])
     """
-    h, w = image.shape[:2]
-    cx = int(np.clip(x, 0, w - 1))
-    cy = int(np.clip(y, 0, h - 1))
-    x0 = max(0, cx - radius)
-    x1 = min(w, cx + radius + 1)
-    y0 = max(0, cy - radius)
-    y1 = min(h, cy + radius + 1)
+    kernel = max(1, radius * 2 + 1)
 
-    patch = image[y0:y1, x0:x1]
-    if patch.size == 0:
-        return _sample_rgb_at(image, x, y), 0.0
+    bgr_f32 = image.astype(np.float32) / 255.0
+    local_bgr = cv2.blur(bgr_f32, (kernel, kernel))
+    local_rgb = local_bgr[:, :, ::-1].astype(np.float32, copy=False)
 
-    flat = patch.reshape(-1, 3).astype(np.float32)
-    median_bgr = np.median(flat, axis=0)
-    rgb = (
-        float(median_bgr[2]) / 255.0,
-        float(median_bgr[1]) / 255.0,
-        float(median_bgr[0]) / 255.0,
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    sat = hsv[:, :, 1].astype(np.float32)
+    local_sat = cv2.blur(sat, (kernel, kernel))
+    sat_confidence = np.clip(local_sat / SATURATION_CONFIDENCE_SCALE, 0.0, 1.0).astype(
+        np.float32, copy=False
     )
 
-    hsv_patch = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
-    sat = hsv_patch[:, :, 1].astype(np.float32)
-    sat_median = float(np.median(sat))
-    sat_p90 = float(np.percentile(sat, 90))
-    sat_signal = 0.6 * sat_median + 0.4 * sat_p90
-    sat_confidence = float(np.clip(sat_signal / SATURATION_CONFIDENCE_SCALE, 0.0, 1.0))
-    return rgb, sat_confidence
+    return local_rgb, sat_confidence
+
+
+def _sample_color_prior(
+    color_maps: tuple[NDArray[np.float32], NDArray[np.float32]],
+    x: int,
+    y: int,
+) -> tuple[tuple[float, float, float], float]:
+    """Sample precomputed color and confidence maps at clamped image coordinates."""
+    rgb_map, sat_map = color_maps
+    h, w = rgb_map.shape[:2]
+    cx = int(np.clip(x, 0, w - 1))
+    cy = int(np.clip(y, 0, h - 1))
+    rgb = rgb_map[cy, cx]
+    return (float(rgb[0]), float(rgb[1]), float(rgb[2])), float(sat_map[cy, cx])
 
 
 def _state_overlap_penalty(y_values: tuple[int | None, ...]) -> float:
@@ -259,7 +245,7 @@ def _curve_candidates_for_x(
     x_map: dict[int, list[int]],
     sorted_keys: list[int],
     x: int,
-    image: NDArray[Any] | None,
+    color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
     expected_rgb: tuple[float, float, float] | None,
     max_fallback_gap_px: int,
 ) -> tuple[list[int | None], list[float]]:
@@ -287,7 +273,7 @@ def _curve_candidates_for_x(
             MISSING_COLUMN_PENALTY * (1.3 + 0.4 * gap_ratio),
         ]
 
-    if image is None or expected_rgb is None:
+    if color_maps is None or expected_rgb is None:
         return candidates, base_costs
 
     costs = []
@@ -295,7 +281,7 @@ def _curve_candidates_for_x(
         if candidate_y is None:
             costs.append(base)
             continue
-        rgb, sat_confidence = _local_color_stats(image, x, candidate_y)
+        rgb, sat_confidence = _sample_color_prior(color_maps, x, candidate_y)
         color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, expected_rgb))))
         color_weight = COLOR_PRIOR_WEIGHT * (
             MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
@@ -318,10 +304,11 @@ def _trace_curves_joint(
     curve_names = list(raw_curves.keys())
     x_maps, _ = _build_curve_x_maps(raw_curves)
     sorted_keys = {name: sorted(x_maps[name].keys()) for name in curve_names}
+    color_maps = _build_color_prior_maps(image) if image is not None else None
 
-    states_by_x: list[list[tuple[tuple[int, ...], float]]] = []
+    states_by_x: list[list[tuple[tuple[int | None, ...], float]]] = []
     for x in x_values:
-        curve_candidates: list[list[int]] = []
+        curve_candidates: list[list[int | None]] = []
         curve_costs: list[list[float]] = []
         for name in curve_names:
             expected_rgb = curve_color_priors.get(name) if curve_color_priors else None
@@ -329,7 +316,7 @@ def _trace_curves_joint(
                 x_maps[name],
                 sorted_keys[name],
                 x,
-                image,
+                color_maps,
                 expected_rgb,
                 max_fallback_gap_px,
             )
@@ -337,7 +324,7 @@ def _trace_curves_joint(
             curve_costs.append(costs)
 
         combos = product(*(range(len(cands)) for cands in curve_candidates))
-        states: list[tuple[tuple[int, ...], float]] = []
+        states: list[tuple[tuple[int | None, ...], float]] = []
         for combo in combos:
             ys = tuple(curve_candidates[i][choice] for i, choice in enumerate(combo))
             cost = sum(curve_costs[i][choice] for i, choice in enumerate(combo))

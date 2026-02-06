@@ -13,6 +13,7 @@ class PipelineConfig(BaseModel):
 
     convergence_threshold: float = config.CONVERGENCE_THRESHOLD
     validation_mae_threshold: float = config.VALIDATION_MAE_THRESHOLD
+    compute_full_validation_metrics: bool = config.COMPUTE_FULL_VALIDATION_METRICS
 
     target_resolution: int = config.TARGET_RESOLUTION
     min_resolution: int = config.MIN_RESOLUTION

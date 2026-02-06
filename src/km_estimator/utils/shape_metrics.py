@@ -1,7 +1,27 @@
 """Shape comparison metrics for KM curves."""
 
+from bisect import bisect_right
 import numpy as np
 from typing import Sequence
+
+
+def _build_lookup(curve: Sequence[tuple[float, float]]) -> tuple[list[float], list[float]]:
+    """Build sorted lookup arrays for step-function interpolation."""
+    ordered = sorted(curve, key=lambda p: p[0])
+    times = [float(t) for t, _ in ordered]
+    survivals = [float(s) for _, s in ordered]
+    return times, survivals
+
+
+def _survival_at(lookup: tuple[list[float], list[float]], t: float) -> float:
+    """Step-function lookup using bisect."""
+    times, survivals = lookup
+    if not times:
+        return 1.0
+    idx = bisect_right(times, t) - 1
+    if idx < 0:
+        return survivals[0]
+    return survivals[idx]
 
 
 def dtw_distance(
@@ -119,17 +139,8 @@ def area_between_curves(
     if len(all_times) < 2:
         return 0.0
 
-    # Interpolate both curves at all time points
-    def get_survival(curve: Sequence[tuple[float, float]], t: float) -> float:
-        """Step function interpolation."""
-        if t <= curve[0][0]:
-            return curve[0][1]
-        if t >= curve[-1][0]:
-            return curve[-1][1]
-        for i in range(len(curve) - 1, -1, -1):
-            if curve[i][0] <= t:
-                return curve[i][1]
-        return curve[0][1]
+    lookup1 = _build_lookup(curve1)
+    lookup2 = _build_lookup(curve2)
 
     # Calculate area using trapezoidal rule
     area = 0.0
@@ -137,10 +148,10 @@ def area_between_curves(
         t1, t2 = all_times[i], all_times[i + 1]
         dt = t2 - t1
 
-        s1_at_t1 = get_survival(curve1, t1)
-        s1_at_t2 = get_survival(curve1, t2)
-        s2_at_t1 = get_survival(curve2, t1)
-        s2_at_t2 = get_survival(curve2, t2)
+        s1_at_t1 = _survival_at(lookup1, t1)
+        s1_at_t2 = _survival_at(lookup1, t2)
+        s2_at_t1 = _survival_at(lookup2, t1)
+        s2_at_t2 = _survival_at(lookup2, t2)
 
         # Average absolute difference over interval
         diff1 = abs(s1_at_t1 - s2_at_t1)
@@ -169,20 +180,11 @@ def rmse(
     if not curve1 or not curve2:
         return float("inf")
 
-    # Use curve1's time points for comparison
-    def get_survival(curve: Sequence[tuple[float, float]], t: float) -> float:
-        if t <= curve[0][0]:
-            return curve[0][1]
-        if t >= curve[-1][0]:
-            return curve[-1][1]
-        for i in range(len(curve) - 1, -1, -1):
-            if curve[i][0] <= t:
-                return curve[i][1]
-        return curve[0][1]
+    lookup2 = _build_lookup(curve2)
 
     squared_errors = []
     for t, s1 in curve1:
-        s2 = get_survival(curve2, t)
+        s2 = _survival_at(lookup2, t)
         squared_errors.append((s1 - s2) ** 2)
 
     return float(np.sqrt(np.mean(squared_errors))) if squared_errors else 0.0
@@ -205,19 +207,11 @@ def max_error(
     if not curve1 or not curve2:
         return float("inf")
 
-    def get_survival(curve: Sequence[tuple[float, float]], t: float) -> float:
-        if t <= curve[0][0]:
-            return curve[0][1]
-        if t >= curve[-1][0]:
-            return curve[-1][1]
-        for i in range(len(curve) - 1, -1, -1):
-            if curve[i][0] <= t:
-                return curve[i][1]
-        return curve[0][1]
+    lookup2 = _build_lookup(curve2)
 
     errors = []
     for t, s1 in curve1:
-        s2 = get_survival(curve2, t)
+        s2 = _survival_at(lookup2, t)
         errors.append(abs(s1 - s2))
 
     return float(max(errors)) if errors else 0.0
