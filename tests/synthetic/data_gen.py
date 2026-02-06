@@ -55,6 +55,7 @@ class SyntheticTestCase:
     annotations: list[str]
     modifiers: list[Modifier]
     difficulty: int = 1
+    tier: str = "standard"
     image_path: str | None = None
     draft_image_path: str | None = None
 
@@ -264,6 +265,7 @@ def generate_test_case(
     modifiers: list[Modifier] | None = None,
     include_risk_table: bool = True,
     difficulty: int = 1,
+    tier: str = "standard",
 ) -> SyntheticTestCase:
     """Generate a complete synthetic test case.
 
@@ -382,4 +384,5 @@ def generate_test_case(
         annotations=annotations,
         modifiers=modifiers,
         difficulty=difficulty,
+        tier=tier,
     )

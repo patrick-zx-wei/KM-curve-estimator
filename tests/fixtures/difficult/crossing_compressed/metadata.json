@@ -10,11 +10,16 @@
   "max_time": 60.0,
   "y_axis_start": 0.0,
   "difficulty": 4,
+  "tier": "legacy",
   "dpi": 150,
   "modifiers": [
     "CensoringMarks",
+    "RiskTableDisplay",
+    "Annotations",
     "CompressedTimeAxis",
-    "GridLines"
+    "GridLines",
+    "LowResolution",
+    "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],

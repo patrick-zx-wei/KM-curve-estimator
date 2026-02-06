@@ -175,6 +175,7 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "max_time": test_case.x_axis.end,
         "y_axis_start": test_case.y_axis.start,
         "difficulty": test_case.difficulty,
+        "tier": test_case.tier,
         "dpi": 150,
         "modifiers": get_modifier_names(test_case.modifiers),
         "title": test_case.title,
@@ -348,6 +349,7 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
         annotations=metadata.get("annotations", []),
         modifiers=modifiers,
         difficulty=metadata.get("difficulty", 1),
+        tier=metadata.get("tier", "standard"),
         image_path=str(graph_path) if graph_path.exists() else None,
         draft_image_path=str(draft_path) if draft_path.exists() else None,
     )
@@ -366,6 +368,7 @@ def save_manifest(
                 "name": c.name,
                 "seed": c.seed,
                 "difficulty": c.difficulty,
+                "tier": c.tier,
                 "modifiers": get_modifier_names(c.modifiers),
                 "n_curves": len(c.curves),
                 "dir": f"{c.name}/",

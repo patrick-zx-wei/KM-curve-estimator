@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from bisect import bisect_left
 from itertools import product
+from math import prod
 from typing import Any
 
 import cv2
@@ -14,11 +15,12 @@ from .axis_calibration import AxisMapping
 
 MAX_CANDIDATES_PER_CURVE = 3
 MAX_STATES_PER_X = 128
-MAX_STATES_PER_X_HIGH_AMBIGUITY = 320
-MAX_CANDIDATES_PER_CURVE_AMBIGUOUS = 9
+MAX_STATES_PER_X_HIGH_AMBIGUITY = 224
+MAX_CANDIDATES_PER_CURVE_AMBIGUOUS = 7
 MAX_CANDIDATES_PER_CURVE_MODERATE = 5
 MIN_DIVERSE_STATES_PER_SIGNATURE = 2
 MAX_DIVERSE_STATES_PER_SIGNATURE = 8
+MAX_STATE_COMBINATIONS_PER_X = 1000
 
 MEDIAN_ATTRACTION_WEIGHT = 0.08
 MISSING_COLUMN_PENALTY = 0.45
@@ -45,6 +47,18 @@ AMBIGUITY_SPREAD_PX_THRESHOLD = 8.0
 AMBIGUITY_DENSITY_THRESHOLD = 8
 AMBIGUITY_MODERATE_THRESHOLD = 0.5
 AMBIGUITY_HIGH_THRESHOLD = 0.85
+
+
+def _column_stats(
+    ys: list[int],
+) -> tuple[NDArray[np.int32], NDArray[np.float32], float, float, int]:
+    """Compute reusable per-column stats once."""
+    arr = np.asarray(ys, dtype=np.int32)
+    unique, counts = np.unique(arr, return_counts=True)
+    median_y = float(np.median(arr)) if arr.size else 0.0
+    spread = float(unique[-1] - unique[0]) if unique.size > 1 else 0.0
+    density = int(arr.size)
+    return unique, counts.astype(np.float32), median_y, spread, density
 
 
 def enforce_step_function(
@@ -118,19 +132,20 @@ def _select_y_candidates(
     x: int,
     color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
     expected_lab: tuple[float, float, float] | None,
+    stats: tuple[NDArray[np.int32], NDArray[np.float32], float, float, int] | None = None,
     max_candidates: int = MAX_CANDIDATES_PER_CURVE,
 ) -> list[int]:
     """Select representative y candidates for one x-column."""
-    arr = np.asarray(ys, dtype=np.float32)
-    unique, counts = np.unique(arr.astype(np.int32), return_counts=True)
+    if stats is None:
+        unique, counts, median_y, spread, _ = _column_stats(ys)
+    else:
+        unique, counts, median_y, spread, _ = stats
     if unique.size <= max_candidates:
         return unique.tolist()
 
-    median_y = float(np.median(arr))
-    spread = float(np.percentile(arr, 90) - np.percentile(arr, 10))
     spread_scale = max(1.0, spread)
 
-    density_scores = counts.astype(np.float32)
+    density_scores = counts.copy()
     if density_scores.max() > 0:
         density_scores /= density_scores.max()
 
@@ -138,16 +153,12 @@ def _select_y_candidates(
 
     color_scores = np.ones_like(density_scores, dtype=np.float32)
     if color_maps is not None and expected_lab is not None:
-        for idx, y_val in enumerate(unique):
-            lab, sat_confidence = _sample_color_prior(color_maps, x, int(y_val))
-            color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
-            color_norm = color_dist / LAB_DISTANCE_NORMALIZER
-            # Higher is better for ranking.
-            color_scores[idx] = 1.0 / (
-                1.0
-                + color_norm
-                * (MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence)
-            )
+        labs, sat_conf = _sample_color_prior_many(color_maps, x, unique)
+        expected = np.asarray(expected_lab, dtype=np.float32)
+        color_dist = np.linalg.norm(labs - expected[None, :], axis=1) / LAB_DISTANCE_NORMALIZER
+        color_weight = MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_conf
+        # Higher is better for ranking.
+        color_scores = 1.0 / (1.0 + color_dist * color_weight)
 
     ranking = density_scores * 0.5 + color_scores * 0.35 + centrality_scores * 0.15
     ranked_indices = np.argsort(-ranking)
@@ -176,16 +187,17 @@ def _column_ambiguity(
     x: int,
     color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
     expected_lab: tuple[float, float, float] | None,
+    stats: tuple[NDArray[np.int32], NDArray[np.float32], float, float, int] | None = None,
 ) -> float:
     """Estimate ambiguity level for one x-column on one curve in [0, 1]."""
     if not ys:
         return 0.4
 
-    arr = np.asarray(ys, dtype=np.float32)
-    unique = np.unique(arr.astype(np.int32))
+    if stats is None:
+        unique, _, _, spread, density = _column_stats(ys)
+    else:
+        unique, _, _, spread, density = stats
     unique_count = int(unique.size)
-    spread = float(np.percentile(arr, 90) - np.percentile(arr, 10)) if arr.size > 1 else 0.0
-    density = int(arr.size)
 
     score = 0.0
     if unique_count >= AMBIGUITY_UNIQUE_Y_THRESHOLD:
@@ -196,28 +208,37 @@ def _column_ambiguity(
         score += min(0.2, (density - AMBIGUITY_DENSITY_THRESHOLD + 1) * 0.02)
 
     if color_maps is not None and expected_lab is not None and unique_count > 1:
-        dists = []
-        for y_val in unique[: min(unique_count, 16)]:
-            lab, sat_confidence = _sample_color_prior(color_maps, x, int(y_val))
-            color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
-            color_norm = color_dist / LAB_DISTANCE_NORMALIZER
-            weighted = color_norm * (
-                MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
-            )
-            dists.append(weighted)
-        if dists:
-            dists_arr = np.asarray(dists, dtype=np.float32)
+        y_probe = unique[: min(unique_count, 16)]
+        labs, sat_conf = _sample_color_prior_many(color_maps, x, y_probe)
+        expected = np.asarray(expected_lab, dtype=np.float32)
+        color_dist = np.linalg.norm(labs - expected[None, :], axis=1) / LAB_DISTANCE_NORMALIZER
+        weighted = color_dist * (
+            MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_conf
+        )
+        if weighted.size >= 2:
+            sorted_d = np.sort(weighted)
             # If color separation between nearby branches is weak, ambiguity is higher.
-            if dists_arr.size >= 2:
-                sorted_d = np.sort(dists_arr)
-                if float(sorted_d[1] - sorted_d[0]) < 0.04:
-                    score += 0.2
+            if float(sorted_d[1] - sorted_d[0]) < 0.04:
+                score += 0.2
 
     return float(np.clip(score, 0.0, 1.0))
 
 
-def _adaptive_candidate_limit(ambiguity: float) -> int:
+def _adaptive_candidate_limit(ambiguity: float, n_curves: int) -> int:
     """Scale per-curve candidate count by local ambiguity."""
+    if n_curves >= 4:
+        if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
+            return min(MAX_CANDIDATES_PER_CURVE_AMBIGUOUS, 5)
+        if ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
+            return min(MAX_CANDIDATES_PER_CURVE_MODERATE, 4)
+        return MAX_CANDIDATES_PER_CURVE
+    if n_curves == 3:
+        if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
+            return min(MAX_CANDIDATES_PER_CURVE_AMBIGUOUS, 7)
+        if ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
+            return min(MAX_CANDIDATES_PER_CURVE_MODERATE, 5)
+        return MAX_CANDIDATES_PER_CURVE
+
     if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
         return MAX_CANDIDATES_PER_CURVE_AMBIGUOUS
     if ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
@@ -231,10 +252,44 @@ def _adaptive_state_beam(ambiguity: float, n_curves: int) -> int:
     if n_curves >= 4:
         beam += 16
     if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
-        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 96)
+        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 64)
     elif ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
-        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 48)
+        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 32)
     return beam
+
+
+def _trim_joint_candidates_for_budget(
+    curve_candidates: list[list[int | None]],
+    curve_costs: list[list[float]],
+    max_combinations: int = MAX_STATE_COMBINATIONS_PER_X,
+) -> tuple[list[list[int | None]], list[list[float]]]:
+    """Bound cartesian state explosion by trimming worst local candidates."""
+    if not curve_candidates:
+        return curve_candidates, curve_costs
+
+    lengths = [len(c) for c in curve_candidates]
+    total = prod(lengths)
+    if total <= max_combinations:
+        return curve_candidates, curve_costs
+
+    while total > max_combinations:
+        reducible_idx = -1
+        reducible_len = -1
+        for idx, cands in enumerate(curve_candidates):
+            min_len = 2 if any(v is None for v in cands) else 3
+            if len(cands) > min_len and len(cands) > reducible_len:
+                reducible_len = len(cands)
+                reducible_idx = idx
+        if reducible_idx < 0:
+            break
+
+        costs = curve_costs[reducible_idx]
+        worst_idx = int(np.argmax(np.asarray(costs, dtype=np.float32)))
+        curve_candidates[reducible_idx].pop(worst_idx)
+        curve_costs[reducible_idx].pop(worst_idx)
+        total = prod(len(c) for c in curve_candidates)
+
+    return curve_candidates, curve_costs
 
 
 def _ordering_signature(ys: tuple[int | None, ...]) -> tuple[int, ...]:
@@ -377,6 +432,21 @@ def _sample_color_prior(
     return (float(lab[0]), float(lab[1]), float(lab[2])), float(sat_map[cy, cx])
 
 
+def _sample_color_prior_many(
+    color_maps: tuple[NDArray[np.float32], NDArray[np.float32]],
+    x: int,
+    ys: NDArray[np.int32],
+) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
+    """Vectorized color prior sampling for many y-values at one x."""
+    lab_map, sat_map = color_maps
+    h, w = lab_map.shape[:2]
+    cx = int(np.clip(x, 0, w - 1))
+    cy = np.clip(ys.astype(np.int32, copy=False), 0, h - 1)
+    labs = lab_map[cy, cx]
+    sat = sat_map[cy, cx]
+    return labs.astype(np.float32, copy=False), sat.astype(np.float32, copy=False)
+
+
 def _state_overlap_penalty(y_values: tuple[int | None, ...]) -> float:
     """Penalize curves collapsing to near-identical y at same x."""
     penalty = 0.0
@@ -441,18 +511,21 @@ def _curve_candidates_for_x(
     color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
     expected_lab: tuple[float, float, float] | None,
     max_fallback_gap_px: int,
+    n_curves: int,
 ) -> tuple[list[int | None], list[float], float]:
     """Generate y-candidates and local costs for one curve at one x."""
     ys = x_map.get(x)
     if ys:
-        median_y = float(np.median(ys))
-        ambiguity = _column_ambiguity(ys, x, color_maps, expected_lab)
-        candidate_limit = _adaptive_candidate_limit(ambiguity)
+        stats = _column_stats(ys)
+        _, _, median_y, _, _ = stats
+        ambiguity = _column_ambiguity(ys, x, color_maps, expected_lab, stats=stats)
+        candidate_limit = _adaptive_candidate_limit(ambiguity, n_curves=n_curves)
         candidates = _select_y_candidates(
             ys,
             x=x,
             color_maps=color_maps,
             expected_lab=expected_lab,
+            stats=stats,
             max_candidates=candidate_limit,
         )
         base_costs = [
@@ -495,36 +568,131 @@ def _curve_candidates_for_x(
     return candidates, costs, ambiguity
 
 
-def _state_identity_penalty(
+def _precompute_identity_refs(
     x: int,
-    ys: tuple[int | None, ...],
     curve_names: list[str],
     sorted_keys: dict[str, list[int]],
     x_maps: dict[str, dict[int, list[int]]],
-) -> float:
-    """Coverage-aware identity penalty to reduce swaps/truncation in overlaps."""
-    penalty = 0.0
-    for idx, name in enumerate(curve_names):
-        y = ys[idx]
+) -> list[tuple[bool, float | None, float]]:
+    """
+    Precompute identity references for one x-column.
+
+    Returns per-curve tuples:
+    - in_span: whether x is within observed curve span
+    - ref_y: nearest observed median y (or None)
+    - drift_weight: precomputed multiplier for |y - ref_y|
+    """
+    refs: list[tuple[bool, float | None, float]] = []
+    for name in curve_names:
         keys = sorted_keys[name]
         if not keys:
+            refs.append((False, None, 0.0))
             continue
         min_x = keys[0]
         max_x = keys[-1]
         in_span = min_x <= x <= max_x
 
+        nearest_x = _find_nearest_x(keys, x)
+        if nearest_x is None:
+            refs.append((in_span, None, 0.0))
+            continue
+
+        ref_y = float(np.median(x_maps[name][nearest_x]))
+        x_gap = abs(nearest_x - x)
+        drift_weight = IDENTITY_DRIFT_WEIGHT / max(1, x_gap + 1)
+        refs.append((in_span, ref_y, drift_weight))
+    return refs
+
+
+def _state_identity_penalty(
+    ys: tuple[int | None, ...],
+    refs: list[tuple[bool, float | None, float]],
+) -> float:
+    """Coverage-aware identity penalty to reduce swaps/truncation in overlaps."""
+    penalty = 0.0
+    for y, (in_span, ref_y, drift_weight) in zip(ys, refs):
         if y is None:
             if in_span:
                 penalty += COVERAGE_MISSING_STATE_PENALTY
             continue
-
-        nearest_x = _find_nearest_x(keys, x)
-        if nearest_x is None:
+        if ref_y is None:
             continue
-        ref_y = int(np.median(x_maps[name][nearest_x]))
-        x_gap = abs(nearest_x - x)
-        penalty += IDENTITY_DRIFT_WEIGHT * (abs(y - ref_y) / max(1, x_gap + 1))
+        penalty += abs(y - ref_y) * drift_weight
     return penalty
+
+
+def _states_to_dense_arrays(
+    states: list[tuple[tuple[int | None, ...], float]],
+    n_curves: int,
+) -> tuple[NDArray[np.float32], NDArray[np.bool_], NDArray[np.float32]]:
+    """Convert states to dense arrays for vectorized DP transitions."""
+    n_states = len(states)
+    ys = np.zeros((n_states, n_curves), dtype=np.float32)
+    missing = np.zeros((n_states, n_curves), dtype=np.bool_)
+    data_cost = np.zeros(n_states, dtype=np.float32)
+
+    for i, (state_y, cost) in enumerate(states):
+        data_cost[i] = float(cost)
+        for j, val in enumerate(state_y):
+            if val is None:
+                missing[i, j] = True
+            else:
+                ys[i, j] = float(val)
+
+    return ys, missing, data_cost
+
+
+def _transition_matrix_vectorized(
+    prev_y: NDArray[np.float32],
+    prev_missing: NDArray[np.bool_],
+    curr_y: NDArray[np.float32],
+    curr_missing: NDArray[np.bool_],
+    x_gap: int,
+) -> NDArray[np.float32]:
+    """
+    Compute transition costs between all prev/curr states in vectorized form.
+
+    Shapes:
+    - prev_y: [P, C]
+    - curr_y: [Q, C]
+    Returns:
+    - transition: [P, Q]
+    """
+    prev_exp = prev_y[:, None, :]  # [P,1,C]
+    curr_exp = curr_y[None, :, :]  # [1,Q,C]
+    prev_m = prev_missing[:, None, :]
+    curr_m = curr_missing[None, :, :]
+
+    both_missing = prev_m & curr_m
+    one_missing = prev_m ^ curr_m
+    valid = ~(both_missing | one_missing)
+
+    x_gap_safe = float(max(1, x_gap))
+    upward_move = np.maximum(0.0, prev_exp - curr_exp - float(ALLOWED_UPWARD_MOVE_PX))
+    smooth = np.abs(curr_exp - prev_exp) / x_gap_safe
+    base = upward_move * float(UPWARD_MOVE_PENALTY) + smooth * float(SMOOTHNESS_WEIGHT)
+    base = np.where(valid, base, 0.0).sum(axis=2, dtype=np.float32)
+
+    transition = base
+    transition += both_missing.sum(axis=2, dtype=np.float32) * float(MISSING_TRANSITION_PENALTY * 0.5)
+    transition += one_missing.sum(axis=2, dtype=np.float32) * float(MISSING_TRANSITION_PENALTY)
+
+    n_curves = prev_y.shape[1]
+    if n_curves >= 2:
+        for i in range(n_curves):
+            for j in range(i + 1, n_curves):
+                valid_pair = ~(prev_m[:, :, i] | prev_m[:, :, j] | curr_m[:, :, i] | curr_m[:, :, j])
+                prev_diff = prev_exp[:, :, i] - prev_exp[:, :, j]
+                curr_diff = curr_exp[:, :, i] - curr_exp[:, :, j]
+                swap_mask = (
+                    valid_pair
+                    & (np.abs(prev_diff) > float(CROSSING_MARGIN_PX))
+                    & (np.abs(curr_diff) > float(CROSSING_MARGIN_PX))
+                    & (np.sign(prev_diff) != np.sign(curr_diff))
+                )
+                transition += swap_mask.astype(np.float32) * float(SWAP_PENALTY)
+
+    return transition.astype(np.float32, copy=False)
 
 
 def _trace_curves_joint(
@@ -552,10 +720,14 @@ def _trace_curves_joint(
     }
 
     states_by_x: list[list[tuple[tuple[int | None, ...], float]]] = []
+    state_y_by_x: list[NDArray[np.float32]] = []
+    state_missing_by_x: list[NDArray[np.bool_]] = []
+    state_data_cost_by_x: list[NDArray[np.float32]] = []
     for x in x_values:
         curve_candidates: list[list[int | None]] = []
         curve_costs: list[list[float]] = []
         curve_ambiguities: list[float] = []
+        n_curves = len(curve_names)
         for name in curve_names:
             expected_lab = expected_labs.get(name)
             candidates, costs, ambiguity = _curve_candidates_for_x(
@@ -565,10 +737,16 @@ def _trace_curves_joint(
                 color_maps,
                 expected_lab,
                 max_fallback_gap_px,
+                n_curves=n_curves,
             )
             curve_candidates.append(candidates)
             curve_costs.append(costs)
             curve_ambiguities.append(ambiguity)
+
+        curve_candidates, curve_costs = _trim_joint_candidates_for_budget(
+            curve_candidates, curve_costs
+        )
+        refs = _precompute_identity_refs(x, curve_names, sorted_keys, x_maps)
 
         combos = product(*(range(len(cands)) for cands in curve_candidates))
         states: list[tuple[tuple[int | None, ...], float]] = []
@@ -576,51 +754,48 @@ def _trace_curves_joint(
             ys = tuple(curve_candidates[i][choice] for i, choice in enumerate(combo))
             cost = sum(curve_costs[i][choice] for i, choice in enumerate(combo))
             cost += _state_overlap_penalty(ys)
-            cost += _state_identity_penalty(x, ys, curve_names, sorted_keys, x_maps)
+            cost += _state_identity_penalty(ys, refs)
             states.append((ys, float(cost)))
 
         x_ambiguity = float(np.mean(curve_ambiguities)) if curve_ambiguities else 0.0
         beam_size = _adaptive_state_beam(x_ambiguity, len(curve_names))
-        states_by_x.append(_prune_states_with_identity_diversity(states, beam_size))
+        pruned_states = _prune_states_with_identity_diversity(states, beam_size)
+        states_by_x.append(pruned_states)
+        y_arr, missing_arr, data_cost_arr = _states_to_dense_arrays(pruned_states, n_curves)
+        state_y_by_x.append(y_arr)
+        state_missing_by_x.append(missing_arr)
+        state_data_cost_by_x.append(data_cost_arr)
 
     dp_costs: list[np.ndarray] = []
     parents: list[np.ndarray] = []
 
-    first_costs = np.asarray([cost for _, cost in states_by_x[0]], dtype=np.float32)
+    first_costs = state_data_cost_by_x[0]
     dp_costs.append(first_costs)
     parents.append(np.full(len(first_costs), -1, dtype=np.int32))
 
     for i in range(1, len(x_values)):
-        prev_states = states_by_x[i - 1]
-        curr_states = states_by_x[i]
         prev_cost = dp_costs[i - 1]
-        curr_cost = np.full(len(curr_states), np.inf, dtype=np.float32)
-        curr_parent = np.full(len(curr_states), -1, dtype=np.int32)
+        prev_y = state_y_by_x[i - 1]
+        prev_missing = state_missing_by_x[i - 1]
+        curr_y = state_y_by_x[i]
+        curr_missing = state_missing_by_x[i]
+        curr_data_cost = state_data_cost_by_x[i]
+        n_curr = curr_y.shape[0]
+        curr_cost = np.full(n_curr, np.inf, dtype=np.float32)
+        curr_parent = np.full(n_curr, -1, dtype=np.int32)
         x_gap = x_values[i] - x_values[i - 1]
 
-        for curr_idx, (curr_y, curr_data_cost) in enumerate(curr_states):
-            best_cost = np.inf
-            best_parent = -1
-            for prev_idx, (prev_y, _) in enumerate(prev_states):
-                transition = 0.0
-                for curve_idx in range(len(curve_names)):
-                    prev_val = prev_y[curve_idx]
-                    curr_val = curr_y[curve_idx]
-                    if prev_val is None and curr_val is None:
-                        transition += MISSING_TRANSITION_PENALTY * 0.5
-                        continue
-                    if prev_val is None or curr_val is None:
-                        transition += MISSING_TRANSITION_PENALTY
-                        continue
-                    transition += _transition_cost(prev_val, curr_val, x_gap)
-                transition += _swap_penalty(prev_y, curr_y)
-
-                total = prev_cost[prev_idx] + transition
-                if total < best_cost:
-                    best_cost = total
-                    best_parent = prev_idx
-            curr_cost[curr_idx] = best_cost + curr_data_cost
-            curr_parent[curr_idx] = best_parent
+        transition = _transition_matrix_vectorized(
+            prev_y=prev_y,
+            prev_missing=prev_missing,
+            curr_y=curr_y,
+            curr_missing=curr_missing,
+            x_gap=x_gap,
+        )
+        total = prev_cost[:, None] + transition + curr_data_cost[None, :]
+        best_parent = np.argmin(total, axis=0).astype(np.int32)
+        curr_cost = total[best_parent, np.arange(n_curr, dtype=np.int32)].astype(np.float32)
+        curr_parent = best_parent
 
         dp_costs.append(curr_cost)
         parents.append(curr_parent)
