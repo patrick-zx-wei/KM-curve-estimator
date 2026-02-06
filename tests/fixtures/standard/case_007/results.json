@@ -2,26 +2,223 @@
   "case_name": "case_007",
   "difficulty": 2,
   "n_curves": 3,
-  "pipeline_errors": [
-    {
-      "stage": "input_guard",
-      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error"
-    }
-  ],
+  "pipeline_errors": [],
   "mmpu": {
-    "error": "no plot_metadata extracted"
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 16.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 3,
+    "n_curves_expected": 3,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
   },
   "digitize": {
-    "error": "no digitized_curves produced"
+    "Control": {
+      "mae": 0.07212617329802602,
+      "rmse": 0.08716187870921092,
+      "dtw": 0.0062340348507989194,
+      "frechet": 0.04287245444801713,
+      "max_error": 0.17306275633233847
+    },
+    "Treatment A": {
+      "mae": 0.03155005828693706,
+      "rmse": 0.037263562228973035,
+      "dtw": 0.0073087687671307845,
+      "frechet": 0.047159699892818874,
+      "max_error": 0.08681672025723475
+    },
+    "Treatment B": {
+      "mae": 0.05431911366928221,
+      "rmse": 0.07394148244962256,
+      "dtw": 0.0032597680589090978,
+      "frechet": 0.03323775413526381,
+      "max_error": 0.23501639457703877
+    }
   },
   "hard_points": {
-    "error": "no pipeline output"
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9961,
+          "actual": 0.9885,
+          "error": 0.0076,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.9817,
+          "actual": 0.971,
+          "error": 0.0107,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.8785,
+          "actual": 0.7893,
+          "error": 0.0892,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.5956,
+          "actual": 0.4198,
+          "error": 0.1758,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.3964,
+          "actual": 0.238,
+          "error": 0.1584,
+          "pass": false
+        },
+        {
+          "time": 60,
+          "expected": 0.2642,
+          "actual": 0.0877,
+          "error": 0.1765,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.984,
+          "actual": 0.9789,
+          "error": 0.0051,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.9292,
+          "actual": 0.8878,
+          "error": 0.0414,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.7601,
+          "actual": 0.6137,
+          "error": 0.1464,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.5546,
+          "actual": 0.4248,
+          "error": 0.1298,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.273,
+          "actual": 0.1871,
+          "error": 0.0859,
+          "pass": false
+        },
+        {
+          "time": 60,
+          "expected": 0.2068,
+          "actual": 0.0249,
+          "error": 0.1819,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment B": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9776,
+          "actual": 0.9707,
+          "error": 0.0069,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.9102,
+          "actual": 0.8945,
+          "error": 0.0157,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.7585,
+          "actual": 0.8457,
+          "error": 0.0872,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.5873,
+          "actual": 0.5009,
+          "error": 0.0864,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.3618,
+          "actual": 0.2793,
+          "error": 0.0825,
+          "pass": false
+        },
+        {
+          "time": 60,
+          "expected": 0.3376,
+          "actual": 0.171,
+          "error": 0.1666,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
   },
   "reconstruction": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.13537694237595524,
+      "rmse": 0.15371927399815322,
+      "dtw": 0.005340993283919147,
+      "frechet": 0.02505784793628063,
+      "max_error": 0.25806195198590876
+    },
+    "Treatment A": {
+      "mae": 0.09010577967021133,
+      "rmse": 0.10618779146318277,
+      "dtw": 0.008553550163456165,
+      "frechet": 0.04106901250638731,
+      "max_error": 0.22356749800662296
+    },
+    "Treatment B": {
+      "mae": 0.06370494036829728,
+      "rmse": 0.08797612490093543,
+      "dtw": 0.006502155635305823,
+      "frechet": 0.03332949898445037,
+      "max_error": 0.253237187717446
+    }
   },
   "validation": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.054330800083152275,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment A": {
+      "mae": 0.0733535451662136,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment B": {
+      "mae": 0.03075878345223328,
+      "dtw": null,
+      "rmse": null
+    }
   },
   "passed": false
 }

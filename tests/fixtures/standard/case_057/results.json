@@ -1,0 +1,178 @@
+{
+  "case_name": "case_057",
+  "difficulty": 5,
+  "n_curves": 4,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 4,
+    "n_curves_expected": 4,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Arm A": {
+      "mae": 0.014104466770835159,
+      "rmse": 0.01490196225087115,
+      "dtw": 0.0008656956802582684,
+      "frechet": 0.019210245464247544,
+      "max_error": 0.02680391914464486
+    },
+    "Arm B": {
+      "mae": 0.08066968431537107,
+      "rmse": 0.08775023767683128,
+      "dtw": 0.0013745100589218685,
+      "frechet": 0.04338281520402887,
+      "max_error": 0.14227573385575776
+    },
+    "Arm C": {
+      "mae": 0.017571810413948525,
+      "rmse": 0.021726933374365116,
+      "dtw": 0.0015538124517554017,
+      "frechet": 0.03511975156636937,
+      "max_error": 0.079233859212688
+    },
+    "Arm D": {
+      "mae": 0.01700499851225184,
+      "rmse": 0.01919545000832612,
+      "dtw": 0.0018123063195191263,
+      "frechet": 0.023581039214491673,
+      "max_error": 0.03826297835085152
+    }
+  },
+  "hard_points": {
+    "Arm A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.4759,
+          "actual": 0.4725,
+          "error": 0.0034,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.2973,
+          "actual": 0.292,
+          "error": 0.0053,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    },
+    "Arm B": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.5904,
+          "actual": 0.4681,
+          "error": 0.1223,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.2245,
+          "actual": 0.2533,
+          "error": 0.0288,
+          "pass": true
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm C": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.537,
+          "actual": 0.4954,
+          "error": 0.0416,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.2774,
+          "actual": 0.2679,
+          "error": 0.0095,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    },
+    "Arm D": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.5781,
+          "actual": 0.5726,
+          "error": 0.0055,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.2883,
+          "actual": 0.2524,
+          "error": 0.0359,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    }
+  },
+  "reconstruction": {
+    "Arm A": {
+      "mae": 0.009544379006103677,
+      "rmse": 0.012836124163728611,
+      "dtw": 0.0011088338595285506,
+      "frechet": 0.005368699941108168,
+      "max_error": 0.033608704454267224
+    },
+    "Arm B": {
+      "mae": 0.08223898433221759,
+      "rmse": 0.09066999552757447,
+      "dtw": 0.0035930487019430503,
+      "frechet": 0.02878002699351534,
+      "max_error": 0.14038769404778528
+    },
+    "Arm C": {
+      "mae": 0.014626985109089208,
+      "rmse": 0.021313033278713134,
+      "dtw": 0.004255247757735718,
+      "frechet": 0.03682892077421207,
+      "max_error": 0.07099790237668474
+    },
+    "Arm D": {
+      "mae": 0.008335920654622828,
+      "rmse": 0.01260083836213898,
+      "dtw": 0.0023527788982108822,
+      "frechet": 0.03588777673309851,
+      "max_error": 0.049435785174162694
+    }
+  },
+  "validation": {
+    "Arm A": {
+      "mae": 0.017511547540313328,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm B": {
+      "mae": 0.011652694115712719,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm C": {
+      "mae": 0.021935989030811644,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm D": {
+      "mae": 0.019997220178558452,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "passed": false
+}

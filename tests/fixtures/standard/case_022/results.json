@@ -1,0 +1,144 @@
+{
+  "case_name": "case_022",
+  "difficulty": 1,
+  "n_curves": 2,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 2.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Control": {
+      "mae": 0.016994434813827577,
+      "rmse": 0.018336880803917762,
+      "dtw": 0.002028463438778684,
+      "frechet": 0.010695187165775444,
+      "max_error": 0.051067268009252154
+    },
+    "Treatment": {
+      "mae": 0.03344700335817862,
+      "rmse": 0.051121216767628125,
+      "dtw": 0.0028667276693958043,
+      "frechet": 0.18299814191323993,
+      "max_error": 0.18299814191323993
+    }
+  },
+  "hard_points": {
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7197,
+          "actual": 0.686,
+          "error": 0.0337,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6031,
+          "actual": 0.5957,
+          "error": 0.0074,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.3795,
+          "actual": 0.3408,
+          "error": 0.0387,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.3072,
+          "actual": 0.284,
+          "error": 0.0232,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7552,
+          "actual": 0.6982,
+          "error": 0.057,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.5988,
+          "actual": 0.5796,
+          "error": 0.0192,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.411,
+          "actual": 0.3757,
+          "error": 0.0353,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.1854,
+          "actual": 0.2555,
+          "error": 0.0701,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.1569,
+          "actual": 0.1981,
+          "error": 0.0412,
+          "pass": true
+        },
+        {
+          "time": 60,
+          "expected": 0.1046,
+          "actual": 0.1981,
+          "error": 0.0935,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
+  },
+  "reconstruction": {
+    "Control": {
+      "mae": 0.02091794733091232,
+      "rmse": 0.023744129632837008,
+      "dtw": 0.0023065557083275542,
+      "frechet": 0.0390890938965725,
+      "max_error": 0.06292127991109525
+    },
+    "Treatment": {
+      "mae": 0.0411926041963799,
+      "rmse": 0.04969425170582092,
+      "dtw": 0.004891152380471756,
+      "frechet": 0.14583854858877796,
+      "max_error": 0.14583854858877796
+    }
+  },
+  "validation": {
+    "Control": {
+      "mae": 0.04221692210873631,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.03735458490952287,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "passed": false
+}

@@ -1,0 +1,41 @@
+{
+  "total": 100,
+  "passed": 16,
+  "failed": 84,
+  "mean_mae": 0.0555,
+  "median_mae": 0.0297,
+  "worst_cases": [
+    "case_001",
+    "case_002",
+    "case_003",
+    "case_004",
+    "case_005",
+    "case_006",
+    "case_007",
+    "case_008",
+    "case_009",
+    "case_010"
+  ],
+  "by_difficulty": {
+    "1": {
+      "n": 19,
+      "pass": 4
+    },
+    "2": {
+      "n": 47,
+      "pass": 11
+    },
+    "3": {
+      "n": 6,
+      "pass": 0
+    },
+    "4": {
+      "n": 24,
+      "pass": 1
+    },
+    "5": {
+      "n": 4,
+      "pass": 0
+    }
+  }
+}

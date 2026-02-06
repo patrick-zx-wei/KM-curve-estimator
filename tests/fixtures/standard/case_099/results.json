@@ -1,0 +1,95 @@
+{
+  "case_name": "case_099",
+  "difficulty": 4,
+  "n_curves": 2,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Control": {
+      "mae": 0.20455679903984633,
+      "rmse": 0.22717528661317823,
+      "dtw": 0.09469422114414473,
+      "frechet": 0.2724599351734779,
+      "max_error": 0.3319791007685419
+    },
+    "Treatment": {
+      "mae": 0.07254563201098334,
+      "rmse": 0.08106987619385671,
+      "dtw": 0.0019692603957390986,
+      "frechet": 0.0353325105205155,
+      "max_error": 0.1452634866286059
+    }
+  },
+  "hard_points": {
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.6126,
+          "actual": 0.3038,
+          "error": 0.3088,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.3484,
+          "actual": 0.0853,
+          "error": 0.2631,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.5632,
+          "actual": 0.5871,
+          "error": 0.0239,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    }
+  },
+  "reconstruction": {
+    "Control": {
+      "mae": 0.24649114850170298,
+      "rmse": 0.2581564677644539,
+      "dtw": 0.03938902007307553,
+      "frechet": 0.2630712132540646,
+      "max_error": 0.34010349585794114
+    },
+    "Treatment": {
+      "mae": 0.0596872071681632,
+      "rmse": 0.06864668513209951,
+      "dtw": 0.0031683364098890722,
+      "frechet": 0.038467328820666336,
+      "max_error": 0.13293871550745906
+    }
+  },
+  "validation": {
+    "Control": {
+      "mae": 0.02742841165834072,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.027440207569941685,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "passed": false
+}
