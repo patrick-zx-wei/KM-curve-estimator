@@ -10,11 +10,6 @@
         "time": 12,
         "survival": 0.4696,
         "description": "1-year survival"
-      },
-      {
-        "time": 24,
-        "survival": 0.3658,
-        "description": "2-year survival"
       }
     ],
     "median_survival": 10.34,
@@ -27,17 +22,17 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6182,
+        "survival": 0.6175,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.4845,
+        "survival": 0.484,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3798,
+        "survival": 0.3794,
         "description": "2-year survival"
       }
     ],

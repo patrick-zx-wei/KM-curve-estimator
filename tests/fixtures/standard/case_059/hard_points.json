@@ -38,17 +38,17 @@
       },
       {
         "time": 12,
-        "survival": 0.5618,
+        "survival": 0.5617,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3532,
+        "survival": 0.3521,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.2385,
+        "survival": 0.2367,
         "description": "3-year survival"
       }
     ],
@@ -56,7 +56,7 @@
     "quartiles": {
       "25pct": 5.16,
       "50pct": 14.85,
-      "75pct": 34.95
+      "75pct": 33.84
     }
   }
 }

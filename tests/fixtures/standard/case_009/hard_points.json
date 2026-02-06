@@ -53,17 +53,17 @@
       },
       {
         "time": 24,
-        "survival": 0.5714,
+        "survival": 0.5677,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.4432,
+        "survival": 0.4433,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.3319,
+        "survival": 0.332,
         "description": "4-year survival"
       },
       {

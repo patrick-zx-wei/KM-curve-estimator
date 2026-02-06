@@ -20,11 +20,6 @@
         "time": 36,
         "survival": 0.2485,
         "description": "3-year survival"
-      },
-      {
-        "time": 48,
-        "survival": 0.1065,
-        "description": "4-year survival"
       }
     ],
     "median_survival": 25.85,
@@ -48,18 +43,13 @@
       },
       {
         "time": 24,
-        "survival": 0.5768,
+        "survival": 0.5795,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.2605,
+        "survival": 0.2617,
         "description": "3-year survival"
-      },
-      {
-        "time": 48,
-        "survival": 0.1042,
-        "description": "4-year survival"
       }
     ],
     "median_survival": 28.79,

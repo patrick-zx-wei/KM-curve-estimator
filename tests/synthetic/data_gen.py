@@ -326,6 +326,18 @@ def generate_test_case(
         step_coords = _km_from_ipd(patients)
         n_at_risk = _compute_n_at_risk(patients, risk_time_points)
 
+        # Filter censoring marks to only times where the curve is drawn
+        last_event_t = step_coords[-1][0] if len(step_coords) > 1 else 0.0
+        censoring_times = [t for t in censoring_times if t <= last_event_t]
+
+        # ~95% of curves get a small horizontal stub after the last event
+        # (the other 5% end in a vertical cliff as an edge case)
+        if len(step_coords) > 1 and rng.random() < 0.95:
+            stub_len = 0.035 * max_time
+            stub_end = min(last_event_t + stub_len, max_time)
+            if stub_end > last_event_t:
+                step_coords.append((stub_end, step_coords[-1][1]))
+
         curves.append(
             SyntheticCurveData(
                 group_name=group_names[i],

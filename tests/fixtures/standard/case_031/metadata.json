@@ -14,10 +14,11 @@
   "dpi": 150,
   "modifiers": [
     "CensoringMarks",
+    "RiskTableDisplay",
     "ThinLines"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
   "total_patients": 392,
-  "total_events": 188
+  "total_events": 187
 }

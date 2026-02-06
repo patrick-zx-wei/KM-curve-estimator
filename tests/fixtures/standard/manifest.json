@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-06T06:23:06.774168",
+  "generated_at": "2026-02-06T06:37:56.671945",
   "n_cases": 100,
   "cases": [
     {
@@ -84,7 +84,8 @@
       "difficulty": 2,
       "tier": "pristine",
       "modifiers": [
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay"
       ],
       "n_curves": 3,
       "dir": "case_007/"
@@ -107,6 +108,7 @@
       "tier": "pristine",
       "modifiers": [
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines",
         "Annotations"
       ],
@@ -145,6 +147,7 @@
       "tier": "pristine",
       "modifiers": [
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines"
       ],
       "n_curves": 4,
@@ -384,6 +387,7 @@
       "tier": "pristine",
       "modifiers": [
         "CensoringMarks",
+        "RiskTableDisplay",
         "ThinLines"
       ],
       "n_curves": 2,
@@ -594,6 +598,7 @@
       "tier": "pristine",
       "modifiers": [
         "CensoringMarks",
+        "RiskTableDisplay",
         "Annotations",
         "ThinLines"
       ],

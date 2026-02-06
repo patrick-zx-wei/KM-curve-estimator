@@ -32,28 +32,28 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7574,
+        "survival": 0.7492,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5875,
+        "survival": 0.5879,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3431,
+        "survival": 0.3434,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.2255,
+        "survival": 0.2256,
         "description": "3-year survival"
       }
     ],
     "median_survival": 16.58,
     "quartiles": {
-      "25pct": 6.72,
+      "25pct": 5.85,
       "50pct": 16.58,
       "75pct": 33.33
     }
@@ -62,53 +62,43 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7935,
+        "survival": 0.7874,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6218,
+        "survival": 0.6154,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3756,
+        "survival": 0.3672,
         "description": "2-year survival"
-      },
-      {
-        "time": 36,
-        "survival": 0.2403,
-        "description": "3-year survival"
       }
     ],
-    "median_survival": 18.5,
+    "median_survival": 17.35,
     "quartiles": {
       "25pct": 8.56,
-      "50pct": 18.5,
-      "75pct": 34.44
+      "50pct": 17.35,
+      "75pct": 32.63
     }
   },
   "Arm D": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7646,
+        "survival": 0.765,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5863,
+        "survival": 0.587,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3113,
+        "survival": 0.3043,
         "description": "2-year survival"
-      },
-      {
-        "time": 36,
-        "survival": 0.1622,
-        "description": "3-year survival"
       }
     ],
     "median_survival": 15.81,
