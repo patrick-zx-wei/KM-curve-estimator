@@ -1,0 +1,209 @@
+{
+  "case_name": "truncated_noisy",
+  "difficulty": 4,
+  "n_curves": 2,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.04999999999999999,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Control": {
+      "mae": 0.02204608693716724,
+      "rmse": 0.024783478265256672,
+      "dtw": 0.0021148931221213994,
+      "frechet": 0.019188439126616275,
+      "max_error": 0.0659319160004434
+    },
+    "Treatment": {
+      "mae": 0.06217034830830268,
+      "rmse": 0.07593817499624303,
+      "dtw": 0.0026803927474765726,
+      "frechet": 0.1527274219204517,
+      "max_error": 0.2019944435772637
+    }
+  },
+  "hard_points": {
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9417,
+          "actual": 0.947,
+          "error": 0.0053,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.8369,
+          "actual": 0.8186,
+          "error": 0.0183,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.6749,
+          "actual": 0.6476,
+          "error": 0.0273,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.5454,
+          "actual": 0.5106,
+          "error": 0.0348,
+          "pass": true
+        },
+        {
+          "time": 48,
+          "expected": 0.3702,
+          "actual": 0.3715,
+          "error": 0.0013,
+          "pass": true
+        },
+        {
+          "time": 60,
+          "expected": 0.2722,
+          "actual": 0.2451,
+          "error": 0.0271,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9792,
+          "actual": 0.9433,
+          "error": 0.0359,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.9166,
+          "actual": 0.8212,
+          "error": 0.0954,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.6459,
+          "actual": 0.631,
+          "error": 0.0149,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.4123,
+          "actual": 0.401,
+          "error": 0.0113,
+          "pass": true
+        },
+        {
+          "time": 48,
+          "expected": 0.2863,
+          "actual": 0.3514,
+          "error": 0.0651,
+          "pass": false
+        },
+        {
+          "time": 60,
+          "expected": 0.1318,
+          "actual": 0.2135,
+          "error": 0.0817,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
+  },
+  "reconstruction": {
+    "Control": {
+      "mae": 0.010870924918520217,
+      "rmse": 0.01297730007874071,
+      "dtw": 0.001979989046622195,
+      "frechet": 0.027039080391392217,
+      "max_error": 0.0319481949944011
+    },
+    "Treatment": {
+      "mae": 0.04317246741295914,
+      "rmse": 0.0559488986522638,
+      "dtw": 0.006514766132047893,
+      "frechet": 0.0816533980511942,
+      "max_error": 0.16705305850505242
+    }
+  },
+  "validation": {
+    "Control": {
+      "mae": 0.026064159946434864,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.030458478323664693,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "diagnostics": {
+    "per_arm": {
+      "Control": {
+        "digitize_mae": 0.02204608693716724,
+        "reconstruction_mae": 0.010870924918520217,
+        "delta_reconstruction_minus_digitize": -0.011175162018647022,
+        "hard_fail_count": 0,
+        "stage_attribution": "clean",
+        "failed_landmarks": []
+      },
+      "Treatment": {
+        "digitize_mae": 0.06217034830830268,
+        "reconstruction_mae": 0.04317246741295914,
+        "delta_reconstruction_minus_digitize": -0.018997880895343544,
+        "hard_fail_count": 3,
+        "stage_attribution": "digitization_limited",
+        "failed_landmarks": [
+          {
+            "time": 12,
+            "expected": 0.9166,
+            "actual": 0.8212,
+            "error": 0.0954,
+            "bias": -0.0954
+          },
+          {
+            "time": 48,
+            "expected": 0.2863,
+            "actual": 0.3514,
+            "error": 0.0651,
+            "bias": 0.0651
+          },
+          {
+            "time": 60,
+            "expected": 0.1318,
+            "actual": 0.2135,
+            "error": 0.0817,
+            "bias": 0.0817
+          }
+        ]
+      }
+    },
+    "stage_attribution_counts": {
+      "clean": 1,
+      "digitization_limited": 1
+    },
+    "hard_fail_times": {
+      "12": 1,
+      "48": 1,
+      "60": 1
+    }
+  },
+  "passed": false
+}

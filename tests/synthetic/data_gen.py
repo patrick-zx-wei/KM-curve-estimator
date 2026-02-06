@@ -246,7 +246,46 @@ def _compute_risk_table_intervals(max_time: float, n_intervals: int = 6) -> list
     while t <= max_time:
         points.append(round(t, 2))
         t += interval
+    if not points or abs(points[-1] - max_time) > 1e-6:
+        points.append(round(max_time, 2))
+    points = sorted(set(points))
     return points
+
+
+def _ensure_endpoint_tick(ticks: list[float], max_time: float) -> list[float]:
+    """Ensure the axis endpoint is explicitly present in tick labels."""
+    rounded_max = round(max_time, 2)
+    out = [round(float(t), 2) for t in ticks]
+    if not any(abs(t - rounded_max) < 1e-6 for t in out):
+        out.append(rounded_max)
+    return sorted(set(out))
+
+
+def _step_survival_at(step_coords: list[tuple[float, float]], t: float) -> float:
+    """Evaluate step-function survival at time t."""
+    if not step_coords:
+        return 1.0
+    if t < step_coords[0][0]:
+        return 1.0
+    for i in range(len(step_coords) - 1, -1, -1):
+        if step_coords[i][0] <= t:
+            return float(step_coords[i][1])
+    return float(step_coords[0][1])
+
+
+def _minimum_curve_separation(curves: list[SyntheticCurveData], max_time: float) -> float:
+    """Return minimum pairwise vertical separation across sampled time points."""
+    if len(curves) < 2:
+        return float("inf")
+
+    sample_times = np.linspace(0.0, max_time, 48)
+    min_sep = float("inf")
+    for t in sample_times:
+        vals = [_step_survival_at(c.step_coords, float(t)) for c in curves]
+        for i in range(len(vals)):
+            for j in range(i + 1, len(vals)):
+                min_sep = min(min_sep, abs(vals[i] - vals[j]))
+    return min_sep
 
 
 def generate_test_case(
@@ -267,6 +306,9 @@ def generate_test_case(
     difficulty: int = 1,
     tier: str = "standard",
     line_styles: list[str] | None = None,
+    enforce_curve_separation: bool = False,
+    min_curve_separation: float = 0.08,
+    max_curve_generation_attempts: int = 6,
 ) -> SyntheticTestCase:
     """Generate a complete synthetic test case.
 
@@ -286,6 +328,9 @@ def generate_test_case(
         modifiers: Visual modifiers to apply
         include_risk_table: Whether to generate risk table data
         difficulty: Difficulty score (1-5)
+        enforce_curve_separation: Retry generation until arm separation threshold is met
+        min_curve_separation: Minimum vertical separation between any two curves
+        max_curve_generation_attempts: Maximum retries for separation-constrained generation
     """
     rng = np.random.default_rng(seed)
 
@@ -307,56 +352,77 @@ def generate_test_case(
 
     # X-axis tick values
     x_tick_interval = risk_time_points[1] if len(risk_time_points) > 1 else max_time / 6
-    x_ticks = [round(t, 2) for t in np.arange(0, max_time + 0.01, x_tick_interval)]
+    x_ticks = _ensure_endpoint_tick(risk_time_points, max_time)
 
-    curves: list[SyntheticCurveData] = []
-    risk_groups: list[RiskGroup] = []
+    attempts = (
+        max(1, max_curve_generation_attempts)
+        if enforce_curve_separation and n_curves > 1
+        else 1
+    )
+    best_curves: list[SyntheticCurveData] = []
+    best_risk_groups: list[RiskGroup] = []
+    best_sep = -1.0
 
-    for i in range(n_curves):
-        patients, censoring_times = generate_survival_data(
-            n_patients=n_per_arm,
-            max_time=max_time,
-            weibull_k=weibull_ks[i],
-            weibull_scale=weibull_scale,
-            censoring_rate=censoring_rate,
-            admin_censoring=True,
-            rng=rng,
-        )
+    for _ in range(attempts):
+        curves: list[SyntheticCurveData] = []
+        risk_groups: list[RiskGroup] = []
 
-        step_coords = _km_from_ipd(patients)
-        n_at_risk = _compute_n_at_risk(patients, risk_time_points)
-
-        # Filter censoring marks to only times where the curve is drawn
-        last_event_t = step_coords[-1][0] if len(step_coords) > 1 else 0.0
-        censoring_times = [t for t in censoring_times if t <= last_event_t]
-
-        # ~95% of curves get a small horizontal stub after the last event
-        # (the other 5% end in a vertical cliff as an edge case)
-        if len(step_coords) > 1 and rng.random() < 0.95:
-            stub_len = 0.035 * max_time
-            stub_end = min(last_event_t + stub_len, max_time)
-            if stub_end > last_event_t:
-                step_coords.append((stub_end, step_coords[-1][1]))
-
-        curves.append(
-            SyntheticCurveData(
-                group_name=group_names[i],
-                patients=patients,
-                step_coords=step_coords,
-                censoring_times=censoring_times,
-                n_at_risk=n_at_risk,
-                color=COLORS[i % len(COLORS)],
-                color_name=COLOR_NAMES[i % len(COLOR_NAMES)],
-                line_style=line_styles[i % len(line_styles)],
+        for i in range(n_curves):
+            patients, censoring_times = generate_survival_data(
+                n_patients=n_per_arm,
+                max_time=max_time,
+                weibull_k=weibull_ks[i],
+                weibull_scale=weibull_scale,
+                censoring_rate=censoring_rate,
+                admin_censoring=True,
+                rng=rng,
             )
-        )
 
-        risk_groups.append(
-            RiskGroup(
-                name=group_names[i],
-                counts=[n for _, n in n_at_risk],
+            step_coords = _km_from_ipd(patients)
+            n_at_risk = _compute_n_at_risk(patients, risk_time_points)
+
+            # Filter censoring marks to only times where the curve is drawn
+            last_event_t = step_coords[-1][0] if len(step_coords) > 1 else 0.0
+            censoring_times = [t for t in censoring_times if t <= last_event_t]
+
+            # ~95% of curves get a small horizontal stub after the last event
+            # (the other 5% end in a vertical cliff as an edge case)
+            if len(step_coords) > 1 and rng.random() < 0.95:
+                stub_len = 0.035 * max_time
+                stub_end = min(last_event_t + stub_len, max_time)
+                if stub_end > last_event_t:
+                    step_coords.append((stub_end, step_coords[-1][1]))
+
+            curves.append(
+                SyntheticCurveData(
+                    group_name=group_names[i],
+                    patients=patients,
+                    step_coords=step_coords,
+                    censoring_times=censoring_times,
+                    n_at_risk=n_at_risk,
+                    color=COLORS[i % len(COLORS)],
+                    color_name=COLOR_NAMES[i % len(COLOR_NAMES)],
+                    line_style=line_styles[i % len(line_styles)],
+                )
             )
-        )
+
+            risk_groups.append(
+                RiskGroup(
+                    name=group_names[i],
+                    counts=[n for _, n in n_at_risk],
+                )
+            )
+
+        min_sep = _minimum_curve_separation(curves, max_time)
+        if min_sep > best_sep:
+            best_curves = curves
+            best_risk_groups = risk_groups
+            best_sep = min_sep
+        if not enforce_curve_separation or min_sep >= min_curve_separation:
+            break
+
+    curves = best_curves
+    risk_groups = best_risk_groups
 
     risk_table = None
     if include_risk_table:

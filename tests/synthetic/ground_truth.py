@@ -182,6 +182,8 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "modifiers": get_modifier_names(test_case.modifiers),
         "title": test_case.title,
         "annotations": test_case.annotations,
+        "x_axis": test_case.x_axis.model_dump(),
+        "y_axis": test_case.y_axis.model_dump(),
         "total_patients": sum(len(c.patients) for c in test_case.curves),
         "total_events": sum(
             sum(1 for p in c.patients if p.event) for c in test_case.curves
@@ -308,31 +310,40 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
             )
         )
 
-    max_time = metadata.get("max_time", 60.0)
-    y_start = metadata.get("y_axis_start", 0.0)
+    x_axis_data = metadata.get("x_axis")
+    y_axis_data = metadata.get("y_axis")
+    if isinstance(x_axis_data, dict) and isinstance(y_axis_data, dict):
+        x_axis = AxisConfig.model_validate(x_axis_data)
+        y_axis = AxisConfig.model_validate(y_axis_data)
+    else:
+        max_time = metadata.get("max_time", 60.0)
+        y_start = metadata.get("y_axis_start", 0.0)
 
-    x_ticks_interval = max_time / 6
-    x_ticks = [round(t, 2) for t in np.arange(0, max_time + 0.01, x_ticks_interval)]
-    y_ticks = [round(v, 1) for v in np.arange(y_start, 1.01, 0.2)]
-    if 1.0 not in y_ticks:
-        y_ticks.append(1.0)
+        x_ticks_interval = max_time / 6
+        x_ticks = [round(t, 2) for t in np.arange(0, max_time + 0.01, x_ticks_interval)]
+        if not any(abs(t - max_time) < 1e-6 for t in x_ticks):
+            x_ticks.append(round(max_time, 2))
+        x_ticks = sorted(set(x_ticks))
+        y_ticks = [round(v, 1) for v in np.arange(y_start, 1.01, 0.2)]
+        if 1.0 not in y_ticks:
+            y_ticks.append(1.0)
 
-    x_axis = AxisConfig(
-        label="Time (months)",
-        start=0.0,
-        end=max_time,
-        tick_interval=x_ticks_interval,
-        tick_values=x_ticks,
-        scale="linear",
-    )
-    y_axis = AxisConfig(
-        label="Survival Probability",
-        start=y_start,
-        end=1.0,
-        tick_interval=0.2,
-        tick_values=y_ticks,
-        scale="linear",
-    )
+        x_axis = AxisConfig(
+            label="Time (months)",
+            start=0.0,
+            end=max_time,
+            tick_interval=x_ticks_interval,
+            tick_values=x_ticks,
+            scale="linear",
+        )
+        y_axis = AxisConfig(
+            label="Survival Probability",
+            start=y_start,
+            end=1.0,
+            tick_interval=0.2,
+            tick_values=y_ticks,
+            scale="linear",
+        )
 
     # Reconstruct modifier list from names (for metadata only)
     modifiers: list[Modifier] = []

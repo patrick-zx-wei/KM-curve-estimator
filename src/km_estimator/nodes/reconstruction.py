@@ -27,6 +27,56 @@ MAX_ESTIMATED_COHORT_SIZE = 5000
 SIGNIFICANT_DROP_THRESHOLD = 0.003
 
 
+def _estimate_interval_end_survival(
+    n_start: int,
+    lost_total: int,
+    events: int,
+    s_start: float,
+) -> float:
+    """Approximate interval-end survival for a candidate event count."""
+    censors = max(0, int(lost_total - events))
+    # Approximate effective risk set after mid-interval censoring.
+    effective_at_risk = max(1.0, float(n_start) - 0.5 * float(censors))
+    ratio = max(0.0, 1.0 - float(events) / effective_at_risk)
+    return float(s_start * ratio)
+
+
+def _choose_interval_event_count(
+    n_start: int,
+    lost_total: int,
+    s_start: float,
+    s_end: float,
+    target_events: float,
+) -> int:
+    """Choose integer event count minimizing survival mismatch and rounding drift."""
+    if lost_total <= 0 or n_start <= 0:
+        return 0
+
+    bounded_target = float(np.clip(target_events, 0.0, float(lost_total)))
+    center = int(round(bounded_target))
+
+    # Evaluate all candidates for smaller intervals; otherwise use a bounded local search.
+    if lost_total <= 40:
+        candidates = range(0, lost_total + 1)
+    else:
+        low = max(0, center - 8)
+        high = min(lost_total, center + 8)
+        candidates = sorted(set([0, lost_total, *range(low, high + 1)]))
+
+    best_events = center
+    best_score = float("inf")
+    for events in candidates:
+        predicted_s_end = _estimate_interval_end_survival(n_start, lost_total, events, s_start)
+        survival_error = abs(predicted_s_end - s_end)
+        rounding_error = abs(float(events) - bounded_target)
+        score = survival_error * 8.0 + rounding_error * 0.35
+        if score < best_score:
+            best_score = score
+            best_events = int(events)
+
+    return int(np.clip(best_events, 0, lost_total))
+
+
 def _build_survival_lookup(
     coords: list[tuple[float, float]],
 ) -> tuple[list[float], list[float]]:
@@ -297,7 +347,13 @@ def _guyot_ikm(
         survival_ratio = np.clip(s_end / max(s_start, 1e-9), 0.0, 1.0)
         expected_events = np.clip(n_start * (1.0 - survival_ratio), 0.0, float(n_start))
         target_events = expected_events + event_residual
-        d_j = int(np.clip(round(target_events), 0, lost_total))
+        d_j = _choose_interval_event_count(
+            n_start=n_start,
+            lost_total=lost_total,
+            s_start=s_start,
+            s_end=s_end,
+            target_events=target_events,
+        )
         event_residual = target_events - d_j
         c_j = int(max(0, lost_total - d_j))
 

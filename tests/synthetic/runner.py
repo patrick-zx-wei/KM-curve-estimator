@@ -150,6 +150,9 @@ def run_case(
     else:
         results["validation"] = {"error": "no pipeline output"}
 
+    # Stage diagnostics: attribute failures to digitization vs reconstruction per arm.
+    results["diagnostics"] = _build_case_diagnostics(results)
+
     # Overall pass/fail
     results["passed"] = _check_pass(results)
 
@@ -229,6 +232,90 @@ def _check_pass(results: dict) -> bool:
     return True
 
 
+def _build_case_diagnostics(results: dict) -> dict:
+    """Build per-arm debugging diagnostics for stage attribution."""
+    digitize = results.get("digitize", {})
+    reconstruction = results.get("reconstruction", {})
+    hard_points = results.get("hard_points", {})
+
+    arm_names: set[str] = set()
+    if isinstance(digitize, dict):
+        arm_names.update(k for k, v in digitize.items() if isinstance(v, dict) and "mae" in v)
+    if isinstance(reconstruction, dict):
+        arm_names.update(k for k, v in reconstruction.items() if isinstance(v, dict) and "mae" in v)
+    if isinstance(hard_points, dict):
+        arm_names.update(k for k, v in hard_points.items() if isinstance(v, dict) and "landmarks" in v)
+
+    per_arm: dict[str, dict] = {}
+    stage_counts: dict[str, int] = {}
+    hard_fail_times: dict[str, int] = {}
+
+    for arm in sorted(arm_names):
+        d = digitize.get(arm, {}) if isinstance(digitize, dict) else {}
+        r = reconstruction.get(arm, {}) if isinstance(reconstruction, dict) else {}
+        h = hard_points.get(arm, {}) if isinstance(hard_points, dict) else {}
+
+        dig_mae = d.get("mae") if isinstance(d, dict) else None
+        rec_mae = r.get("mae") if isinstance(r, dict) else None
+        delta_rec_minus_dig = (
+            rec_mae - dig_mae
+            if isinstance(dig_mae, (int, float)) and isinstance(rec_mae, (int, float))
+            else None
+        )
+
+        failed_landmarks = []
+        if isinstance(h, dict):
+            for lm in h.get("landmarks", []):
+                if lm.get("pass", True):
+                    continue
+                bias = lm["actual"] - lm["expected"]
+                failed_landmarks.append({
+                    "time": lm["time"],
+                    "expected": lm["expected"],
+                    "actual": lm["actual"],
+                    "error": lm["error"],
+                    "bias": round(bias, 4),
+                })
+                hard_fail_times[str(lm["time"])] = hard_fail_times.get(str(lm["time"]), 0) + 1
+
+        hard_fail_count = len(failed_landmarks)
+        digitization_bad = isinstance(dig_mae, (int, float)) and dig_mae > 0.05
+        reconstruction_drift = (
+            isinstance(delta_rec_minus_dig, (int, float)) and delta_rec_minus_dig > 0.02
+        )
+
+        if hard_fail_count == 0:
+            if digitization_bad:
+                stage = "digitization_warning"
+            elif reconstruction_drift:
+                stage = "reconstruction_drift"
+            else:
+                stage = "clean"
+        else:
+            if digitization_bad and reconstruction_drift:
+                stage = "mixed"
+            elif digitization_bad:
+                stage = "digitization_limited"
+            else:
+                stage = "reconstruction_limited"
+
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+        per_arm[arm] = {
+            "digitize_mae": dig_mae,
+            "reconstruction_mae": rec_mae,
+            "delta_reconstruction_minus_digitize": delta_rec_minus_dig,
+            "hard_fail_count": hard_fail_count,
+            "stage_attribution": stage,
+            "failed_landmarks": failed_landmarks,
+        }
+
+    return {
+        "per_arm": per_arm,
+        "stage_attribution_counts": stage_counts,
+        "hard_fail_times": hard_fail_times,
+    }
+
+
 def _build_summary(
     all_results: list[dict],
     output_dir: Path,
@@ -250,6 +337,57 @@ def _build_summary(
     # Worst cases
     failed_cases = [r["case_name"] for r in all_results if not r.get("passed", False)]
 
+    failure_breakdown = {
+        "hard_points_failed": 0,
+        "digitization_mae_failed": 0,
+        "risk_table_missed": 0,
+        "x_axis_end_misread": 0,
+        "curve_count_mismatch": 0,
+        "pipeline_crash": 0,
+    }
+    stage_attribution: dict[str, int] = {}
+    for r in all_results:
+        if r.get("passed", False):
+            continue
+
+        mmpu = r.get("mmpu", {})
+        digitize = r.get("digitize", {})
+        hard_points = r.get("hard_points", {})
+
+        if r.get("pipeline_errors"):
+            failure_breakdown["pipeline_crash"] += 1
+
+        if isinstance(mmpu, dict):
+            if mmpu.get("x_axis_end_error", 0) > 0:
+                failure_breakdown["x_axis_end_misread"] += 1
+            if mmpu.get("risk_table_expected") and not mmpu.get("risk_table_detected"):
+                failure_breakdown["risk_table_missed"] += 1
+            if mmpu.get("n_curves_detected") != mmpu.get("n_curves_expected"):
+                failure_breakdown["curve_count_mismatch"] += 1
+
+        if isinstance(digitize, dict):
+            has_mae_fail = any(
+                isinstance(v, dict) and v.get("mae", 0) > 0.05
+                for v in digitize.values()
+            )
+            if has_mae_fail:
+                failure_breakdown["digitization_mae_failed"] += 1
+
+        if isinstance(hard_points, dict):
+            has_hard_fail = any(
+                isinstance(v, dict) and not v.get("all_pass", True)
+                for v in hard_points.values()
+            )
+            if has_hard_fail:
+                failure_breakdown["hard_points_failed"] += 1
+
+        diagnostics = r.get("diagnostics", {})
+        if isinstance(diagnostics, dict):
+            counts = diagnostics.get("stage_attribution_counts", {})
+            if isinstance(counts, dict):
+                for k, v in counts.items():
+                    stage_attribution[k] = stage_attribution.get(k, 0) + int(v)
+
     # By difficulty
     by_difficulty: dict[int, dict[str, int]] = {}
     for r in all_results:
@@ -267,6 +405,8 @@ def _build_summary(
         "mean_mae": round(float(np.mean(mae_values)), 4) if mae_values else None,
         "median_mae": round(float(np.median(mae_values)), 4) if mae_values else None,
         "worst_cases": failed_cases[:10],
+        "failure_breakdown": failure_breakdown,
+        "stage_attribution": stage_attribution,
         "by_difficulty": {
             str(k): v for k, v in sorted(by_difficulty.items())
         },

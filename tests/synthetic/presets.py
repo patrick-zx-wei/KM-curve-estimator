@@ -388,6 +388,42 @@ def _latin_hypercube(n: int, n_dims: int, rng: np.random.Generator) -> np.ndarra
     return result
 
 
+def _sample_weibull_ks(
+    rng: np.random.Generator,
+    base_k: float,
+    n_curves: int,
+    min_gap: float = 0.25,
+    max_attempts: int = 32,
+) -> list[float]:
+    """Sample curve-shape parameters with minimum spread to reduce prolonged overlap."""
+    if n_curves <= 1:
+        return [float(base_k)]
+
+    lower_k = 0.45
+    upper_k = 2.8
+    best_ks: list[float] = []
+    best_gap = -1.0
+
+    for _ in range(max_attempts):
+        ks = [float(np.clip(base_k * rng.uniform(0.75, 1.35), lower_k, upper_k)) for _ in range(n_curves)]
+        sorted_ks = sorted(ks)
+        min_observed_gap = min(sorted_ks[i + 1] - sorted_ks[i] for i in range(len(sorted_ks) - 1))
+        if min_observed_gap > best_gap:
+            best_gap = min_observed_gap
+            best_ks = ks
+        if min_observed_gap >= min_gap:
+            return ks
+
+    # Fallback: deterministic spread around base_k when random draws are too close.
+    center = float(np.clip(base_k, lower_k, upper_k))
+    half = (n_curves - 1) / 2.0
+    spread = max(min_gap, 0.22)
+    return [
+        float(np.clip(center + (idx - half) * spread, lower_k, upper_k))
+        for idx in range(n_curves)
+    ]
+
+
 def _compute_difficulty(
     n_curves: int,
     weibull_ks: list[float],
@@ -468,9 +504,7 @@ def generate_standard(
         n_curves = int(case_rng.choice([2, 3, 4, 5], p=[0.50, 0.30, 0.15, 0.05]))
         log_k = np.log(0.6) + sample[0] * (np.log(2.2) - np.log(0.6))
         base_k = np.exp(log_k)
-        weibull_ks = [
-            base_k * case_rng.uniform(0.75, 1.35) for _ in range(n_curves)
-        ]
+        weibull_ks = _sample_weibull_ks(case_rng, base_k, n_curves)
         n_per_arm = int(50 + sample[3] * 450)  # 50-500
         scale_factor = 0.35 + sample[1] * 0.75
 
@@ -511,6 +545,9 @@ def generate_standard(
             difficulty=difficulty,
             tier=tier.name,
             line_styles=line_styles,
+            enforce_curve_separation=True,
+            min_curve_separation=0.08,
+            max_curve_generation_attempts=8,
         )
         _generate_and_save(tc, output_dir)
         cases.append(tc)
