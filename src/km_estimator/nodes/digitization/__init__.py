@@ -14,7 +14,7 @@ from .axis_calibration import (
     validate_axis_config,
 )
 from .censoring_detection import detect_censoring
-from .curve_isolation import isolate_curves
+from .curve_isolation import isolate_curves, parse_curve_color
 from .overlap_resolution import enforce_step_function, resolve_overlaps
 
 
@@ -213,8 +213,17 @@ def digitize(state: PipelineState) -> PipelineState:
                 }
             )
 
-    # Step 3: Clean up overlaps
-    clean_curves = resolve_overlaps(raw_curves, mapping)
+    # Step 3: Clean up overlaps with joint tracing and color identity priors.
+    color_priors = {
+        curve.name: parse_curve_color(curve.color_description)
+        for curve in state.plot_metadata.curves
+    }
+    clean_curves = resolve_overlaps(
+        raw_curves,
+        mapping,
+        image=image,
+        curve_color_priors=color_priors,
+    )
 
     # Step 4: Censoring detection
     censoring = detect_censoring(image, clean_curves, mapping)

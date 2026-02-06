@@ -1,14 +1,31 @@
-"""Overlap resolution: enforce step function, fill gaps."""
+"""Overlap resolution with joint curve tracing and identity priors."""
+
+from __future__ import annotations
+
+from bisect import bisect_left
+from itertools import product
+from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .axis_calibration import AxisMapping
 
-MAX_CANDIDATES_PER_X = 9
+MAX_CANDIDATES_PER_CURVE = 3
+MAX_STATES_PER_X = 128
+
 MEDIAN_ATTRACTION_WEIGHT = 0.08
+MISSING_COLUMN_PENALTY = 0.45
+COLOR_PRIOR_WEIGHT = 0.8
+
 SMOOTHNESS_WEIGHT = 0.15
 UPWARD_MOVE_PENALTY = 8.0
 ALLOWED_UPWARD_MOVE_PX = 2
+
+OVERLAP_PENALTY = 3.0
+MIN_VERTICAL_SEPARATION_PX = 2
+SWAP_PENALTY = 1.2
+CROSSING_MARGIN_PX = 2
 
 
 def enforce_step_function(
@@ -77,7 +94,10 @@ def enforce_step_function(
     return step_points
 
 
-def _select_y_candidates(ys: list[int], max_candidates: int = MAX_CANDIDATES_PER_X) -> list[int]:
+def _select_y_candidates(
+    ys: list[int],
+    max_candidates: int = MAX_CANDIDATES_PER_CURVE,
+) -> list[int]:
     """Select representative y candidates for one x-column."""
     arr = np.asarray(ys, dtype=np.float32)
     unique = np.unique(arr.astype(np.int32))
@@ -102,74 +122,216 @@ def _transition_cost(prev_y: int, curr_y: int, x_gap: int) -> float:
     return upward_move * UPWARD_MOVE_PENALTY + smooth * SMOOTHNESS_WEIGHT
 
 
-def _trace_curve_shortest_path(
-    x_to_ys: dict[int, list[int]],
-) -> list[tuple[int, int]]:
-    """Find a smooth monotone path using shortest-path dynamic programming."""
-    if not x_to_ys:
-        return []
+def _find_nearest_x(xs_sorted: list[int], target_x: int) -> int | None:
+    """Return nearest x from sorted list."""
+    if not xs_sorted:
+        return None
+    idx = bisect_left(xs_sorted, target_x)
+    if idx <= 0:
+        return xs_sorted[0]
+    if idx >= len(xs_sorted):
+        return xs_sorted[-1]
+    left = xs_sorted[idx - 1]
+    right = xs_sorted[idx]
+    if abs(target_x - left) <= abs(right - target_x):
+        return left
+    return right
 
-    x_values = sorted(x_to_ys.keys())
-    candidates_per_x = [_select_y_candidates(x_to_ys[x]) for x in x_values]
-    medians = [float(np.median(x_to_ys[x])) for x in x_values]
 
-    costs: list[np.ndarray] = []
-    back_ptr: list[np.ndarray] = []
+def _sample_rgb_at(
+    image: NDArray[Any],
+    x: int,
+    y: int,
+) -> tuple[float, float, float]:
+    """Sample normalized RGB from BGR image, clamped to bounds."""
+    h, w = image.shape[:2]
+    cx = int(np.clip(x, 0, w - 1))
+    cy = int(np.clip(y, 0, h - 1))
+    b, g, r = image[cy, cx]
+    return float(r) / 255.0, float(g) / 255.0, float(b) / 255.0
 
-    first_candidates = np.asarray(candidates_per_x[0], dtype=np.int32)
-    first_cost = (
-        np.abs(first_candidates.astype(np.float32) - medians[0])
-        * MEDIAN_ATTRACTION_WEIGHT
-    )
-    costs.append(first_cost)
-    back_ptr.append(np.full(first_candidates.shape[0], -1, dtype=np.int32))
+
+def _state_overlap_penalty(y_values: tuple[int, ...]) -> float:
+    """Penalize curves collapsing to near-identical y at same x."""
+    penalty = 0.0
+    n = len(y_values)
+    for i in range(n):
+        for j in range(i + 1, n):
+            dy = abs(y_values[i] - y_values[j])
+            if dy < MIN_VERTICAL_SEPARATION_PX:
+                penalty += OVERLAP_PENALTY * (MIN_VERTICAL_SEPARATION_PX - dy)
+    return penalty
+
+
+def _swap_penalty(prev_y: tuple[int, ...], curr_y: tuple[int, ...]) -> float:
+    """Penalize abrupt pairwise order swaps between curves."""
+    penalty = 0.0
+    n = len(curr_y)
+    for i in range(n):
+        for j in range(i + 1, n):
+            prev_diff = prev_y[i] - prev_y[j]
+            curr_diff = curr_y[i] - curr_y[j]
+            if (
+                abs(prev_diff) > CROSSING_MARGIN_PX
+                and abs(curr_diff) > CROSSING_MARGIN_PX
+                and np.sign(prev_diff) != np.sign(curr_diff)
+            ):
+                penalty += SWAP_PENALTY
+    return penalty
+
+
+def _build_curve_x_maps(
+    raw_curves: dict[str, list[tuple[int, int]]],
+) -> tuple[dict[str, dict[int, list[int]]], list[int]]:
+    """Build x->ys maps for each curve and global union x-values."""
+    maps: dict[str, dict[int, list[int]]] = {}
+    union_x: set[int] = set()
+
+    for name, pixels in raw_curves.items():
+        x_map: dict[int, list[int]] = {}
+        for px, py in pixels:
+            x_map.setdefault(px, []).append(py)
+            union_x.add(px)
+        maps[name] = x_map
+
+    return maps, sorted(union_x)
+
+
+def _curve_candidates_for_x(
+    x_map: dict[int, list[int]],
+    sorted_keys: list[int],
+    x: int,
+    image: NDArray[Any] | None,
+    expected_rgb: tuple[float, float, float] | None,
+) -> tuple[list[int], list[float]]:
+    """Generate y-candidates and local costs for one curve at one x."""
+    ys = x_map.get(x)
+    if ys:
+        median_y = float(np.median(ys))
+        candidates = _select_y_candidates(ys)
+        base_costs = [
+            abs(c - median_y) * MEDIAN_ATTRACTION_WEIGHT
+            for c in candidates
+        ]
+    else:
+        nearest_x = _find_nearest_x(sorted_keys, x)
+        if nearest_x is None:
+            return [0], [MISSING_COLUMN_PENALTY * 2.0]
+        nearest_ys = x_map[nearest_x]
+        nearest_y = int(np.median(nearest_ys))
+        candidates = [nearest_y]
+        base_costs = [MISSING_COLUMN_PENALTY]
+
+    if image is None or expected_rgb is None:
+        return candidates, base_costs
+
+    costs = []
+    for candidate_y, base in zip(candidates, base_costs):
+        rgb = _sample_rgb_at(image, x, candidate_y)
+        color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, expected_rgb))))
+        costs.append(base + color_dist * COLOR_PRIOR_WEIGHT)
+    return candidates, costs
+
+
+def _trace_curves_joint(
+    raw_curves: dict[str, list[tuple[int, int]]],
+    x_values: list[int],
+    image: NDArray[Any] | None,
+    curve_color_priors: dict[str, tuple[float, float, float] | None] | None,
+) -> dict[str, list[tuple[int, int]]]:
+    """Jointly trace all curves with state exclusivity and identity priors."""
+    if not x_values:
+        return {name: [] for name in raw_curves}
+
+    curve_names = list(raw_curves.keys())
+    x_maps, _ = _build_curve_x_maps(raw_curves)
+    sorted_keys = {name: sorted(x_maps[name].keys()) for name in curve_names}
+
+    states_by_x: list[list[tuple[tuple[int, ...], float]]] = []
+    for x in x_values:
+        curve_candidates: list[list[int]] = []
+        curve_costs: list[list[float]] = []
+        for name in curve_names:
+            expected_rgb = curve_color_priors.get(name) if curve_color_priors else None
+            candidates, costs = _curve_candidates_for_x(
+                x_maps[name], sorted_keys[name], x, image, expected_rgb
+            )
+            curve_candidates.append(candidates)
+            curve_costs.append(costs)
+
+        combos = product(*(range(len(cands)) for cands in curve_candidates))
+        states: list[tuple[tuple[int, ...], float]] = []
+        for combo in combos:
+            ys = tuple(curve_candidates[i][choice] for i, choice in enumerate(combo))
+            cost = sum(curve_costs[i][choice] for i, choice in enumerate(combo))
+            cost += _state_overlap_penalty(ys)
+            states.append((ys, float(cost)))
+
+        states.sort(key=lambda s: s[1])
+        states_by_x.append(states[:MAX_STATES_PER_X])
+
+    dp_costs: list[np.ndarray] = []
+    parents: list[np.ndarray] = []
+
+    first_costs = np.asarray([cost for _, cost in states_by_x[0]], dtype=np.float32)
+    dp_costs.append(first_costs)
+    parents.append(np.full(len(first_costs), -1, dtype=np.int32))
 
     for i in range(1, len(x_values)):
-        prev_candidates = np.asarray(candidates_per_x[i - 1], dtype=np.int32)
-        curr_candidates = np.asarray(candidates_per_x[i], dtype=np.int32)
-        prev_cost = costs[i - 1]
+        prev_states = states_by_x[i - 1]
+        curr_states = states_by_x[i]
+        prev_cost = dp_costs[i - 1]
+        curr_cost = np.full(len(curr_states), np.inf, dtype=np.float32)
+        curr_parent = np.full(len(curr_states), -1, dtype=np.int32)
         x_gap = x_values[i] - x_values[i - 1]
 
-        curr_cost = np.full(curr_candidates.shape[0], np.inf, dtype=np.float32)
-        curr_parent = np.full(curr_candidates.shape[0], -1, dtype=np.int32)
-
-        data_cost = (
-            np.abs(curr_candidates.astype(np.float32) - medians[i])
-            * MEDIAN_ATTRACTION_WEIGHT
-        )
-        for curr_idx, curr_y in enumerate(curr_candidates):
+        for curr_idx, (curr_y, curr_data_cost) in enumerate(curr_states):
             best_cost = np.inf
             best_parent = -1
-            for prev_idx, prev_y in enumerate(prev_candidates):
-                total = prev_cost[prev_idx] + _transition_cost(int(prev_y), int(curr_y), x_gap)
+            for prev_idx, (prev_y, _) in enumerate(prev_states):
+                transition = 0.0
+                for curve_idx in range(len(curve_names)):
+                    transition += _transition_cost(
+                        prev_y[curve_idx], curr_y[curve_idx], x_gap
+                    )
+                transition += _swap_penalty(prev_y, curr_y)
+
+                total = prev_cost[prev_idx] + transition
                 if total < best_cost:
                     best_cost = total
                     best_parent = prev_idx
-            curr_cost[curr_idx] = best_cost + data_cost[curr_idx]
+            curr_cost[curr_idx] = best_cost + curr_data_cost
             curr_parent[curr_idx] = best_parent
 
-        costs.append(curr_cost)
-        back_ptr.append(curr_parent)
+        dp_costs.append(curr_cost)
+        parents.append(curr_parent)
 
-    path_indices = [0] * len(x_values)
-    path_indices[-1] = int(np.argmin(costs[-1]))
+    best_indices = [0] * len(x_values)
+    best_indices[-1] = int(np.argmin(dp_costs[-1]))
     for i in range(len(x_values) - 1, 0, -1):
-        path_indices[i - 1] = int(back_ptr[i][path_indices[i]])
+        best_indices[i - 1] = int(parents[i][best_indices[i]])
 
-    traced: list[tuple[int, int]] = []
-    for x, idx, candidates in zip(x_values, path_indices, candidates_per_x):
-        traced.append((x, int(candidates[idx])))
+    traced_by_curve: dict[str, list[tuple[int, int]]] = {name: [] for name in curve_names}
+    for x, state_idx, states in zip(x_values, best_indices, states_by_x):
+        ys = states[state_idx][0]
+        for curve_idx, name in enumerate(curve_names):
+            traced_by_curve[name].append((x, ys[curve_idx]))
 
-    # Hard monotonic enforcement for KM semantics in pixel coordinates.
+    return traced_by_curve
+
+
+def _enforce_monotone_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Enforce monotone non-decreasing y in pixel coordinates."""
+    if not points:
+        return points
     monotone: list[tuple[int, int]] = []
-    max_y = traced[0][1]
-    for px, py in traced:
+    max_y = points[0][1]
+    for px, py in points:
         if py < max_y:
             py = max_y
         else:
             max_y = py
         monotone.append((px, py))
-
     return monotone
 
 
@@ -202,27 +364,34 @@ def _fill_small_gaps(
 def resolve_overlaps(
     raw_curves: dict[str, list[tuple[int, int]]],
     mapping: AxisMapping,
+    image: NDArray[Any] | None = None,
+    curve_color_priors: dict[str, tuple[float, float, float] | None] | None = None,
 ) -> dict[str, list[tuple[int, int]]]:
-    """Resolve overlaps by tracing each curve with shortest-path continuity constraints."""
+    """Resolve overlaps by jointly tracing all curves with identity priors."""
     clean: dict[str, list[tuple[int, int]]] = {}
     x0, _, x1, _ = mapping.plot_region
     x_range = x1 - x0
     gap_threshold = max(1, int(x_range * 0.05))  # 5% of x-range
 
-    for name, pixels in raw_curves.items():
-        if len(pixels) == 0:
+    # Build global x-grid from union of all curve pixels.
+    x_union: set[int] = set()
+    for pixels in raw_curves.values():
+        for px, _ in pixels:
+            x_union.add(px)
+    x_values = sorted(x_union)
+
+    traced_by_curve = _trace_curves_joint(
+        raw_curves=raw_curves,
+        x_values=x_values,
+        image=image,
+        curve_color_priors=curve_color_priors,
+    )
+
+    for name, traced in traced_by_curve.items():
+        if not traced:
             clean[name] = []
             continue
-
-        # 1) Group by x.
-        x_to_ys: dict[int, list[int]] = {}
-        for px, py in pixels:
-            x_to_ys.setdefault(px, []).append(py)
-
-        # 2) Trace smooth monotone path through ambiguous overlap regions.
-        traced = _trace_curve_shortest_path(x_to_ys)
-
-        # 3) Fill small gaps for continuity.
-        clean[name] = _fill_small_gaps(traced, gap_threshold)
+        monotone = _enforce_monotone_pixels(traced)
+        clean[name] = _fill_small_gaps(monotone, gap_threshold)
 
     return clean
