@@ -14,7 +14,13 @@ from .axis_calibration import (
     validate_axis_config,
 )
 from .censoring_detection import detect_censoring
-from .curve_isolation import isolate_curves, parse_curve_color
+from .curve_isolation import (
+    _all_curves_have_distinct_colors,
+    _assign_by_expected_color,
+    _extract_curve_mask,
+    isolate_curves,
+    parse_curve_color,
+)
 from .overlap_resolution import enforce_step_function, resolve_overlaps
 
 
@@ -147,6 +153,150 @@ def _apply_anchor_constraints(
     return adjusted_curves, warnings
 
 
+def _restore_km_origin(
+    curves: dict[str, list[tuple[float, float]]],
+    x_start: float,
+    x_end: float,
+    y_max: float,
+    start_tolerance_ratio: float = 0.05,
+    min_origin_gap: float = 0.02,
+) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
+    """
+    Restore KM origin when early curve starts implausibly low due digitization loss.
+
+    KM curves should begin near the maximum survival level at study start.
+    """
+    updated: dict[str, list[tuple[float, float]]] = {}
+    warnings: list[str] = []
+    x_range = max(1e-6, x_end - x_start)
+    start_window = x_start + x_range * start_tolerance_ratio
+
+    for curve_name, points in curves.items():
+        if not points:
+            updated[curve_name] = points
+            continue
+
+        ordered = sorted(points, key=lambda p: p[0])
+        t0, s0 = ordered[0]
+        if t0 <= start_window and s0 < (y_max - min_origin_gap):
+            injected = [(x_start, y_max)]
+            if t0 > x_start:
+                injected.append((t0, y_max))
+            injected.extend(ordered)
+            updated[curve_name] = enforce_step_function(injected)
+            warnings.append(
+                f"{curve_name}: restored KM origin from {s0:.3f} to {y_max:.3f} at study start"
+            )
+        else:
+            updated[curve_name] = ordered
+
+    return updated, warnings
+
+
+def _anchor_violation_ratio(
+    points: list[tuple[float, float]],
+    anchor_points: list[tuple[float, float]] | None,
+    tolerance: float = 0.01,
+) -> float:
+    """Fraction of points violating anchor lower bound."""
+    if not points or not anchor_points:
+        return 0.0
+    violations = 0
+    for t, s in points:
+        if s + 1e-9 < (_anchor_lower_bound(anchor_points, t) - tolerance):
+            violations += 1
+    return violations / max(1, len(points))
+
+
+def _curve_rescue_score(
+    curve_points: list[tuple[float, float]],
+    y_max: float,
+    anchor_points: list[tuple[float, float]] | None,
+) -> float:
+    """
+    Lower is better.
+
+    Penalizes collapse/flatness, low start, and anchor violations.
+    """
+    if not curve_points:
+        return 1e9
+
+    ys = [s for _, s in curve_points]
+    unique_y = len(set(round(v, 3) for v in ys))
+    tail = ys[-120:] if len(ys) > 120 else ys
+    tail_unique = len(set(round(v, 3) for v in tail))
+    start_gap = max(0.0, y_max - ys[0])
+    anchor_viol = _anchor_violation_ratio(curve_points, anchor_points)
+
+    score = 0.0
+    if unique_y < 3:
+        score += 3.0
+    if tail_unique < 2:
+        score += 2.0
+    score += min(2.0, start_gap * 5.0)
+    score += anchor_viol * 4.0
+    return score
+
+
+def _identify_rescue_candidates(
+    digitized: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    y_max: float,
+) -> set[str]:
+    """Find per-curve rescue candidates based on collapse and anchor inconsistency."""
+    flagged: set[str] = set()
+    for curve_name, points in digitized.items():
+        if not points:
+            flagged.add(curve_name)
+            continue
+        ys = [s for _, s in points]
+        unique_y = len(set(round(v, 3) for v in ys))
+        tail = ys[-120:] if len(ys) > 120 else ys
+        tail_unique = len(set(round(v, 3) for v in tail))
+        if unique_y < 3 or tail_unique < 2:
+            flagged.add(curve_name)
+            continue
+        if ys[0] < (y_max - 0.12):
+            flagged.add(curve_name)
+            continue
+        if _anchor_violation_ratio(points, anchors.get(curve_name)) > 0.08:
+            flagged.add(curve_name)
+    return flagged
+
+
+def _postprocess_digitized_curves(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    x_start: float,
+    x_end: float,
+    y_max: float,
+) -> tuple[dict[str, list[tuple[float, float]]], list[str], list[str]]:
+    """
+    Apply anchor constraints + KM origin restoration + step normalization.
+
+    Returns:
+        (curves, anchor_constraint_warnings, origin_warnings)
+    """
+    curves = dict(digitized_curves)
+    anchor_constraint_warnings: list[str] = []
+    if anchors:
+        curves, anchor_constraint_warnings = _apply_anchor_constraints(curves, anchors)
+        for curve_name, curve_points in curves.items():
+            curves[curve_name] = enforce_step_function(curve_points)
+
+    origin_warnings: list[str] = []
+    curves, origin_warnings = _restore_km_origin(
+        curves,
+        x_start=x_start,
+        x_end=x_end,
+        y_max=y_max,
+    )
+    for curve_name, curve_points in curves.items():
+        curves[curve_name] = enforce_step_function(curve_points)
+
+    return curves, anchor_constraint_warnings, origin_warnings
+
+
 def digitize(state: PipelineState) -> PipelineState:
     """
     Digitize curves from preprocessed image using MMPU metadata.
@@ -239,17 +389,85 @@ def digitize(state: PipelineState) -> PipelineState:
     anchors = calculate_anchors_from_risk_table(
         state.plot_metadata.risk_table, curve_names
     )
-    anchor_constraint_warnings: list[str] = []
-    if anchors:
-        digitized, anchor_constraint_warnings = _apply_anchor_constraints(digitized, anchors)
-        for curve_name, curve_points in digitized.items():
-            digitized[curve_name] = enforce_step_function(curve_points)
+    digitized, anchor_constraint_warnings, origin_warnings = _postprocess_digitized_curves(
+        digitized,
+        anchors=anchors,
+        x_start=state.plot_metadata.x_axis.start,
+        x_end=state.plot_metadata.x_axis.end,
+        y_max=state.plot_metadata.y_axis.end,
+    )
+
+    rescue_warnings: list[str] = []
+    rescue_candidates = _identify_rescue_candidates(
+        digitized,
+        anchors,
+        y_max=state.plot_metadata.y_axis.end,
+    )
+
+    # Per-curve rescue: only replace flagged curves when color-guided path is better.
+    if rescue_candidates:
+        x0, y0, x1, y1 = mapping.plot_region
+        roi = image[y0:y1, x0:x1]
+        roi_area = max(1, roi.shape[0] * roi.shape[1])
+        min_pixels = max(5, int(roi_area * 0.00005))
+        mask = _extract_curve_mask(roi, min_pixels)
+        ys, xs = (mask > 0).nonzero()
+        all_colors_ok, named_colors = _all_curves_have_distinct_colors(state.plot_metadata)
+
+        if all_colors_ok and len(xs) >= len(state.plot_metadata.curves):
+            color_raw = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
+            color_priors = {
+                curve.name: parse_curve_color(curve.color_description)
+                for curve in state.plot_metadata.curves
+            }
+            color_clean = resolve_overlaps(
+                color_raw,
+                mapping,
+                image=image,
+                curve_color_priors=color_priors,
+            )
+            color_digitized: dict[str, list[tuple[float, float]]] = {}
+            for name, pixels in color_clean.items():
+                color_digitized[name] = enforce_step_function(
+                    [mapping.px_to_real(px, py) for px, py in pixels]
+                )
+            color_digitized, _, _ = _postprocess_digitized_curves(
+                color_digitized,
+                anchors=anchors,
+                x_start=state.plot_metadata.x_axis.start,
+                x_end=state.plot_metadata.x_axis.end,
+                y_max=state.plot_metadata.y_axis.end,
+            )
+
+            for curve_name in sorted(rescue_candidates):
+                base_points = digitized.get(curve_name, [])
+                alt_points = color_digitized.get(curve_name, [])
+                if not alt_points:
+                    continue
+                base_score = _curve_rescue_score(
+                    base_points,
+                    y_max=state.plot_metadata.y_axis.end,
+                    anchor_points=anchors.get(curve_name),
+                )
+                alt_score = _curve_rescue_score(
+                    alt_points,
+                    y_max=state.plot_metadata.y_axis.end,
+                    anchor_points=anchors.get(curve_name),
+                )
+                if alt_score + 0.4 < base_score:
+                    digitized[curve_name] = alt_points
+                    rescue_warnings.append(
+                        f"{curve_name}: applied color-guided rescue "
+                        f"(score {base_score:.2f} -> {alt_score:.2f})"
+                    )
 
     # Step 6: Validate curve shapes (not flat, generally decreasing)
     validation_warnings: list[str] = (
         list(axis_config_warnings)
         + list(empty_warnings)
         + list(anchor_constraint_warnings)
+        + list(origin_warnings)
+        + list(rescue_warnings)
     )
     shape_warnings = _validate_curve_shape(digitized)
     validation_warnings.extend(shape_warnings)

@@ -2,20 +2,23 @@
   "name": "case_024",
   "seed": 1123,
   "n_groups": 2,
-  "n_patients_per_arm": 267,
+  "n_patients_per_arm": 230,
   "groups": [
     "Control",
     "Treatment"
   ],
   "max_time": 48.0,
   "y_axis_start": 0.0,
-  "difficulty": 1,
+  "difficulty": 4,
   "dpi": 150,
   "modifiers": [
-    "RiskTableDisplay"
+    "CensoringMarks",
+    "RiskTableDisplay",
+    "GridLines",
+    "NoisyBackground"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
-  "total_patients": 534,
-  "total_events": 205
+  "total_patients": 460,
+  "total_events": 179
 }

@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-02-05T18:06:45.337583",
+  "generated_at": "2026-02-06T00:51:35.138285",
   "n_cases": 5,
   "cases": [
     {
       "name": "low_res_overlap",
       "seed": 42,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
@@ -18,7 +18,7 @@
     {
       "name": "truncated_noisy",
       "seed": 43,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "TruncatedYAxis",
         "CensoringMarks",
@@ -31,7 +31,7 @@
     {
       "name": "crossing_compressed",
       "seed": 44,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "CompressedTimeAxis",
@@ -43,7 +43,7 @@
     {
       "name": "four_arm_lowres",
       "seed": 45,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
@@ -56,9 +56,10 @@
     {
       "name": "sparse_degraded",
       "seed": 46,
-      "difficulty": 5,
+      "difficulty": 4,
       "modifiers": [
         "CensoringMarks",
+        "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
       ],

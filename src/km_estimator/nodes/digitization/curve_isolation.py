@@ -37,6 +37,13 @@ MIN_COVERAGE_RATIO = 0.8
 MAX_START_OFFSET_RATIO = 0.15
 MAX_END_GAP_RATIO = 0.15
 MIN_COLOR_SEPARATION = 0.15
+MAX_MASK_DENSITY = 0.25
+SPARSE_INTERPOLATION_GAP_RATIO = 0.03
+SPARSE_INTERPOLATION_ABS_MAX_GAP = 28
+SPARSE_MIN_POINTS_FOR_COMPLETION = 12
+BORDER_LINE_OCCUPANCY_RATIO = 0.65
+BORDER_LINE_THICKNESS = 1
+BORDER_MARGIN_RATIO = 0.02
 
 
 def parse_curve_color(color_description: str | None) -> tuple[float, float, float] | None:
@@ -57,6 +64,21 @@ def _parse_color(curve: CurveInfo) -> tuple[float, float, float] | None:
 
 def _color_distance(c1: tuple[float, float, float], c2: tuple[float, float, float]) -> float:
     """Euclidean distance between two RGB colors."""
+    return float(np.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2))))
+
+
+def _rgb01_to_lab(rgb: tuple[float, float, float]) -> tuple[float, float, float]:
+    """Convert normalized RGB (0-1) to OpenCV LAB coordinates."""
+    r = int(np.clip(round(rgb[0] * 255), 0, 255))
+    g = int(np.clip(round(rgb[1] * 255), 0, 255))
+    b = int(np.clip(round(rgb[2] * 255), 0, 255))
+    pixel = np.array([[[b, g, r]]], dtype=np.uint8)
+    lab = cv2.cvtColor(pixel, cv2.COLOR_BGR2LAB)[0, 0].astype(np.float32)
+    return float(lab[0]), float(lab[1]), float(lab[2])
+
+
+def _lab_distance(c1: tuple[float, float, float], c2: tuple[float, float, float]) -> float:
+    """Euclidean distance in LAB color space."""
     return float(np.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2))))
 
 
@@ -119,6 +141,27 @@ def _adaptive_curve_mask(roi: NDArray, roi_area: int) -> NDArray:
     return _remove_small_components(relaxed, min_component_area)
 
 
+def _sparse_curve_mask(roi: NDArray, roi_area: int) -> NDArray:
+    """Edge-assisted rescue mask for sparse/degraded curve traces."""
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (3, 3), 0)
+
+    p85 = float(np.percentile(blur, 85))
+    high = int(np.clip(max(35, p85 * 0.6), 35, 160))
+    low = int(max(12, high * 0.4))
+    edges = cv2.Canny(blur, low, high)
+
+    dark_mask = cv2.inRange(gray, 0, 245)
+    sparse = cv2.bitwise_and(edges, dark_mask)
+
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    sparse = cv2.dilate(sparse, kernel, iterations=1)
+    sparse = cv2.morphologyEx(sparse, cv2.MORPH_CLOSE, kernel)
+
+    min_component_area = max(4, int(roi_area * MIN_COMPONENT_AREA_RATIO))
+    return _remove_small_components(sparse, min_component_area)
+
+
 def _extract_curve_mask(
     roi: NDArray,
     min_pixels: int,
@@ -140,15 +183,62 @@ def _extract_curve_mask(
         or primary_density < MIN_PRIMARY_MASK_DENSITY
     )
     if not low_signal:
-        return primary
+        return _suppress_border_lines(primary)
 
     adaptive = _adaptive_curve_mask(roi, roi_area)
+    sparse = _sparse_curve_mask(roi, roi_area)
     adaptive_count = int(np.count_nonzero(adaptive))
     adaptive_density = adaptive_count / max(1, roi_area)
+    sparse_count = int(np.count_nonzero(sparse))
+    sparse_density = sparse_count / max(1, roi_area)
+    combined = cv2.bitwise_or(adaptive, sparse)
+    combined_count = int(np.count_nonzero(combined))
+    combined_density = combined_count / max(1, roi_area)
 
-    if adaptive_count > primary_count and adaptive_density >= primary_density * 0.9:
-        return adaptive
-    return primary
+    best = primary
+    best_count = primary_count
+    if adaptive_count > best_count and adaptive_density <= MAX_MASK_DENSITY:
+        best = adaptive
+        best_count = adaptive_count
+    if sparse_count > best_count and sparse_density <= MAX_MASK_DENSITY:
+        best = sparse
+        best_count = sparse_count
+    if combined_count > best_count and combined_density <= MAX_MASK_DENSITY:
+        best = combined
+
+    return _suppress_border_lines(best)
+
+
+def _suppress_border_lines(mask: NDArray) -> NDArray:
+    """Remove axis-like border lines that contaminate curve clustering."""
+    if mask.ndim != 2:
+        return mask
+    h, w = mask.shape
+    if h < 10 or w < 10:
+        return mask
+
+    margin_y = max(2, int(h * BORDER_MARGIN_RATIO))
+    margin_x = max(2, int(w * BORDER_MARGIN_RATIO))
+
+    cleaned = mask.copy()
+
+    row_occ = np.count_nonzero(cleaned, axis=1) / max(1, w)
+    remove_rows = np.where(row_occ >= BORDER_LINE_OCCUPANCY_RATIO)[0]
+    for row in remove_rows:
+        if row <= margin_y or row >= h - margin_y - 1:
+            y0 = max(0, row - BORDER_LINE_THICKNESS)
+            y1 = min(h, row + BORDER_LINE_THICKNESS + 1)
+            cleaned[y0:y1, :] = 0
+
+    col_occ = np.count_nonzero(cleaned, axis=0) / max(1, h)
+    remove_cols = np.where(col_occ >= BORDER_LINE_OCCUPANCY_RATIO)[0]
+    for col in remove_cols:
+        if col <= margin_x or col >= w - margin_x - 1:
+            x0 = max(0, col - BORDER_LINE_THICKNESS)
+            x1 = min(w, col + BORDER_LINE_THICKNESS + 1)
+            cleaned[:, x0:x1] = 0
+
+    return cleaned
 
 
 def _coverage_issue(
@@ -189,6 +279,55 @@ def _all_curves_have_distinct_colors(
     return True, parsed
 
 
+def _complete_curve_topology(
+    points: list[tuple[int, int]],
+    plot_x0: int,
+    plot_x1: int,
+) -> list[tuple[int, int]]:
+    """Fill moderate x-gaps while preserving KM-like monotone topology in pixels."""
+    if len(points) < SPARSE_MIN_POINTS_FOR_COMPLETION:
+        return points
+
+    x_to_ys: dict[int, list[int]] = {}
+    for x, y in points:
+        x_to_ys.setdefault(int(x), []).append(int(y))
+    xs = sorted(x_to_ys.keys())
+    if len(xs) < 2:
+        return points
+
+    x_range = max(1, plot_x1 - plot_x0)
+    max_gap = min(
+        SPARSE_INTERPOLATION_ABS_MAX_GAP,
+        max(3, int(x_range * SPARSE_INTERPOLATION_GAP_RATIO)),
+    )
+
+    dense: list[tuple[int, int]] = []
+    prev_x = xs[0]
+    prev_y = int(np.median(x_to_ys[prev_x]))
+    dense.append((prev_x, prev_y))
+
+    for curr_x in xs[1:]:
+        curr_y = int(np.median(x_to_ys[curr_x]))
+        gap = curr_x - prev_x
+        if 1 < gap <= max_gap:
+            for x in range(prev_x + 1, curr_x):
+                ratio = (x - prev_x) / gap
+                y = int(round(prev_y + ratio * (curr_y - prev_y)))
+                dense.append((x, y))
+        dense.append((curr_x, curr_y))
+        prev_x, prev_y = curr_x, curr_y
+
+    monotone: list[tuple[int, int]] = []
+    max_y = dense[0][1]
+    for x, y in dense:
+        if y < max_y:
+            y = max_y
+        else:
+            max_y = y
+        monotone.append((x, y))
+    return monotone
+
+
 def _assign_by_expected_color(
     roi: NDArray,
     xs: NDArray,
@@ -202,15 +341,21 @@ def _assign_by_expected_color(
 
     This enforces identity priors from MMPU colors and is robust to overlaps/crossings.
     """
-    pixel_rgb = np.column_stack([
-        roi[ys, xs, 2] / 255,  # R
-        roi[ys, xs, 1] / 255,  # G
-        roi[ys, xs, 0] / 255,  # B
-    ]).astype(np.float32)
-    expected_rgb = np.asarray([rgb for _, rgb in named_colors], dtype=np.float32)
+    roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
+    pixel_lab = roi_lab[ys, xs]
+    expected_lab = np.asarray([_rgb01_to_lab(rgb) for _, rgb in named_colors], dtype=np.float32)
 
-    d2 = np.sum((pixel_rgb[:, None, :] - expected_rgb[None, :, :]) ** 2, axis=2)
+    d2 = np.sum((pixel_lab[:, None, :] - expected_lab[None, :, :]) ** 2, axis=2)
     nearest = np.argmin(d2, axis=1).astype(np.int32)
+
+    # Prevent complete curve collapse in noisy scenes: ensure each curve gets a seed set.
+    n_curves = max(1, len(named_colors))
+    min_seed_pixels = max(1, xs.shape[0] // (50 * n_curves))
+    for curve_idx in range(n_curves):
+        if np.any(nearest == curve_idx):
+            continue
+        top_idx = np.argpartition(d2[:, curve_idx], min_seed_pixels - 1)[:min_seed_pixels]
+        nearest[top_idx] = curve_idx
 
     curves: dict[str, list[tuple[int, int]]] = {}
     for curve_idx, (curve_name, _) in enumerate(named_colors):
@@ -338,15 +483,15 @@ def isolate_curves(
             message=str(e),
         )
 
-    # Compute average color for each cluster
-    cluster_colors: dict[int, tuple[float, float, float]] = {}
+    # Compute average cluster color in LAB for robust matching under noise.
+    cluster_colors_lab: dict[int, tuple[float, float, float]] = {}
+    roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
     for cluster_id in range(k):
         cluster_mask = labels == cluster_id
         if cluster_mask.any():
-            avg_r = float(np.mean(roi[ys[cluster_mask], xs[cluster_mask], 2] / 255))
-            avg_g = float(np.mean(roi[ys[cluster_mask], xs[cluster_mask], 1] / 255))
-            avg_b = float(np.mean(roi[ys[cluster_mask], xs[cluster_mask], 0] / 255))
-            cluster_colors[cluster_id] = (avg_r, avg_g, avg_b)
+            cluster_lab = roi_lab[ys[cluster_mask], xs[cluster_mask]]
+            avg_lab = tuple(float(v) for v in np.mean(cluster_lab, axis=0))
+            cluster_colors_lab[cluster_id] = avg_lab
 
     # Match clusters to curves by color similarity
     # Fall back to median x-position if color info unavailable
@@ -356,19 +501,20 @@ def isolate_curves(
     curves: dict[str, list[tuple[int, int]]] = {}
     used_clusters: set[int] = set()
 
-    if has_colors and cluster_colors:
+    if has_colors and cluster_colors_lab:
         # Match by color: for each curve with color, find best matching cluster
         for curve_idx, expected_color in curve_colors:
             if expected_color is None:
                 continue
 
+            expected_lab = _rgb01_to_lab(expected_color)
             best_cluster: int | None = None
             best_dist = float("inf")
 
-            for cluster_id, actual_color in cluster_colors.items():
+            for cluster_id, actual_lab in cluster_colors_lab.items():
                 if cluster_id in used_clusters:
                     continue
-                dist = _color_distance(expected_color, actual_color)
+                dist = _lab_distance(expected_lab, actual_lab)
                 if dist < best_dist:
                     best_dist = dist
                     best_cluster = cluster_id
@@ -416,12 +562,22 @@ def isolate_curves(
     all_colors_ok, named_colors = _all_curves_have_distinct_colors(meta)
     if coverage_issues and all_colors_ok:
         color_guided = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
+        min_curve_pixels = max(5, min_pixels // max(1, len(expected_names)))
+        color_empty = [
+            curve_name
+            for curve_name in expected_names
+            if len(color_guided.get(curve_name, [])) < min_curve_pixels
+        ]
         color_issues = [
             curve_name
             for curve_name in expected_names
             if _coverage_issue(color_guided.get(curve_name, []), x0, x1)
         ]
-        if len(color_issues) < len(coverage_issues):
+        if len(color_issues) < len(coverage_issues) and not color_empty:
             curves = color_guided
+
+    for curve_name, points in list(curves.items()):
+        if _coverage_issue(points, x0, x1) or len(points) < SPARSE_MIN_POINTS_FOR_COMPLETION:
+            curves[curve_name] = _complete_curve_topology(points, x0, x1)
 
     return curves

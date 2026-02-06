@@ -8,8 +8,8 @@
     "Treatment"
   ],
   "max_time": 60.0,
-  "y_axis_start": 0.4,
-  "difficulty": 5,
+  "y_axis_start": 0.25,
+  "difficulty": 4,
   "dpi": 150,
   "modifiers": [
     "TruncatedYAxis",
@@ -20,5 +20,5 @@
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
   "total_patients": 400,
-  "total_events": 223
+  "total_events": 187
 }

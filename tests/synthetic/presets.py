@@ -1,7 +1,7 @@
-"""Preset generation profiles: generate_difficult() and generate_standard().
+"""Preset generation profiles: realistic-hard difficult and standard suites.
 
-generate_difficult(): 5 hand-picked worst-case scenarios.
-generate_standard(): 100 cases with realistic distribution (~60/25/15 easy/medium/hard).
+generate_difficult(): 5 hand-picked realistic hard scenarios.
+generate_standard(): 100 realistic hard cases for stress evaluation.
 """
 
 from __future__ import annotations
@@ -47,18 +47,18 @@ def _difficult_low_res_overlap(seed: int) -> SyntheticTestCase:
         name="low_res_overlap",
         seed=seed,
         n_curves=3,
-        n_per_arm=120,
+        n_per_arm=180,
         max_time=48.0,
-        weibull_ks=[1.0, 1.1, 1.2],
-        weibull_scale=30.0,
+        weibull_ks=[0.95, 1.05, 1.15],
+        weibull_scale=32.0,
         censoring_rate=0.02,
         modifiers=[
             CensoringMarks(),
             RiskTableDisplay(),
-            LowResolution(target_width=350),
-            JPEGArtifacts(quality=30),
+            LowResolution(target_width=760),
+            JPEGArtifacts(quality=62),
         ],
-        difficulty=5,
+        difficulty=4,
     )
 
 
@@ -69,17 +69,17 @@ def _difficult_truncated_noisy(seed: int) -> SyntheticTestCase:
         n_curves=2,
         n_per_arm=200,
         max_time=60.0,
-        weibull_ks=[1.5, 2.0],
+        weibull_ks=[1.35, 1.85],
         weibull_scale=40.0,
-        censoring_rate=0.015,
-        y_axis_start=0.4,
+        censoring_rate=0.02,
+        y_axis_start=0.25,
         modifiers=[
-            TruncatedYAxis(y_start=0.4),
+            TruncatedYAxis(y_start=0.25),
             CensoringMarks(),
-            ThinLines(linewidth=0.5),
-            NoisyBackground(sigma=18.0),
+            ThinLines(linewidth=0.9),
+            NoisyBackground(sigma=9.0),
         ],
-        difficulty=5,
+        difficulty=4,
     )
 
 
@@ -90,15 +90,15 @@ def _difficult_crossing_compressed(seed: int) -> SyntheticTestCase:
         n_curves=2,
         n_per_arm=180,
         max_time=60.0,
-        weibull_ks=[0.5, 2.5],
+        weibull_ks=[0.7, 2.1],
         weibull_scale=35.0,
-        censoring_rate=0.01,
+        censoring_rate=0.015,
         modifiers=[
             CensoringMarks(),
-            CompressedTimeAxis(n_ticks=20),
-            GridLines(major=True, alpha=0.4),
+            CompressedTimeAxis(n_ticks=12),
+            GridLines(major=True, alpha=0.25),
         ],
-        difficulty=5,
+        difficulty=4,
     )
 
 
@@ -107,19 +107,19 @@ def _difficult_four_arm_lowres(seed: int) -> SyntheticTestCase:
         name="four_arm_lowres",
         seed=seed,
         n_curves=4,
-        n_per_arm=80,
+        n_per_arm=130,
         max_time=36.0,
-        weibull_ks=[0.9, 1.0, 1.1, 1.15],
+        weibull_ks=[0.9, 1.0, 1.08, 1.15],
         weibull_scale=25.0,
         censoring_rate=0.02,
         group_names=["Arm A", "Arm B", "Arm C", "Arm D"],
         modifiers=[
             CensoringMarks(),
             RiskTableDisplay(),
-            LowResolution(target_width=400),
+            LowResolution(target_width=820),
             GaussianBlur(kernel_size=3),
         ],
-        difficulty=5,
+        difficulty=4,
     )
 
 
@@ -128,17 +128,18 @@ def _difficult_sparse_degraded(seed: int) -> SyntheticTestCase:
         name="sparse_degraded",
         seed=seed,
         n_curves=2,
-        n_per_arm=30,
+        n_per_arm=95,
         max_time=48.0,
         weibull_ks=[1.0, 1.0],
-        weibull_scale=15.0,
-        censoring_rate=0.08,  # high → ~90% censoring
+        weibull_scale=18.0,
+        censoring_rate=0.04,
         modifiers=[
             CensoringMarks(),
-            JPEGArtifacts(quality=25),
-            NoisyBackground(sigma=15.0),
+            LowResolution(target_width=700),
+            JPEGArtifacts(quality=60),
+            NoisyBackground(sigma=8.0),
         ],
-        difficulty=5,
+        difficulty=4,
     )
 
 
@@ -230,10 +231,7 @@ def generate_standard(
     output_dir: str | Path = "tests/fixtures/standard",
     base_seed: int = 1000,
 ) -> list[SyntheticTestCase]:
-    """Generate 100 standard test cases with realistic distribution.
-
-    Distribution: ~60 easy, ~25 medium, ~15 hard.
-    """
+    """Generate 100 realistic-hard test cases."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -243,96 +241,51 @@ def generate_standard(
     # LHS over 5 dimensions: [log_k, scale_factor, censoring_rate, n_per_arm, max_time_idx]
     lhs = _latin_hypercube(n_total, 5, rng)
 
-    # Difficulty tier assignments: 60 easy, 25 medium, 15 hard
-    tiers = ["easy"] * 60 + ["medium"] * 25 + ["hard"] * 15
-    rng.shuffle(tiers)
-
     max_time_choices = [12.0, 24.0, 36.0, 48.0, 60.0, 72.0, 96.0, 120.0]
 
     cases = []
     for i in range(n_total):
-        tier = tiers[i]
         sample = lhs[i]
         case_seed = base_seed + 100 + i
         case_rng = np.random.default_rng(case_seed)
 
         max_time = max_time_choices[int(sample[4] * 7.99)]
 
-        if tier == "easy":
-            # 1-2 curves, k near 1.0, clean image
-            n_curves = case_rng.choice([1, 2], p=[0.3, 0.7])
-            log_k = np.log(0.8) + sample[0] * (np.log(1.5) - np.log(0.8))
-            base_k = np.exp(log_k)
-            weibull_ks = [
-                base_k * case_rng.uniform(0.9, 1.1) for _ in range(n_curves)
-            ]
-            n_per_arm = int(100 + sample[3] * 200)  # 100-300
-            censoring_rate = 0.005 + sample[2] * 0.025  # 0.005-0.03
-            scale_factor = 0.4 + sample[1] * 0.8  # 0.4-1.2
-            y_start = 0.0
-            modifiers: list[Modifier] = []
-            # Optionally add simple modifiers
-            if case_rng.random() < 0.4:
-                modifiers.append(CensoringMarks())
-            if case_rng.random() < 0.5:
-                modifiers.append(RiskTableDisplay())
+        # Realistic hard-only profile: challenging but still readable.
+        n_curves = case_rng.choice([2, 3, 4], p=[0.45, 0.40, 0.15])
+        log_k = np.log(0.6) + sample[0] * (np.log(2.2) - np.log(0.6))
+        base_k = np.exp(log_k)
+        weibull_ks = [
+            base_k * case_rng.uniform(0.75, 1.35) for _ in range(n_curves)
+        ]
+        n_per_arm = int(80 + sample[3] * 180)  # 80-260
+        censoring_rate = 0.01 + sample[2] * 0.04  # 0.01-0.05
+        scale_factor = 0.35 + sample[1] * 0.75
+        y_start = 0.0
+        modifiers: list[Modifier] = [CensoringMarks()]
+        if case_rng.random() < 0.7:
+            modifiers.append(RiskTableDisplay())
+        if case_rng.random() < 0.2:
+            y_start = float(case_rng.choice([0.2, 0.3]))
+            modifiers.append(TruncatedYAxis(y_start=y_start))
+        if case_rng.random() < 0.45:
+            modifiers.append(GridLines(alpha=0.25))
+        if case_rng.random() < 0.12:
+            modifiers.append(Annotations())
 
-        elif tier == "medium":
-            # 2-3 curves, wider k range, minor visual degradation
-            n_curves = case_rng.choice([2, 3], p=[0.6, 0.4])
-            log_k = np.log(0.5) + sample[0] * (np.log(3.0) - np.log(0.5))
-            base_k = np.exp(log_k)
-            weibull_ks = [
-                base_k * case_rng.uniform(0.7, 1.4) for _ in range(n_curves)
-            ]
-            n_per_arm = int(60 + sample[3] * 240)  # 60-300
-            censoring_rate = 0.01 + sample[2] * 0.04  # 0.01-0.05
-            scale_factor = 0.3 + sample[1] * 1.0
-            y_start = 0.0
-            modifiers = [CensoringMarks()]
-            if case_rng.random() < 0.4:
-                modifiers.append(GridLines())
-            if case_rng.random() < 0.6:
-                modifiers.append(RiskTableDisplay())
-            if case_rng.random() < 0.2:
-                y_start = case_rng.choice([0.3, 0.4, 0.5])
-                modifiers.append(TruncatedYAxis(y_start=y_start))
-            if case_rng.random() < 0.15:
-                modifiers.append(Annotations())
-
-        else:  # hard
-            # 2-4 curves, extreme params, post-render degradation
-            n_curves = case_rng.choice([2, 3, 4], p=[0.4, 0.35, 0.25])
-            log_k = np.log(0.3) + sample[0] * (np.log(8.0) - np.log(0.3))
-            base_k = np.exp(log_k)
-            weibull_ks = [
-                base_k * case_rng.uniform(0.5, 2.0) for _ in range(n_curves)
-            ]
-            n_per_arm = int(30 + sample[3] * 270)  # 30-300
-            censoring_rate = 0.02 + sample[2] * 0.06  # 0.02-0.08
-            scale_factor = 0.2 + sample[1] * 1.3
-            y_start = 0.0
-            modifiers = [CensoringMarks()]
-            if case_rng.random() < 0.5:
-                modifiers.append(RiskTableDisplay())
-            if case_rng.random() < 0.4:
-                y_start = case_rng.choice([0.3, 0.4, 0.5])
-                modifiers.append(TruncatedYAxis(y_start=y_start))
-            if case_rng.random() < 0.5:
-                modifiers.append(GridLines(alpha=0.4))
-            # Post-render degradation (at least one)
-            post_roll = case_rng.random()
-            if post_roll < 0.3:
-                modifiers.append(LowResolution(target_width=int(case_rng.integers(300, 500))))
-            elif post_roll < 0.6:
-                modifiers.append(JPEGArtifacts(quality=int(case_rng.integers(25, 50))))
-            elif post_roll < 0.8:
-                modifiers.append(NoisyBackground(sigma=case_rng.uniform(10, 25)))
-            else:
-                modifiers.append(LowResolution(target_width=int(case_rng.integers(300, 450))))
-                modifiers.append(JPEGArtifacts(quality=int(case_rng.integers(30, 50))))
-            if case_rng.random() < 0.3:
-                modifiers.append(ThinLines(linewidth=case_rng.uniform(0.3, 0.8)))
+        # Mild-to-moderate degradation (avoid unreadable adversarial renders).
+        post_roll = case_rng.random()
+        if post_roll < 0.35:
+            modifiers.append(LowResolution(target_width=int(case_rng.integers(650, 900))))
+        elif post_roll < 0.65:
+            modifiers.append(JPEGArtifacts(quality=int(case_rng.integers(55, 76))))
+        elif post_roll < 0.9:
+            modifiers.append(NoisyBackground(sigma=case_rng.uniform(5, 12)))
+        else:
+            modifiers.append(LowResolution(target_width=int(case_rng.integers(700, 900))))
+            modifiers.append(JPEGArtifacts(quality=int(case_rng.integers(60, 78))))
+        if case_rng.random() < 0.15:
+            modifiers.append(ThinLines(linewidth=case_rng.uniform(0.8, 1.2)))
 
         weibull_scale_val = scale_factor * max_time
         group_names = None
@@ -350,6 +303,7 @@ def generate_standard(
         difficulty = _compute_difficulty(
             n_curves, weibull_ks, censoring_rate, y_start, n_per_arm, has_post
         )
+        difficulty = max(4, difficulty)
 
         tc = generate_test_case(
             name=f"case_{i + 1:03d}",

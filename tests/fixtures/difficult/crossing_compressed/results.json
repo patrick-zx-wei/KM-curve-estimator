@@ -1,6 +1,6 @@
 {
   "case_name": "crossing_compressed",
-  "difficulty": 5,
+  "difficulty": 4,
   "n_curves": 2,
   "pipeline_errors": [],
   "mmpu": {
@@ -16,18 +16,18 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.014884532185999355,
-      "rmse": 0.016613385786917827,
-      "dtw": 0.0017457210527414492,
-      "frechet": 0.04194078947368418,
-      "max_error": 0.04194078947368418
+      "mae": 0.014569400824582697,
+      "rmse": 0.01583540192794326,
+      "dtw": 0.0017577702645752982,
+      "frechet": 0.012335526315789491,
+      "max_error": 0.03133886025938526
     },
     "Treatment": {
-      "mae": 0.19047506058575975,
-      "rmse": 0.2215380043798379,
-      "dtw": 0.002035726545913362,
-      "frechet": 0.06057358348839659,
-      "max_error": 0.37892480985444366
+      "mae": 0.1529336756563153,
+      "rmse": 0.17043169975499697,
+      "dtw": 0.0028535191082173367,
+      "frechet": 0.15156071939133417,
+      "max_error": 0.27774871015510416
     }
   },
   "hard_points": {
@@ -35,44 +35,44 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.6718,
-          "actual": 0.6542,
-          "error": 0.0176,
-          "pass": true
+          "expected": 0.7788,
+          "actual": 0.8542,
+          "error": 0.0754,
+          "pass": false
         },
         {
           "time": 12,
-          "expected": 0.5497,
-          "actual": 0.51,
-          "error": 0.0397,
-          "pass": true
+          "expected": 0.623,
+          "actual": 0.7483,
+          "error": 0.1253,
+          "pass": false
         },
         {
           "time": 24,
-          "expected": 0.4523,
-          "actual": 0.377,
-          "error": 0.0753,
+          "expected": 0.4596,
+          "actual": 0.6216,
+          "error": 0.162,
           "pass": false
         },
         {
           "time": 36,
-          "expected": 0.3645,
-          "actual": 0.2694,
-          "error": 0.0951,
+          "expected": 0.362,
+          "actual": 0.5036,
+          "error": 0.1416,
           "pass": false
         },
         {
           "time": 48,
-          "expected": 0.3266,
-          "actual": 0.1502,
-          "error": 0.1764,
+          "expected": 0.2803,
+          "actual": 0.3303,
+          "error": 0.05,
           "pass": false
         },
         {
           "time": 60,
-          "expected": 0.2713,
-          "actual": 0.0438,
-          "error": 0.2275,
+          "expected": 0.2189,
+          "actual": 0.0,
+          "error": 0.2189,
           "pass": false
         }
       ],
@@ -82,45 +82,45 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 1.0,
-          "actual": 0.8516,
-          "error": 0.1484,
+          "expected": 0.9876,
+          "actual": 0.8565,
+          "error": 0.1311,
           "pass": false
         },
         {
           "time": 12,
-          "expected": 0.9242,
-          "actual": 0.7895,
-          "error": 0.1347,
+          "expected": 0.8961,
+          "actual": 0.7538,
+          "error": 0.1423,
           "pass": false
         },
         {
           "time": 24,
-          "expected": 0.6418,
-          "actual": 0.7321,
-          "error": 0.0903,
-          "pass": false
+          "expected": 0.6102,
+          "actual": 0.613,
+          "error": 0.0028,
+          "pass": true
         },
         {
           "time": 36,
-          "expected": 0.2981,
-          "actual": 0.6606,
-          "error": 0.3625,
+          "expected": 0.2857,
+          "actual": 0.4965,
+          "error": 0.2108,
           "pass": false
         },
         {
           "time": 48,
-          "expected": 0.1186,
-          "actual": 0.607,
-          "error": 0.4884,
+          "expected": 0.1071,
+          "actual": 0.3605,
+          "error": 0.2534,
           "pass": false
         },
         {
           "time": 60,
-          "expected": 0.0414,
+          "expected": 0.0803,
           "actual": 0.0,
-          "error": 0.0414,
-          "pass": true
+          "error": 0.0803,
+          "pass": false
         }
       ],
       "all_pass": false
@@ -128,30 +128,30 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.048525999602315587,
-      "rmse": 0.06606533511037324,
-      "dtw": 0.023601308477114193,
-      "frechet": 0.2274715797086089,
-      "max_error": 0.2274715797086089
+      "mae": 0.10198649742202794,
+      "rmse": 0.11283736986014159,
+      "dtw": 0.008515995995940294,
+      "frechet": 0.2189302244720456,
+      "max_error": 0.17935724599691932
     },
     "Treatment": {
-      "mae": 0.20003332618467576,
-      "rmse": 0.2494406847947966,
-      "dtw": 0.07081253732833262,
-      "frechet": 0.2725408619271452,
-      "max_error": 0.5014205078746007
+      "mae": 0.12165726686222908,
+      "rmse": 0.14678398337629142,
+      "dtw": 0.01025881847736941,
+      "frechet": 0.08034717534550798,
+      "max_error": 0.29671374781083437
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.09729598193976423,
-      "dtw": 0.007390323020111389,
-      "rmse": 0.11843930179622007
+      "mae": 0.10465291523143373,
+      "dtw": null,
+      "rmse": null
     },
     "Treatment": {
-      "mae": 0.2453377853882504,
-      "dtw": 0.10954836568917564,
-      "rmse": 0.25171302438578774
+      "mae": 0.10503492151346303,
+      "dtw": null,
+      "rmse": null
     }
   },
   "passed": false
