@@ -6,6 +6,7 @@ from bisect import bisect_left
 from itertools import product
 from typing import Any
 
+import cv2
 import numpy as np
 from numpy.typing import NDArray
 
@@ -16,7 +17,11 @@ MAX_STATES_PER_X = 128
 
 MEDIAN_ATTRACTION_WEIGHT = 0.08
 MISSING_COLUMN_PENALTY = 0.45
+MISSING_TRANSITION_PENALTY = 0.22
 COLOR_PRIOR_WEIGHT = 0.8
+COLOR_PATCH_RADIUS = 2
+MIN_COLOR_WEIGHT_FACTOR = 0.2
+SATURATION_CONFIDENCE_SCALE = 80.0
 
 SMOOTHNESS_WEIGHT = 0.15
 UPWARD_MOVE_PENALTY = 8.0
@@ -151,24 +156,77 @@ def _sample_rgb_at(
     return float(r) / 255.0, float(g) / 255.0, float(b) / 255.0
 
 
-def _state_overlap_penalty(y_values: tuple[int, ...]) -> float:
+def _local_color_stats(
+    image: NDArray[Any],
+    x: int,
+    y: int,
+    radius: int = COLOR_PATCH_RADIUS,
+) -> tuple[tuple[float, float, float], float]:
+    """
+    Sample robust local color and saturation confidence around (x, y).
+
+    Returns:
+    - median RGB (normalized 0-1)
+    - saturation confidence in [0, 1]
+    """
+    h, w = image.shape[:2]
+    cx = int(np.clip(x, 0, w - 1))
+    cy = int(np.clip(y, 0, h - 1))
+    x0 = max(0, cx - radius)
+    x1 = min(w, cx + radius + 1)
+    y0 = max(0, cy - radius)
+    y1 = min(h, cy + radius + 1)
+
+    patch = image[y0:y1, x0:x1]
+    if patch.size == 0:
+        return _sample_rgb_at(image, x, y), 0.0
+
+    flat = patch.reshape(-1, 3).astype(np.float32)
+    median_bgr = np.median(flat, axis=0)
+    rgb = (
+        float(median_bgr[2]) / 255.0,
+        float(median_bgr[1]) / 255.0,
+        float(median_bgr[0]) / 255.0,
+    )
+
+    hsv_patch = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    sat = hsv_patch[:, :, 1].astype(np.float32)
+    sat_median = float(np.median(sat))
+    sat_p90 = float(np.percentile(sat, 90))
+    sat_signal = 0.6 * sat_median + 0.4 * sat_p90
+    sat_confidence = float(np.clip(sat_signal / SATURATION_CONFIDENCE_SCALE, 0.0, 1.0))
+    return rgb, sat_confidence
+
+
+def _state_overlap_penalty(y_values: tuple[int | None, ...]) -> float:
     """Penalize curves collapsing to near-identical y at same x."""
     penalty = 0.0
-    n = len(y_values)
+    present = [y for y in y_values if y is not None]
+    n = len(present)
     for i in range(n):
         for j in range(i + 1, n):
-            dy = abs(y_values[i] - y_values[j])
+            dy = abs(present[i] - present[j])
             if dy < MIN_VERTICAL_SEPARATION_PX:
                 penalty += OVERLAP_PENALTY * (MIN_VERTICAL_SEPARATION_PX - dy)
     return penalty
 
 
-def _swap_penalty(prev_y: tuple[int, ...], curr_y: tuple[int, ...]) -> float:
+def _swap_penalty(
+    prev_y: tuple[int | None, ...],
+    curr_y: tuple[int | None, ...],
+) -> float:
     """Penalize abrupt pairwise order swaps between curves."""
     penalty = 0.0
     n = len(curr_y)
     for i in range(n):
         for j in range(i + 1, n):
+            if (
+                prev_y[i] is None
+                or prev_y[j] is None
+                or curr_y[i] is None
+                or curr_y[j] is None
+            ):
+                continue
             prev_diff = prev_y[i] - prev_y[j]
             curr_diff = curr_y[i] - curr_y[j]
             if (
@@ -203,7 +261,8 @@ def _curve_candidates_for_x(
     x: int,
     image: NDArray[Any] | None,
     expected_rgb: tuple[float, float, float] | None,
-) -> tuple[list[int], list[float]]:
+    max_fallback_gap_px: int,
+) -> tuple[list[int | None], list[float]]:
     """Generate y-candidates and local costs for one curve at one x."""
     ys = x_map.get(x)
     if ys:
@@ -215,21 +274,33 @@ def _curve_candidates_for_x(
         ]
     else:
         nearest_x = _find_nearest_x(sorted_keys, x)
-        if nearest_x is None:
-            return [0], [MISSING_COLUMN_PENALTY * 2.0]
+        if nearest_x is None or abs(nearest_x - x) > max_fallback_gap_px:
+            # No reliable nearby evidence for this x-column.
+            return [None], [MISSING_COLUMN_PENALTY * 2.0]
+        nearest_gap = abs(nearest_x - x)
+        gap_ratio = nearest_gap / max(1, max_fallback_gap_px)
         nearest_ys = x_map[nearest_x]
         nearest_y = int(np.median(nearest_ys))
-        candidates = [nearest_y]
-        base_costs = [MISSING_COLUMN_PENALTY]
+        candidates = [nearest_y, None]
+        base_costs = [
+            MISSING_COLUMN_PENALTY * (1.0 + gap_ratio),
+            MISSING_COLUMN_PENALTY * (1.3 + 0.4 * gap_ratio),
+        ]
 
     if image is None or expected_rgb is None:
         return candidates, base_costs
 
     costs = []
     for candidate_y, base in zip(candidates, base_costs):
-        rgb = _sample_rgb_at(image, x, candidate_y)
+        if candidate_y is None:
+            costs.append(base)
+            continue
+        rgb, sat_confidence = _local_color_stats(image, x, candidate_y)
         color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(rgb, expected_rgb))))
-        costs.append(base + color_dist * COLOR_PRIOR_WEIGHT)
+        color_weight = COLOR_PRIOR_WEIGHT * (
+            MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
+        )
+        costs.append(base + color_dist * color_weight)
     return candidates, costs
 
 
@@ -238,6 +309,7 @@ def _trace_curves_joint(
     x_values: list[int],
     image: NDArray[Any] | None,
     curve_color_priors: dict[str, tuple[float, float, float] | None] | None,
+    max_fallback_gap_px: int,
 ) -> dict[str, list[tuple[int, int]]]:
     """Jointly trace all curves with state exclusivity and identity priors."""
     if not x_values:
@@ -254,7 +326,12 @@ def _trace_curves_joint(
         for name in curve_names:
             expected_rgb = curve_color_priors.get(name) if curve_color_priors else None
             candidates, costs = _curve_candidates_for_x(
-                x_maps[name], sorted_keys[name], x, image, expected_rgb
+                x_maps[name],
+                sorted_keys[name],
+                x,
+                image,
+                expected_rgb,
+                max_fallback_gap_px,
             )
             curve_candidates.append(candidates)
             curve_costs.append(costs)
@@ -291,9 +368,15 @@ def _trace_curves_joint(
             for prev_idx, (prev_y, _) in enumerate(prev_states):
                 transition = 0.0
                 for curve_idx in range(len(curve_names)):
-                    transition += _transition_cost(
-                        prev_y[curve_idx], curr_y[curve_idx], x_gap
-                    )
+                    prev_val = prev_y[curve_idx]
+                    curr_val = curr_y[curve_idx]
+                    if prev_val is None and curr_val is None:
+                        transition += MISSING_TRANSITION_PENALTY * 0.5
+                        continue
+                    if prev_val is None or curr_val is None:
+                        transition += MISSING_TRANSITION_PENALTY
+                        continue
+                    transition += _transition_cost(prev_val, curr_val, x_gap)
                 transition += _swap_penalty(prev_y, curr_y)
 
                 total = prev_cost[prev_idx] + transition
@@ -315,7 +398,9 @@ def _trace_curves_joint(
     for x, state_idx, states in zip(x_values, best_indices, states_by_x):
         ys = states[state_idx][0]
         for curve_idx, name in enumerate(curve_names):
-            traced_by_curve[name].append((x, ys[curve_idx]))
+            y_val = ys[curve_idx]
+            if y_val is not None:
+                traced_by_curve[name].append((x, y_val))
 
     return traced_by_curve
 
@@ -372,6 +457,7 @@ def resolve_overlaps(
     x0, _, x1, _ = mapping.plot_region
     x_range = x1 - x0
     gap_threshold = max(1, int(x_range * 0.05))  # 5% of x-range
+    max_fallback_gap_px = max(3, int(x_range * 0.01))  # 1% of x-range
 
     # Build global x-grid from union of all curve pixels.
     x_union: set[int] = set()
@@ -385,6 +471,7 @@ def resolve_overlaps(
         x_values=x_values,
         image=image,
         curve_color_priors=curve_color_priors,
+        max_fallback_gap_px=max_fallback_gap_px,
     )
 
     for name, traced in traced_by_curve.items():
