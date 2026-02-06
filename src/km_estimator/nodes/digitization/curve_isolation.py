@@ -25,6 +25,9 @@ COLOR_MAP: dict[str, tuple[float, float, float]] = {
     "yellow": (1.0, 1.0, 0.0),
 }
 
+MAX_KMEDOIDS_FIT_SAMPLES = 15_000
+LABEL_ASSIGNMENT_CHUNK_SIZE = 100_000
+
 
 def _parse_color(curve: CurveInfo) -> tuple[float, float, float] | None:
     """Extract RGB from color_description like 'solid blue' or 'dashed red'."""
@@ -40,6 +43,24 @@ def _parse_color(curve: CurveInfo) -> tuple[float, float, float] | None:
 def _color_distance(c1: tuple[float, float, float], c2: tuple[float, float, float]) -> float:
     """Euclidean distance between two RGB colors."""
     return float(np.sqrt(sum((a - b) ** 2 for a, b in zip(c1, c2))))
+
+
+def _assign_to_nearest_medoids(
+    pixels: NDArray,
+    medoids: NDArray,
+    chunk_size: int = LABEL_ASSIGNMENT_CHUNK_SIZE,
+) -> NDArray:
+    """Assign each pixel to nearest medoid in bounded-memory chunks."""
+    n_points = pixels.shape[0]
+    labels = np.empty(n_points, dtype=np.int32)
+
+    for start in range(0, n_points, chunk_size):
+        end = min(start + chunk_size, n_points)
+        chunk = pixels[start:end]
+        d2 = np.sum((chunk[:, None, :] - medoids[None, :, :]) ** 2, axis=2)
+        labels[start:end] = np.argmin(d2, axis=1).astype(np.int32)
+
+    return labels
 
 
 def isolate_curves(
@@ -87,6 +108,17 @@ def isolate_curves(
             details={"roi_shape": roi.shape, "mask_sum": int(mask.sum())},
         )
 
+    if len(xs) < len(meta.curves):
+        return ProcessingError(
+            stage=ProcessingStage.DIGITIZE,
+            error_type="insufficient_curve_pixels",
+            recoverable=False,
+            message=(
+                f"Detected only {len(xs)} curve pixels for {len(meta.curves)} curves"
+            ),
+            details={"n_pixels": int(len(xs)), "n_curves": int(len(meta.curves))},
+        )
+
     # Build feature matrix: (x, y, R, G, B) normalized
     pixels = np.column_stack([
         xs / roi.shape[1],
@@ -94,7 +126,7 @@ def isolate_curves(
         roi[ys, xs, 2] / 255,  # R (BGR order)
         roi[ys, xs, 1] / 255,  # G
         roi[ys, xs, 0] / 255,  # B
-    ])
+    ]).astype(np.float32)
 
     k = len(meta.curves)
     if k == 0:
@@ -109,8 +141,35 @@ def isolate_curves(
     try:
         from sklearn_extra.cluster import KMedoids
 
+        fit_pixels = pixels
+        if pixels.shape[0] > MAX_KMEDOIDS_FIT_SAMPLES:
+            rng = np.random.default_rng(42)
+            sample_idx = rng.choice(
+                pixels.shape[0], size=MAX_KMEDOIDS_FIT_SAMPLES, replace=False
+            )
+            fit_pixels = pixels[sample_idx]
+
         kmedoids = KMedoids(n_clusters=k, random_state=42, max_iter=100)
-        labels = kmedoids.fit_predict(pixels)
+        kmedoids.fit(fit_pixels)
+
+        cluster_centers = getattr(kmedoids, "cluster_centers_", None)
+        if cluster_centers is not None:
+            medoids = np.asarray(cluster_centers, dtype=np.float32)
+        else:
+            medoid_indices = getattr(kmedoids, "medoid_indices_", None)
+            if medoid_indices is None:
+                return ProcessingError(
+                    stage=ProcessingStage.DIGITIZE,
+                    error_type="clustering_failed",
+                    recoverable=True,
+                    message="KMedoids did not expose medoid centers",
+                )
+            medoids = fit_pixels[np.asarray(medoid_indices, dtype=np.int32)]
+
+        if fit_pixels.shape[0] == pixels.shape[0]:
+            labels = np.asarray(kmedoids.labels_, dtype=np.int32)
+        else:
+            labels = _assign_to_nearest_medoids(pixels, medoids)
     except ImportError:
         return ProcessingError(
             stage=ProcessingStage.DIGITIZE,

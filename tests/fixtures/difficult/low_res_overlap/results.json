@@ -2,12 +2,7 @@
   "case_name": "low_res_overlap",
   "difficulty": 5,
   "n_curves": 3,
-  "pipeline_errors": [
-    {
-      "stage": "digitize",
-      "message": "sklearn_extra not installed (needed for KMedoids)"
-    }
-  ],
+  "pipeline_errors": [],
   "mmpu": {
     "x_axis_start_error": 0.0,
     "x_axis_end_error": 0.0,
@@ -20,16 +15,189 @@
     "risk_table_expected": true
   },
   "digitize": {
-    "error": "no digitized_curves produced"
+    "Control": {
+      "mae": 0.08630889720733152,
+      "rmse": 0.13381594947583453,
+      "dtw": 0.007534361747095909,
+      "frechet": 0.3949487058978879,
+      "max_error": 0.3949487058978879
+    },
+    "Treatment": {
+      "mae": 0.18993341089555157,
+      "rmse": 0.25687669098488364,
+      "dtw": 0.01875415873587981,
+      "frechet": 0.5031982942430704,
+      "max_error": 0.5031982942430704
+    },
+    "Arm A": {
+      "mae": 0.0693769337170068,
+      "rmse": 0.08957308322357331,
+      "dtw": 0.005769943789986727,
+      "frechet": 0.20777219044278833,
+      "max_error": 0.20777219044278833
+    }
   },
   "hard_points": {
-    "error": "no pipeline output"
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8166,
+          "actual": 0.8381,
+          "error": 0.0215,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6056,
+          "actual": 0.6619,
+          "error": 0.0563,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.4686,
+          "actual": 0.4669,
+          "error": 0.0017,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.2705,
+          "actual": 0.4669,
+          "error": 0.1964,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.1019,
+          "actual": 0.4669,
+          "error": 0.365,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8369,
+          "actual": 1.0,
+          "error": 0.1631,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.6562,
+          "actual": 1.0,
+          "error": 0.3438,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.4102,
+          "actual": 0.5424,
+          "error": 0.1322,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.2045,
+          "actual": 0.2791,
+          "error": 0.0746,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.1687,
+          "actual": 0.0555,
+          "error": 0.1132,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8906,
+          "actual": 0.8142,
+          "error": 0.0764,
+          "pass": false
+        },
+        {
+          "time": 12,
+          "expected": 0.7506,
+          "actual": 0.6519,
+          "error": 0.0987,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.4746,
+          "actual": 0.4108,
+          "error": 0.0638,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.3035,
+          "actual": 0.3821,
+          "error": 0.0786,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.2101,
+          "actual": 0.3821,
+          "error": 0.172,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
   },
   "reconstruction": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.07033564512504537,
+      "rmse": 0.11842201519081488,
+      "dtw": 0.05836977814745164,
+      "frechet": 0.3650330288432796,
+      "max_error": 0.3650330288432796
+    },
+    "Treatment": {
+      "mae": 0.2002847300976949,
+      "rmse": 0.2362822777183177,
+      "dtw": 0.00731429911781481,
+      "frechet": 0.11319628808909239,
+      "max_error": 0.4474827680417952
+    },
+    "Arm A": {
+      "mae": 0.0712925684289141,
+      "rmse": 0.08179662105336231,
+      "dtw": 0.014635392989787945,
+      "frechet": 0.17194924945322776,
+      "max_error": 0.17194924945322776
+    }
   },
   "validation": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.01710340423009269,
+      "dtw": 0.0024006963374854557,
+      "rmse": 0.019647318849091527
+    },
+    "Treatment": {
+      "mae": 0.05573807387396446,
+      "dtw": 0.013767378326514089,
+      "rmse": 0.07441376438034036
+    },
+    "Arm A": {
+      "mae": 0.017647980471172508,
+      "dtw": 0.003988206412910134,
+      "rmse": 0.021449519131914924
+    }
   },
   "passed": false
 }

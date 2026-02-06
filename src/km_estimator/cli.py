@@ -3,7 +3,9 @@
 import asyncio
 import json
 import sys
+from collections.abc import AsyncIterator
 from pathlib import Path
+from tempfile import gettempdir
 
 import click
 
@@ -34,19 +36,58 @@ async def process_images_concurrent(
     pipeline_config: PipelineConfig,
     max_concurrency: int,
     verbose: bool,
-) -> list[tuple[Path, PipelineState | None, Exception | None]]:
-    """Process all images concurrently with semaphore control."""
+) -> AsyncIterator[tuple[Path, PipelineState | None, Exception | None]]:
+    """Process images with a bounded in-flight queue and stream completed results."""
     semaphore = asyncio.Semaphore(max_concurrency)
-    tasks = [
-        process_single_image(img_path, pipeline_config, semaphore, verbose)
-        for img_path in images
-    ]
-    return await asyncio.gather(*tasks)
+    image_iter = iter(images)
+    in_flight: set[asyncio.Task[tuple[Path, PipelineState | None, Exception | None]]] = set()
+
+    def _schedule_next() -> bool:
+        try:
+            img_path = next(image_iter)
+        except StopIteration:
+            return False
+        task = asyncio.create_task(
+            process_single_image(img_path, pipeline_config, semaphore, verbose)
+        )
+        in_flight.add(task)
+        return True
+
+    initial_workers = min(max_concurrency, len(images))
+    for _ in range(initial_workers):
+        _schedule_next()
+
+    while in_flight:
+        done, _ = await asyncio.wait(in_flight, return_when=asyncio.FIRST_COMPLETED)
+        for completed in done:
+            in_flight.remove(completed)
+            yield completed.result()
+            _schedule_next()
+
+
+def _cleanup_preprocessed_image(state: PipelineState | None) -> None:
+    """Delete per-image temp preprocess output to keep runtime resources bounded."""
+    if state is None or state.preprocessed_image_path is None:
+        return
+
+    preprocessed = Path(state.preprocessed_image_path)
+    temp_root = Path(gettempdir()) / "km_estimator"
+    try:
+        if preprocessed.exists() and temp_root in preprocessed.parents:
+            preprocessed.unlink()
+    except OSError:
+        # Cleanup failures should not fail the extraction pipeline.
+        pass
 
 
 @click.command()
 @click.argument("images", nargs=-1, type=click.Path(exists=True, path_type=Path))
-@click.option("-o", "--output", type=click.Path(path_type=Path), help="Output JSON file (single image)")
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path),
+    help="Output JSON file (single image)",
+)
 @click.option("--output-dir", type=click.Path(path_type=Path), help="Output directory (batch mode)")
 @click.option(
     "--max-concurrency",
@@ -98,6 +139,9 @@ def main(
 
     if output_dir:
         output_dir.mkdir(parents=True, exist_ok=True)
+    if max_concurrency < 1:
+        click.echo("Error: --max-concurrency must be >= 1", err=True)
+        sys.exit(1)
 
     pipeline_config = PipelineConfig(
         max_validation_retries=max_retries,
@@ -106,58 +150,63 @@ def main(
         single_model_mode=single_model,
     )
 
-    # Run concurrent processing
-    results = asyncio.run(
-        process_images_concurrent(images, pipeline_config, max_concurrency, verbose)
-    )
+    async def _run() -> tuple[int, int]:
+        success_count = 0
+        fail_count = 0
 
-    success_count = 0
-    fail_count = 0
+        async for img_path, state, error in process_images_concurrent(
+            images, pipeline_config, max_concurrency, verbose
+        ):
+            try:
+                if error:
+                    fail_count += 1
+                    click.echo(f"Error processing {img_path}: {error}", err=True)
+                    continue
 
-    for img_path, state, error in results:
-        if error:
-            fail_count += 1
-            click.echo(f"Error processing {img_path}: {error}", err=True)
-            continue
+                # Determine output path
+                if batch:
+                    out_path = (output_dir or img_path.parent) / f"{img_path.stem}.json"
+                else:
+                    out_path = output or Path(f"{img_path.stem}.json")
 
-        # Determine output path
-        if batch:
-            out_path = (output_dir or img_path.parent) / f"{img_path.stem}.json"
-        else:
-            out_path = output or Path(f"{img_path.stem}.json")
+                if state and state.output:
+                    # Check for validation failures.
+                    has_validation_failure = any(
+                        e.error_type == "validation_threshold_exceeded" for e in state.errors
+                    )
 
-        if state and state.output:
-            # Check for validation failures (output exists but validation threshold exceeded)
-            has_validation_failure = any(
-                e.error_type == "validation_threshold_exceeded" for e in state.errors
-            )
+                    # Write output (still useful for inspection even if validation failed)
+                    result = state.output.model_dump(mode="json")
+                    out_path.write_text(json.dumps(result, indent=2))
 
-            # Write output (still useful for inspection even if validation failed)
-            result = state.output.model_dump(mode="json")
-            out_path.write_text(json.dumps(result, indent=2))
+                    if verbose:
+                        n_patients = sum(len(c.patients) for c in state.output.curves)
+                        click.echo(f"  Output: {out_path} ({n_patients} patients)")
 
-            if verbose:
-                n_patients = sum(len(c.patients) for c in state.output.curves)
-                click.echo(f"  Output: {out_path} ({n_patients} patients)")
+                    if state.output.warnings:
+                        for w in state.output.warnings:
+                            click.echo(f"  Warning: {w}", err=True)
 
-            if state.output.warnings:
-                for w in state.output.warnings:
-                    click.echo(f"  Warning: {w}", err=True)
+                    # Print any errors (including validation failures)
+                    for e in state.errors:
+                        click.echo(f"  [{e.stage.value}] {e.message}", err=True)
 
-            # Print any errors (including validation failures)
-            for e in state.errors:
-                click.echo(f"  [{e.stage.value}] {e.message}", err=True)
+                    if has_validation_failure:
+                        fail_count += 1  # Count as failure if validation threshold exceeded
+                    else:
+                        success_count += 1
+                else:
+                    fail_count += 1
+                    click.echo(f"Error processing {img_path}:", err=True)
+                    if state:
+                        for e in state.errors:
+                            click.echo(f"  [{e.stage.value}] {e.message}", err=True)
+            finally:
+                _cleanup_preprocessed_image(state)
 
-            if has_validation_failure:
-                fail_count += 1  # Count as failure if validation threshold exceeded
-            else:
-                success_count += 1
-        else:
-            fail_count += 1
-            click.echo(f"Error processing {img_path}:", err=True)
-            if state:
-                for e in state.errors:
-                    click.echo(f"  [{e.stage.value}] {e.message}", err=True)
+        return success_count, fail_count
+
+    success_count, fail_count = asyncio.run(_run())
 
     if batch:
         click.echo(

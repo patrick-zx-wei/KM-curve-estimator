@@ -1,11 +1,33 @@
 """Preprocessing node for image scaling, denoising, and quality assessment."""
 
+import time
 import uuid
 from pathlib import Path
 from tempfile import gettempdir
 
 from km_estimator.models import PipelineState, ProcessingError, ProcessingStage
 from km_estimator.utils import cv_utils
+
+PREPROCESS_FILE_GLOB = "*_preprocessed.png"
+PREPROCESS_RETENTION_SECONDS = 24 * 60 * 60
+
+
+def _cleanup_stale_preprocessed_files(output_dir: Path) -> None:
+    """Best-effort cleanup for stale preprocess temp files."""
+    cutoff = time.time() - PREPROCESS_RETENTION_SECONDS
+    try:
+        candidates = list(output_dir.glob(PREPROCESS_FILE_GLOB))
+    except OSError:
+        return
+
+    for candidate in candidates:
+        try:
+            if not candidate.is_file():
+                continue
+            if candidate.stat().st_mtime < cutoff:
+                candidate.unlink()
+        except OSError:
+            continue
 
 
 def preprocess(state: PipelineState) -> PipelineState:
@@ -69,6 +91,7 @@ def preprocess(state: PipelineState) -> PipelineState:
     # Save preprocessed image with unique identifier to avoid collisions
     original_path = Path(state.image_path)
     output_dir = Path(gettempdir()) / "km_estimator"
+    _cleanup_stale_preprocessed_files(output_dir)
     unique_id = uuid.uuid4().hex[:8]
     output_path = output_dir / f"{original_path.stem}_{unique_id}_preprocessed.png"
 
