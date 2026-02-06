@@ -70,6 +70,14 @@ def _read_image(path: str) -> tuple[bytes, str] | ProcessingError:
             recoverable=False,
             message=f"Permission denied: {path}",
         )
+    except Exception as e:
+        return ProcessingError(
+            stage=ProcessingStage.MMPU,
+            error_type="io_error",
+            recoverable=False,
+            message=f"Failed reading image: {e}",
+            details={"path": path, "error_type": type(e).__name__},
+        )
 
 
 def _invoke_gpt(
@@ -131,6 +139,17 @@ def _invoke_gpt(
                 error_type="openai_api_error",
                 recoverable=True,
                 message=str(e),
+            ),
+            0.0,
+        )
+    except Exception as e:
+        return GPTResult(
+            None,
+            ProcessingError(
+                stage=stage,
+                error_type=type(e).__name__,
+                recoverable=True,
+                message=f"OpenAI invocation failed: {e}",
             ),
             0.0,
         )
@@ -211,6 +230,17 @@ async def _ainvoke_gpt(
                 error_type="openai_api_error",
                 recoverable=True,
                 message=str(e),
+            ),
+            0.0,
+        )
+    except Exception as e:
+        return GPTResult(
+            None,
+            ProcessingError(
+                stage=stage,
+                error_type=type(e).__name__,
+                recoverable=True,
+                message=f"OpenAI invocation failed: {e}",
             ),
             0.0,
         )
