@@ -1,6 +1,6 @@
 {
   "name": "case_099",
-  "seed": 1198,
+  "seed": 1211,
   "n_groups": 2,
   "n_patients_per_arm": 293,
   "groups": [
@@ -62,5 +62,5 @@
     "scale": "linear"
   },
   "total_patients": 586,
-  "total_events": 217
+  "total_events": 155
 }

@@ -36,15 +36,18 @@ CATASTROPHIC_IMPROVEMENT_MARGIN = 0.6
 DUAL_PATH_AMBIGUITY_THRESHOLD = 0.35
 DUAL_PATH_SELECTION_MARGIN = 0.12
 DUAL_PATH_REAL_SCORE_WEIGHT = 1.8
+ISOLATION_RETRY_AMBIGUITY_THRESHOLD = 0.34
+ISOLATION_RETRY_STRONG_AMBIGUITY = 0.56
+ISOLATION_RETRY_SELECTION_MARGIN = 0.20
 OVERLAP_COLLAPSE_PX = 2
 EARLY_PLATEAU_WINDOW_RATIO = 0.30
 EARLY_PLATEAU_MIN_EXPECTED_DROP = 0.05
 EARLY_PLATEAU_OBSERVED_DROP_RATIO = 0.45
 EARLY_PLATEAU_MAX_SPAN = 0.012
 EARLY_PLATEAU_ANCHOR_MARGIN = 0.06
-EARLY_PLATEAU_INTERVAL_COUNT = 2
-EARLY_PLATEAU_INTERVAL_MIN_EXPECTED_DROP = 0.04
-EARLY_PLATEAU_INTERVAL_OBSERVED_DROP_RATIO = 0.55
+EARLY_PLATEAU_INTERVAL_COUNT = 6
+EARLY_PLATEAU_INTERVAL_MIN_EXPECTED_DROP = 0.03
+EARLY_PLATEAU_INTERVAL_OBSERVED_DROP_RATIO = 0.68
 EARLY_PLATEAU_INTERVAL_ANCHOR_MARGIN = 0.05
 ANCHOR_LOW_CONF_VIOLATION_RATIO = 0.82
 ANCHOR_LOW_CONF_Q90_GAP = 0.12
@@ -53,6 +56,13 @@ ANCHOR_LOW_CONF_ANCHOR_DROP_RATIO = 0.35
 ANCHOR_ADAPTIVE_TOLERANCE_VIOLATION_RATIO = 0.55
 ANCHOR_ADAPTIVE_TOLERANCE_Q90_GAP = 0.06
 ANCHOR_ADAPTIVE_TOLERANCE_MAX = 0.05
+COLLAPSE_PLATEAU_MAX_UNIQUE = 3
+COLLAPSE_TAIL_MAX_UNIQUE = 2
+COLLAPSE_STEP_DROP_THRESHOLD = 0.18
+COLLAPSE_EARLY_WINDOW_RATIO = 0.35
+COLLAPSE_EARLY_MIN_SPAN = 0.04
+COLLAPSE_EARLY_MAX_DROP_RATIO = 0.35
+COLLAPSE_ANCHOR_INTERVAL_DROP_RATIO = 0.42
 
 
 def _resolved_curve_direction(raw_direction: str | None) -> str:
@@ -492,6 +502,135 @@ def _anchor_violation_ratio(
     return violations / max(1, len(points))
 
 
+def _curve_has_early_plateau_collapse(
+    points: list[tuple[float, float]],
+) -> bool:
+    """Detect collapse where early curve remains near-constant despite available span."""
+    if len(points) < 8:
+        return False
+    ordered = sorted(points, key=lambda p: p[0])
+    x_min = float(ordered[0][0])
+    x_max = float(ordered[-1][0])
+    x_span = max(1e-6, x_max - x_min)
+    early_end = x_min + x_span * COLLAPSE_EARLY_WINDOW_RATIO
+    early_vals = [float(s) for t, s in ordered if float(t) <= early_end]
+    if len(early_vals) < 5:
+        return False
+    early_drop = max(0.0, early_vals[0] - min(early_vals))
+    total_drop = max(0.0, float(ordered[0][1] - min(s for _, s in ordered)))
+    if total_drop < COLLAPSE_EARLY_MIN_SPAN:
+        return False
+    return early_drop < total_drop * COLLAPSE_EARLY_MAX_DROP_RATIO
+
+
+def _anchor_interval_drop_collapse(
+    points: list[tuple[float, float]],
+    anchor_points: list[tuple[float, float]] | None,
+) -> bool:
+    """Detect anchor-inconsistent interval drops that indicate curve lag/collapse."""
+    if not points or not anchor_points or len(anchor_points) < 2:
+        return False
+
+    ordered = sorted(points, key=lambda p: p[0])
+    anchors_sorted = sorted(anchor_points, key=lambda p: p[0])
+    max_intervals = min(3, len(anchors_sorted) - 1)
+    mismatches = 0
+    checked = 0
+
+    for idx in range(max_intervals):
+        t0, a0 = anchors_sorted[idx]
+        t1, a1 = anchors_sorted[idx + 1]
+        if t1 <= t0:
+            continue
+        expected_drop = max(0.0, float(a0 - a1))
+        if expected_drop < 0.03:
+            continue
+        observed_start = _step_survival_at(ordered, float(t0))
+        observed_end = _step_survival_at(ordered, float(t1))
+        observed_drop = max(0.0, observed_start - observed_end)
+        checked += 1
+        if observed_drop < expected_drop * COLLAPSE_ANCHOR_INTERVAL_DROP_RATIO:
+            mismatches += 1
+
+    return checked > 0 and mismatches >= max(1, checked - 1)
+
+
+def _anchor_interval_drop_error(
+    points: list[tuple[float, float]],
+    anchor_points: list[tuple[float, float]] | None,
+    max_intervals: int = 5,
+) -> float:
+    """
+    Quantify interval-level anchor inconsistency (0=good, larger=worse).
+
+    Compares observed early-interval drops to anchor-implied drops and penalizes
+    consistent under-drop behavior that signals lagging/truncated extraction.
+    """
+    if not points or not anchor_points or len(anchor_points) < 2:
+        return 0.0
+
+    ordered = sorted(points, key=lambda p: p[0])
+    anchors_sorted = sorted(anchor_points, key=lambda p: p[0])
+    checked = 0
+    deficits: list[float] = []
+
+    n_intervals = min(max_intervals, len(anchors_sorted) - 1)
+    for idx in range(n_intervals):
+        t0, a0 = anchors_sorted[idx]
+        t1, a1 = anchors_sorted[idx + 1]
+        if t1 <= t0:
+            continue
+        expected_drop = max(0.0, float(a0 - a1))
+        if expected_drop < 0.02:
+            continue
+        observed_start = _step_survival_at(ordered, float(t0))
+        observed_end = _step_survival_at(ordered, float(t1))
+        observed_drop = max(0.0, observed_start - observed_end)
+        checked += 1
+        deficit = max(0.0, expected_drop - observed_drop) / max(1e-6, expected_drop)
+        deficits.append(float(np.clip(deficit, 0.0, 1.8)))
+
+    if checked == 0 or not deficits:
+        return 0.0
+    return float(np.mean(np.asarray(deficits, dtype=np.float64)))
+
+
+def _collapse_reasons_for_curve(
+    points: list[tuple[float, float]],
+    anchor_points: list[tuple[float, float]] | None,
+    y_min: float,
+    y_max: float,
+) -> list[str]:
+    """Collect collapse indicators for one curve."""
+    reasons: list[str] = []
+    if not points:
+        return ["empty_curve"]
+
+    ys = [float(s) for _, s in points]
+    unique_y = len(set(round(v, 3) for v in ys))
+    tail = ys[-120:] if len(ys) > 120 else ys
+    tail_unique = len(set(round(v, 3) for v in tail))
+
+    if unique_y <= COLLAPSE_PLATEAU_MAX_UNIQUE:
+        reasons.append("low_unique_levels")
+    if tail_unique <= COLLAPSE_TAIL_MAX_UNIQUE:
+        reasons.append("collapsed_tail")
+    if any((ys[i] - ys[i + 1]) > COLLAPSE_STEP_DROP_THRESHOLD for i in range(len(ys) - 1)):
+        reasons.append("single_large_drop")
+
+    y_range = max(1e-6, y_max - y_min)
+    low_start_margin = max(0.02, y_range * 0.12)
+    if ys[0] < (y_max - low_start_margin):
+        reasons.append("low_start")
+    if _anchor_violation_ratio(points, anchor_points) > 0.05:
+        reasons.append("anchor_violation")
+    if _curve_has_early_plateau_collapse(points):
+        reasons.append("early_plateau")
+    if _anchor_interval_drop_collapse(points, anchor_points):
+        reasons.append("anchor_interval_drop_mismatch")
+    return reasons
+
+
 def _curve_rescue_score(
     curve_points: list[tuple[float, float]],
     y_max: float,
@@ -511,6 +650,7 @@ def _curve_rescue_score(
     tail_unique = len(set(round(v, 3) for v in tail))
     start_gap = max(0.0, y_max - ys[0])
     anchor_viol = _anchor_violation_ratio(curve_points, anchor_points)
+    interval_drop_error = _anchor_interval_drop_error(curve_points, anchor_points)
 
     score = 0.0
     if unique_y < 3:
@@ -519,6 +659,7 @@ def _curve_rescue_score(
         score += 2.0
     score += min(2.0, start_gap * 5.0)
     score += anchor_viol * 4.0
+    score += interval_drop_error * 5.5
     return score
 
 
@@ -575,6 +716,34 @@ def _curve_overlap_ambiguity(
 
     score = 0.45 * coverage_issues + 0.3 * overlap_ratio + 0.25 * collapse_ratio
     return float(np.clip(score, 0.0, 1.0))
+
+
+def _should_retry_isolation(
+    curves: dict[str, list[tuple[int, int]]],
+    mapping: AxisMapping,
+    ambiguity_score: float,
+) -> bool:
+    """
+    Decide whether to attempt an artifact-robust second isolation pass.
+
+    Trigger when overlap ambiguity is high or when one curve is severely undercovered.
+    """
+    if not curves:
+        return False
+
+    x0, _, x1, _ = mapping.plot_region
+    coverage_failures = sum(
+        1 for pts in curves.values() if _coverage_issue(pts, x0, x1)
+    )
+    counts = [len(pts) for pts in curves.values()]
+    median_count = float(np.median(np.asarray(counts, dtype=np.float32))) if counts else 0.0
+    severe_sparse = any(c < max(10.0, median_count * 0.35) for c in counts)
+
+    return (
+        ambiguity_score >= ISOLATION_RETRY_AMBIGUITY_THRESHOLD
+        or coverage_failures > 0
+        or severe_sparse
+    )
 
 
 def _pixel_curve_set_score(
@@ -693,6 +862,54 @@ def _overlap_candidate_score(
     real_score = _global_curve_set_score(projected, anchors, y_max=y_end)
     composite = pixel_score + DUAL_PATH_REAL_SCORE_WEIGHT * real_score
     return float(composite), float(pixel_score), float(real_score)
+
+
+def _digitize_pixel_curves_for_rescue(
+    pixel_curves: dict[str, list[tuple[int, int]]],
+    mapping: AxisMapping,
+    image: np.ndarray,
+    curve_order: list[str],
+    expected_colors: dict[str, tuple[float, float, float] | None],
+    anchors: dict[str, list[tuple[float, float]]],
+    curve_direction: str,
+    plot_y_start: float,
+    plot_y_end: float,
+    x_start: float,
+    x_end: float,
+    effective_y_start: float,
+    effective_y_end: float,
+) -> dict[str, list[tuple[float, float]]]:
+    """Project pixel curves into survival space and apply standard postprocessing."""
+    digitized: dict[str, list[tuple[float, float]]] = {}
+    for name, pixels in pixel_curves.items():
+        real_coords = [mapping.px_to_real(px, py) for px, py in pixels]
+        directed_coords = enforce_step_function(real_coords, direction=curve_direction)
+        survival_coords = _to_survival_space(
+            directed_coords,
+            y_start=plot_y_start,
+            y_end=plot_y_end,
+            curve_direction=curve_direction,
+        )
+        digitized[name] = enforce_step_function(survival_coords, direction="downward")
+
+    digitized, _, _ = _optimize_curve_identity_assignment(
+        digitized_curves=digitized,
+        pixel_curves=pixel_curves,
+        image=image,
+        curve_order=curve_order,
+        expected_colors=expected_colors,
+        anchors=anchors,
+        y_max=effective_y_end,
+    )
+    digitized, _, _ = _postprocess_digitized_curves(
+        digitized,
+        anchors=anchors,
+        x_start=x_start,
+        x_end=x_end,
+        y_start=effective_y_start,
+        y_max=effective_y_end,
+    )
+    return digitized
 
 
 def _sample_curve_rgb(
@@ -838,31 +1055,18 @@ def _identify_rescue_candidates(
     anchors: dict[str, list[tuple[float, float]]],
     y_min: float,
     y_max: float,
-) -> set[str]:
+) -> dict[str, list[str]]:
     """Find per-curve rescue candidates based on collapse and anchor inconsistency."""
-    flagged: set[str] = set()
+    flagged: dict[str, list[str]] = {}
     for curve_name, points in digitized.items():
-        if not points:
-            flagged.add(curve_name)
-            continue
-        ys = [s for _, s in points]
-        unique_y = len(set(round(v, 3) for v in ys))
-        tail = ys[-120:] if len(ys) > 120 else ys
-        tail_unique = len(set(round(v, 3) for v in tail))
-        if unique_y < 3 or tail_unique < 2:
-            flagged.add(curve_name)
-            continue
-        # Large single-step drops are usually identity/collapse artifacts.
-        if any((ys[i] - ys[i + 1]) > 0.18 for i in range(len(ys) - 1)):
-            flagged.add(curve_name)
-            continue
-        y_range = max(1e-6, y_max - y_min)
-        low_start_margin = max(0.02, y_range * 0.12)
-        if ys[0] < (y_max - low_start_margin):
-            flagged.add(curve_name)
-            continue
-        if _anchor_violation_ratio(points, anchors.get(curve_name)) > 0.05:
-            flagged.add(curve_name)
+        reasons = _collapse_reasons_for_curve(
+            points,
+            anchor_points=anchors.get(curve_name),
+            y_min=y_min,
+            y_max=y_max,
+        )
+        if reasons:
+            flagged[curve_name] = reasons
     return flagged
 
 
@@ -1038,7 +1242,9 @@ def digitize(state: PipelineState) -> PipelineState:
         )
 
     dual_path_warnings: list[str] = []
+    isolation_retry_warnings: list[str] = []
     ambiguity_score = _curve_overlap_ambiguity(raw_curves, mapping)
+    has_color_priors = any(color is not None for color in expected_colors.values())
 
     # Step 3: Clean up overlaps with joint tracing and color identity priors.
     clean_curves = resolve_overlaps(
@@ -1049,7 +1255,90 @@ def digitize(state: PipelineState) -> PipelineState:
         crossing_relaxed=False,
         curve_direction=curve_direction_runtime,
     )
-    has_color_priors = any(color is not None for color in expected_colors.values())
+
+    # Confidence-gated second isolation pass for compression/overlap-heavy figures.
+    if _should_retry_isolation(raw_curves, mapping, ambiguity_score):
+        retry_raw_curves = isolate_curves(
+            image,
+            state.plot_metadata,
+            mapping,
+            artifact_robust=True,
+        )
+        if not isinstance(retry_raw_curves, ProcessingError):
+            _, retry_empty_names = _validate_curves_not_empty(retry_raw_curves)
+            retry_raw_curves = {
+                name: points
+                for name, points in retry_raw_curves.items()
+                if name not in retry_empty_names
+            }
+            if retry_raw_curves:
+                retry_clean_curves = resolve_overlaps(
+                    retry_raw_curves,
+                    mapping,
+                    image=image,
+                    curve_color_priors=expected_colors,
+                    crossing_relaxed=False,
+                    curve_direction=curve_direction_runtime,
+                )
+                base_composite, _, _ = _overlap_candidate_score(
+                    clean_curves,
+                    mapping=mapping,
+                    image=image,
+                    curve_order=curve_names,
+                    expected_colors=expected_colors,
+                    anchors=anchors,
+                    curve_direction=curve_direction_runtime,
+                    x_start=state.plot_metadata.x_axis.start,
+                    x_end=state.plot_metadata.x_axis.end,
+                    y_start=effective_y_start,
+                    y_end=effective_y_end,
+                )
+                retry_composite, _, _ = _overlap_candidate_score(
+                    retry_clean_curves,
+                    mapping=mapping,
+                    image=image,
+                    curve_order=curve_names,
+                    expected_colors=expected_colors,
+                    anchors=anchors,
+                    curve_direction=curve_direction_runtime,
+                    x_start=state.plot_metadata.x_axis.start,
+                    x_end=state.plot_metadata.x_axis.end,
+                    y_start=effective_y_start,
+                    y_end=effective_y_end,
+                )
+                if retry_composite + ISOLATION_RETRY_SELECTION_MARGIN < base_composite:
+                    raw_curves = retry_raw_curves
+                    clean_curves = retry_clean_curves
+                    ambiguity_score = _curve_overlap_ambiguity(raw_curves, mapping)
+                    isolation_retry_warnings.append(
+                        "Applied artifact-robust isolation retry "
+                        f"(composite {base_composite:.2f} -> {retry_composite:.2f})"
+                    )
+                elif (
+                    ambiguity_score >= ISOLATION_RETRY_STRONG_AMBIGUITY
+                    and retry_composite < base_composite
+                ):
+                    raw_curves = retry_raw_curves
+                    clean_curves = retry_clean_curves
+                    ambiguity_score = _curve_overlap_ambiguity(raw_curves, mapping)
+                    isolation_retry_warnings.append(
+                        "Applied artifact-robust isolation retry under high ambiguity "
+                        f"(composite {base_composite:.2f} -> {retry_composite:.2f})"
+                    )
+                else:
+                    isolation_retry_warnings.append(
+                        "Skipped artifact-robust isolation retry: "
+                        f"no meaningful composite gain ({base_composite:.2f} -> {retry_composite:.2f})"
+                    )
+            else:
+                isolation_retry_warnings.append(
+                    "Skipped artifact-robust isolation retry: retry path produced empty curves"
+                )
+        else:
+            isolation_retry_warnings.append(
+                "Skipped artifact-robust isolation retry: retry isolation failed"
+            )
+
     if ambiguity_score >= DUAL_PATH_AMBIGUITY_THRESHOLD:
         candidate_paths: list[tuple[str, dict[str, list[tuple[int, int]]], float]] = []
         baseline_name = "color-prior" if has_color_priors else "default"
@@ -1169,9 +1458,39 @@ def digitize(state: PipelineState) -> PipelineState:
         y_min=effective_y_start,
         y_max=effective_y_end,
     )
+    for curve_name, reasons in sorted(rescue_candidates.items()):
+        rescue_warnings.append(
+            f"{curve_name}: flagged for rescue ({', '.join(reasons)})"
+        )
 
-    # Per-curve rescue: only replace flagged curves when color-guided path is better.
+    # Per-curve rescue: only replace flagged curves when an alternate trace is better.
     if rescue_candidates:
+        rescue_alternatives: dict[str, dict[str, list[tuple[float, float]]]] = {}
+
+        relaxed_clean = resolve_overlaps(
+            raw_curves,
+            mapping,
+            image=image,
+            curve_color_priors=expected_colors if has_color_priors else None,
+            crossing_relaxed=True,
+            curve_direction=curve_direction_runtime,
+        )
+        rescue_alternatives["crossing-relaxed"] = _digitize_pixel_curves_for_rescue(
+            pixel_curves=relaxed_clean,
+            mapping=mapping,
+            image=image,
+            curve_order=curve_names,
+            expected_colors=expected_colors,
+            anchors=anchors,
+            curve_direction=curve_direction_runtime,
+            plot_y_start=state.plot_metadata.y_axis.start,
+            plot_y_end=state.plot_metadata.y_axis.end,
+            x_start=state.plot_metadata.x_axis.start,
+            x_end=state.plot_metadata.x_axis.end,
+            effective_y_start=effective_y_start,
+            effective_y_end=effective_y_end,
+        )
+
         x0, y0, x1, y1 = mapping.plot_region
         roi = image[y0:y1, x0:x1]
         roi_area = max(1, roi.shape[0] * roi.shape[1])
@@ -1189,109 +1508,102 @@ def digitize(state: PipelineState) -> PipelineState:
                 curve_color_priors=expected_colors,
                 curve_direction=curve_direction_runtime,
             )
-            color_digitized: dict[str, list[tuple[float, float]]] = {}
-            for name, pixels in color_clean.items():
-                real_coords = [mapping.px_to_real(px, py) for px, py in pixels]
-                directed_coords = enforce_step_function(
-                    real_coords,
-                    direction=curve_direction_runtime,
-                )
-                survival_coords = _to_survival_space(
-                    directed_coords,
-                    y_start=state.plot_metadata.y_axis.start,
-                    y_end=state.plot_metadata.y_axis.end,
-                    curve_direction=curve_direction_runtime,
-                )
-                color_digitized[name] = enforce_step_function(
-                    survival_coords,
-                    direction="downward",
-                )
-            color_digitized, _, _ = _optimize_curve_identity_assignment(
-                digitized_curves=color_digitized,
+            rescue_alternatives["color-guided"] = _digitize_pixel_curves_for_rescue(
                 pixel_curves=color_clean,
+                mapping=mapping,
                 image=image,
                 curve_order=curve_names,
                 expected_colors=expected_colors,
                 anchors=anchors,
-                y_max=effective_y_end,
-            )
-            color_digitized, _, _ = _postprocess_digitized_curves(
-                color_digitized,
-                anchors=anchors,
+                curve_direction=curve_direction_runtime,
+                plot_y_start=state.plot_metadata.y_axis.start,
+                plot_y_end=state.plot_metadata.y_axis.end,
                 x_start=state.plot_metadata.x_axis.start,
                 x_end=state.plot_metadata.x_axis.end,
-                y_start=effective_y_start,
-                y_max=effective_y_end,
+                effective_y_start=effective_y_start,
+                effective_y_end=effective_y_end,
             )
 
-            proposed_digitized = dict(digitized)
-            proposed_swaps: list[tuple[str, float, float]] = []
-            for curve_name in sorted(rescue_candidates):
-                base_points = digitized.get(curve_name, [])
-                alt_points = color_digitized.get(curve_name, [])
+        proposed_digitized = dict(digitized)
+        proposed_swaps: list[tuple[str, str, float, float]] = []
+        for curve_name in sorted(rescue_candidates):
+            base_points = digitized.get(curve_name, [])
+            base_score = _curve_rescue_score(
+                base_points,
+                y_max=effective_y_end,
+                anchor_points=anchors.get(curve_name),
+            )
+            best_source = ""
+            best_alt_points: list[tuple[float, float]] = []
+            best_alt_score = float("inf")
+            for source_name, alt_digitized in rescue_alternatives.items():
+                alt_points = alt_digitized.get(curve_name, [])
                 if not alt_points:
                     continue
-                base_score = _curve_rescue_score(
-                    base_points,
-                    y_max=effective_y_end,
-                    anchor_points=anchors.get(curve_name),
-                )
                 alt_score = _curve_rescue_score(
                     alt_points,
                     y_max=effective_y_end,
                     anchor_points=anchors.get(curve_name),
                 )
-                if alt_score + RESCUE_LOCAL_MARGIN < base_score:
-                    proposed_digitized[curve_name] = alt_points
-                    proposed_swaps.append((curve_name, base_score, alt_score))
+                if alt_score < best_alt_score:
+                    best_alt_score = alt_score
+                    best_alt_points = alt_points
+                    best_source = source_name
 
-            if proposed_swaps:
-                base_global_score = _global_curve_set_score(
-                    digitized, anchors, y_max=effective_y_end
-                )
-                proposed_global_score = _global_curve_set_score(
-                    proposed_digitized,
-                    anchors,
-                    y_max=effective_y_end,
-                )
-                catastrophic_recovery = any(
-                    base_score >= CATASTROPHIC_CURVE_SCORE
-                    and (base_score - alt_score) >= CATASTROPHIC_IMPROVEMENT_MARGIN
-                    for _, base_score, alt_score in proposed_swaps
-                )
-                accept_by_global = proposed_global_score + RESCUE_GLOBAL_MARGIN < base_global_score
-                allow_catastrophic = catastrophic_recovery and (
-                    proposed_global_score <= base_global_score + 0.10
+            if best_source and best_alt_score + RESCUE_LOCAL_MARGIN < base_score:
+                proposed_digitized[curve_name] = best_alt_points
+                proposed_swaps.append(
+                    (curve_name, best_source, base_score, best_alt_score)
                 )
 
-                if accept_by_global or allow_catastrophic:
-                    digitized = proposed_digitized
-                    for curve_name, base_score, alt_score in proposed_swaps:
-                        rescue_warnings.append(
-                            f"{curve_name}: applied color-guided rescue "
-                            f"(score {base_score:.2f} -> {alt_score:.2f})"
-                        )
-                    if allow_catastrophic and not accept_by_global:
-                        rescue_warnings.append(
-                            "Rescue accepted for catastrophic curve recovery "
-                            f"(global {base_global_score:.2f} -> {proposed_global_score:.2f})"
-                        )
-                    else:
-                        rescue_warnings.append(
-                            "Rescue accepted by global score gate "
-                            f"({base_global_score:.2f} -> {proposed_global_score:.2f})"
-                        )
+        if proposed_swaps:
+            base_global_score = _global_curve_set_score(
+                digitized, anchors, y_max=effective_y_end
+            )
+            proposed_global_score = _global_curve_set_score(
+                proposed_digitized,
+                anchors,
+                y_max=effective_y_end,
+            )
+            catastrophic_recovery = any(
+                base_score >= CATASTROPHIC_CURVE_SCORE
+                and (base_score - alt_score) >= CATASTROPHIC_IMPROVEMENT_MARGIN
+                for _, _, base_score, alt_score in proposed_swaps
+            )
+            accept_by_global = proposed_global_score + RESCUE_GLOBAL_MARGIN < base_global_score
+            allow_catastrophic = catastrophic_recovery and (
+                proposed_global_score <= base_global_score + 0.10
+            )
+
+            if accept_by_global or allow_catastrophic:
+                digitized = proposed_digitized
+                for curve_name, source_name, base_score, alt_score in proposed_swaps:
+                    rescue_warnings.append(
+                        f"{curve_name}: applied {source_name} rescue "
+                        f"(score {base_score:.2f} -> {alt_score:.2f})"
+                    )
+                if allow_catastrophic and not accept_by_global:
+                    rescue_warnings.append(
+                        "Rescue accepted for catastrophic curve recovery "
+                        f"(global {base_global_score:.2f} -> {proposed_global_score:.2f})"
+                    )
                 else:
                     rescue_warnings.append(
-                        "Skipped rescue: global score did not improve enough "
+                        "Rescue accepted by global score gate "
                         f"({base_global_score:.2f} -> {proposed_global_score:.2f})"
                     )
+            else:
+                rescue_warnings.append(
+                    "Skipped rescue: global score did not improve enough "
+                    f"({base_global_score:.2f} -> {proposed_global_score:.2f})"
+                )
 
     # Step 7: Validate curve shapes (not flat, generally decreasing)
     validation_warnings: list[str] = (
         list(axis_config_warnings)
         + list(empty_warnings)
         + list(direction_warnings)
+        + list(isolation_retry_warnings)
         + list(dual_path_warnings)
         + list(identity_warnings)
         + list(anchor_constraint_warnings)
@@ -1323,6 +1635,7 @@ def digitize(state: PipelineState) -> PipelineState:
     return state.model_copy(
         update={
             "digitized_curves": digitized,
+            "isolated_curve_pixels": clean_curves,
             "censoring_marks": censoring,
             "mmpu_warnings": all_warnings,
         }

@@ -8,13 +8,8 @@
       },
       {
         "time": 12,
-        "survival": 0.9657,
+        "survival": 1.0,
         "description": "1-year survival"
-      },
-      {
-        "time": 24,
-        "survival": 0.8023,
-        "description": "2-year survival"
       }
     ],
     "median_survival": null,
@@ -31,9 +26,16 @@
         "time": 12,
         "survival": 1.0,
         "description": "1-year survival"
+      },
+      {
+        "time": 24,
+        "survival": 1.0,
+        "description": "2-year survival"
       }
     ],
     "median_survival": null,
-    "quartiles": {}
+    "quartiles": {
+      "25pct": 29.3
+    }
   }
 }

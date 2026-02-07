@@ -1,6 +1,6 @@
 {
   "name": "case_031",
-  "seed": 1143,
+  "seed": 1182,
   "n_groups": 2,
   "n_patients_per_arm": 196,
   "groups": [
@@ -11,7 +11,7 @@
   "y_axis_start": 0.0,
   "difficulty": 2,
   "tier": "pristine",
-  "gap_pattern": "diverging",
+  "gap_pattern": "converging",
   "background_style": "white",
   "curve_direction": "upward",
   "frame_layout": "full_box",
@@ -60,5 +60,5 @@
     "scale": "linear"
   },
   "total_patients": 392,
-  "total_events": 107
+  "total_events": 70
 }

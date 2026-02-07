@@ -5,6 +5,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from km_estimator.models import CurveInfo, PlotMetadata, ProcessingError, ProcessingStage
+from km_estimator.utils import cv_utils
 
 from .axis_calibration import AxisMapping
 
@@ -44,11 +45,21 @@ SPARSE_MIN_POINTS_FOR_COMPLETION = 12
 BORDER_LINE_OCCUPANCY_RATIO = 0.65
 BORDER_LINE_THICKNESS = 1
 BORDER_MARGIN_RATIO = 0.02
-TOP_BAND_RESCUE_RATIO = 0.22
+TOP_BAND_RESCUE_RATIO = 0.28
+TOP_BAND_STRICT_RATIO = 0.18
 TOP_BAND_RESCUE_MIN_PIXELS = 24
-TOP_BAND_RESCUE_MAX_DENSITY = 0.22
+TOP_BAND_RESCUE_MAX_DENSITY = 0.30
+TOP_BAND_EDGE_LOW = 14
+TOP_BAND_EDGE_HIGH = 60
+TOP_BAND_MIN_SAT_FOR_COLOR_KEEP = 24
+TOP_BORDER_PROTECT_ROWS = 3
 BORDER_GRAY_SAT_MAX = 55
 BORDER_GRAY_VAL_MAX = 245
+COLOR_CALIBRATION_ITERS = 2
+COLOR_CALIBRATION_BLEND = 0.38
+COLOR_CALIBRATION_MIN_SAMPLES = 28
+COLOR_CALIBRATION_MIN_SAT = 28
+COLOR_CALIBRATION_TRIM_QUANTILE = 18.0
 
 
 def parse_curve_color(color_description: str | None) -> tuple[float, float, float] | None:
@@ -174,22 +185,38 @@ def _top_band_curve_mask(roi: NDArray) -> NDArray:
         return np.zeros((h, w), dtype=np.uint8)
 
     top_h = max(8, int(h * TOP_BAND_RESCUE_RATIO))
+    strict_h = max(6, int(h * TOP_BAND_STRICT_RATIO))
     top_roi = roi[:top_h, :]
     top_hsv = cv2.cvtColor(top_roi, cv2.COLOR_BGR2HSV)
     top_gray = cv2.cvtColor(top_roi, cv2.COLOR_BGR2GRAY)
+    top_blur = cv2.GaussianBlur(top_gray, (3, 3), 0)
 
-    # Relaxed color gate for faint early segments near the top border.
+    # Keep faint but colored traces.
     color_relaxed = cv2.inRange(
         top_hsv,
-        np.array([0, 6, 25], dtype=np.uint8),
+        np.array([0, 4, 18], dtype=np.uint8),
         np.array([180, 255, 255], dtype=np.uint8),
     )
-    non_bg = cv2.inRange(top_gray, 0, 248)
-    rescue = cv2.bitwise_and(color_relaxed, non_bg)
+    sat_keep = cv2.inRange(
+        top_hsv[:, :, 1],
+        TOP_BAND_MIN_SAT_FOR_COLOR_KEEP,
+        255,
+    )
 
+    # Keep thin edges that often survive antialiasing better than color.
+    edges = cv2.Canny(top_blur, TOP_BAND_EDGE_LOW, TOP_BAND_EDGE_HIGH)
+    edge_dilate = cv2.dilate(edges, np.ones((2, 2), dtype=np.uint8), iterations=1)
+    non_bg = cv2.inRange(top_gray, 0, 249)
+    rescue = cv2.bitwise_or(cv2.bitwise_and(color_relaxed, non_bg), edge_dilate)
+    rescue = cv2.bitwise_or(rescue, sat_keep)
+
+    # Use close-only in top band to avoid eroding thin early segments.
     kernel = np.ones((3, 3), dtype=np.uint8)
     rescue = cv2.morphologyEx(rescue, cv2.MORPH_CLOSE, kernel)
-    rescue = cv2.morphologyEx(rescue, cv2.MORPH_OPEN, kernel)
+    if strict_h > 0:
+        strict_slice = rescue[:strict_h, :]
+        strict_slice = cv2.morphologyEx(strict_slice, cv2.MORPH_CLOSE, kernel)
+        rescue[:strict_h, :] = strict_slice
     rescue = _remove_small_components(
         rescue,
         min_area=max(3, int((top_h * w) * MIN_COMPONENT_AREA_RATIO)),
@@ -207,10 +234,12 @@ def _merge_top_band_rescue(base_mask: NDArray, roi: NDArray) -> NDArray:
     top_h = max(8, int(h * TOP_BAND_RESCUE_RATIO))
     top_count = int(np.count_nonzero(top_mask[:top_h, :]))
     top_density = top_count / max(1, top_h * w)
+    base_top_count = int(np.count_nonzero(base_mask[:top_h, :]))
+    weak_top_coverage = base_top_count < max(TOP_BAND_RESCUE_MIN_PIXELS // 2, int(0.0003 * top_h * w))
     if (
         top_count >= TOP_BAND_RESCUE_MIN_PIXELS
         and top_density <= TOP_BAND_RESCUE_MAX_DENSITY
-    ):
+    ) or weak_top_coverage:
         return cv2.bitwise_or(base_mask, top_mask)
     return base_mask
 
@@ -299,6 +328,9 @@ def _suppress_border_lines(mask: NDArray, roi: NDArray | None = None) -> NDArray
                         (sat[y0:y1, :] <= BORDER_GRAY_SAT_MAX)
                         & (val[y0:y1, :] <= BORDER_GRAY_VAL_MAX)
                     )
+                    if y0 <= TOP_BORDER_PROTECT_ROWS:
+                        # Preserve likely curve pixels near top border.
+                        border_like &= (sat[y0:y1, :] <= TOP_BAND_MIN_SAT_FOR_COLOR_KEEP)
                     region[present & border_like] = 0
 
     col_occ = np.count_nonzero(cleaned, axis=0) / max(1, h)
@@ -317,6 +349,8 @@ def _suppress_border_lines(mask: NDArray, roi: NDArray | None = None) -> NDArray
                         (sat[:, x0:x1] <= BORDER_GRAY_SAT_MAX)
                         & (val[:, x0:x1] <= BORDER_GRAY_VAL_MAX)
                     )
+                    if x0 <= max(2, margin_x):
+                        border_like &= (sat[:, x0:x1] <= TOP_BAND_MIN_SAT_FOR_COLOR_KEEP)
                     region[present & border_like] = 0
 
     return cleaned
@@ -425,6 +459,12 @@ def _assign_by_expected_color(
     roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
     pixel_lab = roi_lab[ys, xs]
     expected_lab = np.asarray([_rgb01_to_lab(rgb) for _, rgb in named_colors], dtype=np.float32)
+    expected_lab = _calibrate_expected_labs_from_pixels(
+        roi=roi,
+        xs=xs,
+        ys=ys,
+        expected_lab=expected_lab,
+    )
 
     d2 = np.sum((pixel_lab[:, None, :] - expected_lab[None, :, :]) ** 2, axis=2)
     nearest = np.argmin(d2, axis=1).astype(np.int32)
@@ -448,10 +488,63 @@ def _assign_by_expected_color(
     return curves
 
 
+def _calibrate_expected_labs_from_pixels(
+    roi: NDArray,
+    xs: NDArray,
+    ys: NDArray,
+    expected_lab: NDArray[np.float32],
+) -> NDArray[np.float32]:
+    """
+    Adapt legend-derived LAB targets to image-specific color shifts.
+
+    Robustly updates each expected color from high-saturation inlier pixels so
+    JPEG compression and antialiasing don't break color-based assignment.
+    """
+    n_curves = int(expected_lab.shape[0])
+    if n_curves == 0 or xs.size < max(120, n_curves * 40):
+        return expected_lab
+
+    roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
+    roi_hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    pixel_lab = roi_lab[ys, xs]
+    pixel_sat = roi_hsv[ys, xs, 1].astype(np.float32)
+
+    calibrated = expected_lab.astype(np.float32, copy=True)
+    min_keep = max(6, COLOR_CALIBRATION_MIN_SAMPLES // 3)
+    for _ in range(COLOR_CALIBRATION_ITERS):
+        d2 = np.sum((pixel_lab[:, None, :] - calibrated[None, :, :]) ** 2, axis=2)
+        nearest = np.argmin(d2, axis=1).astype(np.int32)
+        for curve_idx in range(n_curves):
+            assigned = np.where(nearest == curve_idx)[0]
+            if assigned.size < COLOR_CALIBRATION_MIN_SAMPLES:
+                continue
+            saturated = assigned[pixel_sat[assigned] >= COLOR_CALIBRATION_MIN_SAT]
+            sample_ids = (
+                saturated
+                if saturated.size >= (COLOR_CALIBRATION_MIN_SAMPLES // 2)
+                else assigned
+            )
+            sample = pixel_lab[sample_ids]
+            if sample.shape[0] >= 12:
+                low = np.percentile(sample, COLOR_CALIBRATION_TRIM_QUANTILE, axis=0)
+                high = np.percentile(sample, 100.0 - COLOR_CALIBRATION_TRIM_QUANTILE, axis=0)
+                inlier_mask = np.logical_and(sample >= low, sample <= high).all(axis=1)
+                if int(np.count_nonzero(inlier_mask)) >= min_keep:
+                    sample = sample[inlier_mask]
+            observed = np.mean(sample, axis=0)
+            calibrated[curve_idx] = (
+                calibrated[curve_idx] * (1.0 - COLOR_CALIBRATION_BLEND)
+                + observed * COLOR_CALIBRATION_BLEND
+            )
+
+    return calibrated
+
+
 def isolate_curves(
     image: NDArray,
     meta: PlotMetadata,
     mapping: AxisMapping,
+    artifact_robust: bool = False,
 ) -> dict[str, list[tuple[int, int]]] | ProcessingError:
     """Extract curve pixels and cluster by color/position."""
     x0, y0, x1, y1 = mapping.plot_region
@@ -472,8 +565,15 @@ def isolate_curves(
     # Adaptive minimum pixel threshold: 0.005% of ROI area, but at least 5 pixels
     min_pixels = max(5, int(roi_area * 0.00005))
 
+    roi_for_mask = roi
+    if artifact_robust:
+        roi_for_mask = cv_utils.preprocess_plot_roi_for_digitization(roi)
+    roi_for_color = roi
+    if artifact_robust and roi_for_mask.shape[:2] == roi.shape[:2]:
+        roi_for_color = cv2.addWeighted(roi, 0.65, roi_for_mask, 0.35, 0)
+
     # Extract curve mask with fallback for sparse/degraded cases.
-    mask = _extract_curve_mask(roi, min_pixels)
+    mask = _extract_curve_mask(roi_for_mask, min_pixels)
 
     # Get pixel coordinates
     ys, xs = np.where(mask > 0)
@@ -503,7 +603,7 @@ def isolate_curves(
 
     # Fast path: if colors are distinct and assignment has full coverage, skip clustering.
     if all_colors_ok:
-        color_first = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
+        color_first = _assign_by_expected_color(roi_for_color, xs, ys, named_colors, x0, y0)
         min_curve_pixels = max(5, min_pixels // max(1, len(expected_names)))
         color_empty = [
             curve_name
@@ -525,9 +625,9 @@ def isolate_curves(
     pixels = np.column_stack([
         (xs / roi.shape[1]) * POSITION_FEATURE_WEIGHT,
         (ys / roi.shape[0]) * POSITION_FEATURE_WEIGHT,
-        (roi[ys, xs, 2] / 255) * COLOR_FEATURE_WEIGHT,  # R (BGR order)
-        (roi[ys, xs, 1] / 255) * COLOR_FEATURE_WEIGHT,  # G
-        (roi[ys, xs, 0] / 255) * COLOR_FEATURE_WEIGHT,  # B
+        (roi_for_color[ys, xs, 2] / 255) * COLOR_FEATURE_WEIGHT,  # R (BGR order)
+        (roi_for_color[ys, xs, 1] / 255) * COLOR_FEATURE_WEIGHT,  # G
+        (roi_for_color[ys, xs, 0] / 255) * COLOR_FEATURE_WEIGHT,  # B
     ]).astype(np.float32)
 
     k = len(meta.curves)
@@ -589,7 +689,7 @@ def isolate_curves(
 
     # Compute average cluster color in LAB for robust matching under noise.
     cluster_colors_lab: dict[int, tuple[float, float, float]] = {}
-    roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
+    roi_lab = cv2.cvtColor(roi_for_color, cv2.COLOR_BGR2LAB).astype(np.float32)
     for cluster_id in range(k):
         cluster_mask = labels == cluster_id
         if cluster_mask.any():
@@ -663,7 +763,7 @@ def isolate_curves(
     ]
 
     if coverage_issues and all_colors_ok:
-        color_guided = _assign_by_expected_color(roi, xs, ys, named_colors, x0, y0)
+        color_guided = _assign_by_expected_color(roi_for_color, xs, ys, named_colors, x0, y0)
         min_curve_pixels = max(5, min_pixels // max(1, len(expected_names)))
         color_empty = [
             curve_name

@@ -9,9 +9,9 @@
   ],
   "max_time": 24.0,
   "y_axis_start": 0.0,
-  "difficulty": 2,
+  "difficulty": 1,
   "tier": "pristine",
-  "gap_pattern": "diverging",
+  "gap_pattern": "converging",
   "background_style": "white",
   "curve_direction": "downward",
   "frame_layout": "full_box",
@@ -60,5 +60,5 @@
     "scale": "linear"
   },
   "total_patients": 108,
-  "total_events": 57
+  "total_events": 47
 }

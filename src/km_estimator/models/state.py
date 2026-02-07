@@ -52,6 +52,7 @@ class PipelineState(BaseModel):
     mmpu_warnings: list[str] = []
 
     digitized_curves: dict[str, list[tuple[float, float]]] | None = None
+    isolated_curve_pixels: dict[str, list[tuple[int, int]]] | None = None
     censoring_marks: dict[str, list[float]] | None = None
 
     output: IPDOutput | None = None

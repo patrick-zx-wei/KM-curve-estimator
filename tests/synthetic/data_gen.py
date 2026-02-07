@@ -300,6 +300,78 @@ def _minimum_curve_separation(curves: list[SyntheticCurveData], max_time: float)
     return float(np.percentile(observed_seps, 10))
 
 
+def _supports_terminal_zero_row(curves: list[SyntheticCurveData], max_time: float) -> bool:
+    """
+    Whether a terminal zero risk-table row is visually/clinically plausible.
+
+    Keep terminal zero only when every curve reaches near-zero survival near the end
+    of follow-up. This avoids forcing aggressive tail constraints on curves that end
+    earlier or remain above zero.
+    """
+    if not curves:
+        return False
+    min_tail_time = max_time * 0.92
+    for curve in curves:
+        if not curve.step_coords:
+            return False
+        last_t = float(curve.step_coords[-1][0])
+        s_end = float(_step_survival_at(curve.step_coords, max_time))
+        if last_t < min_tail_time or s_end > 0.03:
+            return False
+    return True
+
+
+def _truncate_risk_table_tail(
+    risk_time_points: list[float],
+    risk_groups: list[RiskGroup],
+    curves: list[SyntheticCurveData],
+    max_time: float,
+) -> tuple[list[float], list[RiskGroup]]:
+    """
+    Truncate trailing low-count/zero rows in risk table.
+
+    Rule:
+    - Keep rows only up to the last "stable non-zero" timepoint where every arm has
+      count >= max(5, ceil(3% of initial arm size)).
+    - Exception: keep terminal row when curves genuinely end near zero at follow-up end.
+    """
+    if not risk_time_points or not risk_groups:
+        return risk_time_points, risk_groups
+    if _supports_terminal_zero_row(curves, max_time):
+        return risk_time_points, risk_groups
+
+    n_points = len(risk_time_points)
+    if n_points < 2:
+        return risk_time_points, risk_groups
+
+    thresholds: list[int] = []
+    for group in risk_groups:
+        n0 = int(group.counts[0]) if group.counts else 0
+        thresholds.append(max(5, int(np.ceil(0.03 * max(1, n0)))))
+
+    last_stable_idx = 0
+    for idx in range(n_points):
+        stable = True
+        for group, threshold in zip(risk_groups, thresholds):
+            if idx >= len(group.counts) or int(group.counts[idx]) < threshold:
+                stable = False
+                break
+        if stable:
+            last_stable_idx = idx
+
+    # Require at least 2 time points for downstream FULL reconstruction.
+    keep_last = max(1, last_stable_idx)
+    if keep_last >= n_points - 1:
+        return risk_time_points, risk_groups
+
+    trimmed_time_points = risk_time_points[: keep_last + 1]
+    trimmed_groups = [
+        group.model_copy(update={"counts": list(group.counts[: keep_last + 1])})
+        for group in risk_groups
+    ]
+    return trimmed_time_points, trimmed_groups
+
+
 def generate_test_case(
     name: str,
     seed: int,
@@ -447,9 +519,19 @@ def generate_test_case(
 
     risk_table = None
     if include_risk_table:
+        risk_table_time_points, risk_table_groups = _truncate_risk_table_tail(
+            risk_time_points=risk_time_points,
+            risk_groups=risk_groups,
+            curves=curves,
+            max_time=max_time,
+        )
+        keep_len = len(risk_table_time_points)
+        if keep_len > 0:
+            for curve in curves:
+                curve.n_at_risk = list(curve.n_at_risk[:keep_len])
         risk_table = RiskTable(
-            time_points=risk_time_points,
-            groups=risk_groups,
+            time_points=risk_table_time_points,
+            groups=risk_table_groups,
         )
 
     # Y-axis ticks

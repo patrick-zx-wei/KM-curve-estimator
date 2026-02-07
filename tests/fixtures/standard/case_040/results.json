@@ -19,18 +19,18 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.0734941765774344,
-      "rmse": 0.08979195079869069,
-      "dtw": 0.003667295520271904,
-      "frechet": 0.06821257145878024,
-      "max_error": 0.1806996131607091
+      "mae": 0.10402486477435398,
+      "rmse": 0.11731764767682605,
+      "dtw": 0.004487303900190368,
+      "frechet": 0.12612719322721766,
+      "max_error": 0.196606640014844
     },
     "Treatment": {
-      "mae": 0.03613475583181843,
-      "rmse": 0.044982329320078854,
-      "dtw": 0.0107576214282769,
-      "frechet": 0.1432858333404874,
-      "max_error": 0.11005634216707094
+      "mae": 0.03521282538616639,
+      "rmse": 0.041839949462321904,
+      "dtw": 0.006928252604239174,
+      "frechet": 0.0817757207001632,
+      "max_error": 0.0942070171512649
     }
   },
   "hard_points": {
@@ -38,16 +38,9 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.6185,
-          "actual": 0.6944,
-          "error": 0.0759,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.2163,
-          "actual": 0.2863,
-          "error": 0.07,
+          "expected": 0.6414,
+          "actual": 0.5186,
+          "error": 0.1228,
           "pass": false
         }
       ],
@@ -57,9 +50,9 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.6578,
-          "actual": 0.6986,
-          "error": 0.0408,
+          "expected": 0.7708,
+          "actual": 0.7552,
+          "error": 0.0156,
           "pass": true
         }
       ],
@@ -68,28 +61,28 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.06551455115550624,
-      "rmse": 0.07994616523069148,
-      "dtw": 0.006017317777295318,
-      "frechet": 0.07001893950925608,
-      "max_error": 0.16235340759768652
+      "mae": 0.09333105166950652,
+      "rmse": 0.10717256136482671,
+      "dtw": 0.017543312862535583,
+      "frechet": 0.15831015154362005,
+      "max_error": 0.2071636388286785
     },
     "Treatment": {
-      "mae": 0.03494136981974524,
-      "rmse": 0.04500104514044608,
-      "dtw": 0.004759224495051168,
-      "frechet": 0.048100865165381146,
-      "max_error": 0.1158781982212751
+      "mae": 0.040294956800468455,
+      "rmse": 0.04943136031714861,
+      "dtw": 0.01928140292124589,
+      "frechet": 0.08727232825878284,
+      "max_error": 0.1151610391152883
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.01683609997659782,
+      "mae": 0.030576983593942883,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.01899082119561237,
+      "mae": 0.018247587438748762,
       "dtw": null,
       "rmse": null
     }
@@ -104,41 +97,54 @@
       "GPT extraction failed: Request timed out.",
       "Using Gemini fallback",
       "Low GPT metadata confidence (0.70), verifying with Gemini",
-      "Control: anchor constraints adjusted 20/1667 points",
-      "Treatment: anchor constraints adjusted 43/1606 points",
-      "Added 11 terminal right-censored survivors at t=12.0",
-      "Added 27 terminal right-censored survivors at t=12.0"
+      "Control: anchor constraints adjusted 168/1955 points",
+      "Treatment: anchor constraints adjusted 346/1543 points",
+      "Control: early plateau guard adjusted 517/1566 points",
+      "Treatment: early plateau guard adjusted 48/1509 points (interval-aware)",
+      "Treatment: flagged for rescue (early_plateau)",
+      "Control: anchor constraints adjusted 168/1955 points",
+      "Treatment: anchor constraints adjusted 346/1543 points",
+      "Control: early plateau guard adjusted 517/1566 points",
+      "Treatment: early plateau guard adjusted 48/1509 points (interval-aware)",
+      "Treatment: flagged for rescue (early_plateau)",
+      "Control: anchor constraints adjusted 168/1955 points",
+      "Treatment: anchor constraints adjusted 346/1543 points",
+      "Control: early plateau guard adjusted 517/1566 points",
+      "Treatment: early plateau guard adjusted 48/1509 points (interval-aware)",
+      "Treatment: flagged for rescue (early_plateau)",
+      "Added 12 terminal right-censored survivors at t=12.0",
+      "Control: used censoring-mark hints in 5 intervals",
+      "Control: adjusted event/censor split from censoring hints in 4 intervals",
+      "Control: full-mode objective 0.0441 (fit=0.0306, interval=0.0000, landmark=0.0247)",
+      "Added 28 terminal right-censored survivors at t=12.0",
+      "Treatment: used censoring-mark hints in 4 intervals",
+      "Treatment: adjusted event/censor split from censoring hints in 1 intervals",
+      "Treatment: full-mode objective 0.0244 (fit=0.0182, interval=0.0000, landmark=0.0111)"
     ]
   },
+  "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.0734941765774344,
-        "reconstruction_mae": 0.06551455115550624,
-        "delta_reconstruction_minus_digitize": -0.007979625421928163,
-        "hard_fail_count": 2,
+        "digitize_mae": 0.10402486477435398,
+        "reconstruction_mae": 0.09333105166950652,
+        "delta_reconstruction_minus_digitize": -0.01069381310484746,
+        "hard_fail_count": 1,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 6,
-            "expected": 0.6185,
-            "actual": 0.6944,
-            "error": 0.0759,
-            "bias": 0.0759
-          },
-          {
-            "time": 12,
-            "expected": 0.2163,
-            "actual": 0.2863,
-            "error": 0.07,
-            "bias": 0.07
+            "expected": 0.6414,
+            "actual": 0.5186,
+            "error": 0.1228,
+            "bias": -0.1228
           }
         ]
       },
       "Treatment": {
-        "digitize_mae": 0.03613475583181843,
-        "reconstruction_mae": 0.03494136981974524,
-        "delta_reconstruction_minus_digitize": -0.0011933860120731943,
+        "digitize_mae": 0.03521282538616639,
+        "reconstruction_mae": 0.040294956800468455,
+        "delta_reconstruction_minus_digitize": 0.0050821314143020685,
         "hard_fail_count": 0,
         "stage_attribution": "clean",
         "failed_landmarks": []
@@ -149,199 +155,203 @@
       "clean": 1
     },
     "hard_fail_times": {
-      "6": 1,
-      "12": 1
+      "6": 1
     }
   },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.06551455115550624,
+        "reconstruction_mae": 0.09333105166950652,
         "intervals": [
           {
             "t_start": 0.0,
             "t_end": 2.0,
             "n_start": 101,
-            "n_end": 82,
-            "risk_table_loss": 19,
-            "events_reconstructed": 8,
-            "censors_reconstructed": 11,
+            "n_end": 81,
+            "risk_table_loss": 20,
+            "events_reconstructed": 15,
+            "censors_reconstructed": 5,
+            "terminal_carryover_censors": 0,
             "digitized_s_start": 1.0,
-            "digitized_s_end": 0.92,
-            "reconstructed_s_end": 0.9154,
-            "expected_s_end": 0.9038
+            "digitized_s_end": 0.8515,
+            "reconstructed_s_end": 0.8486,
+            "expected_s_end": 0.9032
           },
           {
             "t_start": 2.0,
             "t_end": 4.0,
-            "n_start": 82,
-            "n_end": 66,
+            "n_start": 81,
+            "n_end": 65,
             "risk_table_loss": 16,
-            "events_reconstructed": 8,
-            "censors_reconstructed": 8,
-            "digitized_s_start": 0.92,
-            "digitized_s_end": 0.8266,
-            "reconstructed_s_end": 0.8222,
-            "expected_s_end": 0.824
+            "events_reconstructed": 15,
+            "censors_reconstructed": 1,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.8515,
+            "digitized_s_end": 0.6942,
+            "reconstructed_s_end": 0.6914,
+            "expected_s_end": 0.8313
           },
           {
             "t_start": 4.0,
             "t_end": 6.0,
-            "n_start": 66,
-            "n_end": 47,
-            "risk_table_loss": 19,
-            "events_reconstructed": 9,
-            "censors_reconstructed": 10,
-            "digitized_s_start": 0.8266,
-            "digitized_s_end": 0.7103,
-            "reconstructed_s_end": 0.6944,
-            "expected_s_end": 0.6185
+            "n_start": 65,
+            "n_end": 45,
+            "risk_table_loss": 20,
+            "events_reconstructed": 16,
+            "censors_reconstructed": 4,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.6942,
+            "digitized_s_end": 0.4964,
+            "reconstructed_s_end": 0.5186,
+            "expected_s_end": 0.6414
           },
           {
             "t_start": 6.0,
             "t_end": 8.0,
-            "n_start": 47,
-            "n_end": 32,
+            "n_start": 45,
+            "n_end": 30,
             "risk_table_loss": 15,
-            "events_reconstructed": 10,
-            "censors_reconstructed": 5,
-            "digitized_s_start": 0.7103,
-            "digitized_s_end": 0.5618,
-            "reconstructed_s_end": 0.5398,
-            "expected_s_end": 0.4667
+            "events_reconstructed": 4,
+            "censors_reconstructed": 11,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.4964,
+            "digitized_s_end": 0.4955,
+            "reconstructed_s_end": 0.4725,
+            "expected_s_end": 0.5007
           },
           {
             "t_start": 8.0,
             "t_end": 10.0,
-            "n_start": 32,
-            "n_end": 16,
-            "risk_table_loss": 16,
-            "events_reconstructed": 6,
-            "censors_reconstructed": 10,
-            "digitized_s_start": 0.5618,
-            "digitized_s_end": 0.4444,
-            "reconstructed_s_end": 0.4165,
-            "expected_s_end": 0.2723
+            "n_start": 30,
+            "n_end": 19,
+            "risk_table_loss": 11,
+            "events_reconstructed": 3,
+            "censors_reconstructed": 8,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.4955,
+            "digitized_s_end": 0.4746,
+            "reconstructed_s_end": 0.4098,
+            "expected_s_end": 0.3577
           },
           {
             "t_start": 10.0,
             "t_end": 12.0,
-            "n_start": 16,
-            "n_end": 11,
-            "risk_table_loss": 5,
-            "events_reconstructed": 5,
-            "censors_reconstructed": 11,
-            "digitized_s_start": 0.4444,
-            "digitized_s_end": 0.2845,
-            "reconstructed_s_end": 0.2863,
-            "expected_s_end": 0.2163
+            "n_start": 19,
+            "n_end": 12,
+            "risk_table_loss": 7,
+            "events_reconstructed": 1,
+            "censors_reconstructed": 6,
+            "terminal_carryover_censors": 12,
+            "digitized_s_start": 0.4746,
+            "digitized_s_end": 0.352,
+            "reconstructed_s_end": 0.3842,
+            "expected_s_end": 0.2259
           }
         ],
         "hardpoint_deltas": [
           {
             "time": 6,
-            "expected": 0.6185,
-            "actual": 0.6944,
-            "error": 0.0759,
-            "pass": false
-          },
-          {
-            "time": 12,
-            "expected": 0.2163,
-            "actual": 0.2863,
-            "error": 0.07,
+            "expected": 0.6414,
+            "actual": 0.5186,
+            "error": 0.1228,
             "pass": false
           }
         ]
       },
       "Treatment": {
-        "reconstruction_mae": 0.03494136981974524,
+        "reconstruction_mae": 0.040294956800468455,
         "intervals": [
           {
             "t_start": 0.0,
             "t_end": 2.0,
             "n_start": 101,
-            "n_end": 90,
-            "risk_table_loss": 11,
-            "events_reconstructed": 6,
-            "censors_reconstructed": 5,
+            "n_end": 94,
+            "risk_table_loss": 7,
+            "events_reconstructed": 7,
+            "censors_reconstructed": 0,
+            "terminal_carryover_censors": 0,
             "digitized_s_start": 0.99,
-            "digitized_s_end": 0.9294,
-            "reconstructed_s_end": 0.9379,
-            "expected_s_end": 0.9283
+            "digitized_s_end": 0.9207,
+            "reconstructed_s_end": 0.9307,
+            "expected_s_end": 0.9693
           },
           {
             "t_start": 2.0,
             "t_end": 4.0,
-            "n_start": 90,
-            "n_end": 76,
-            "risk_table_loss": 14,
+            "n_start": 94,
+            "n_end": 78,
+            "risk_table_loss": 16,
             "events_reconstructed": 10,
-            "censors_reconstructed": 4,
-            "digitized_s_start": 0.9294,
-            "digitized_s_end": 0.8307,
-            "reconstructed_s_end": 0.831,
-            "expected_s_end": 0.8032
+            "censors_reconstructed": 6,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9207,
+            "digitized_s_end": 0.8229,
+            "reconstructed_s_end": 0.8295,
+            "expected_s_end": 0.8637
           },
           {
             "t_start": 4.0,
             "t_end": 6.0,
-            "n_start": 76,
-            "n_end": 56,
-            "risk_table_loss": 20,
-            "events_reconstructed": 11,
-            "censors_reconstructed": 9,
-            "digitized_s_start": 0.8307,
-            "digitized_s_end": 0.7061,
-            "reconstructed_s_end": 0.6986,
-            "expected_s_end": 0.6578
+            "n_start": 78,
+            "n_end": 61,
+            "risk_table_loss": 17,
+            "events_reconstructed": 6,
+            "censors_reconstructed": 11,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.8229,
+            "digitized_s_end": 0.7342,
+            "reconstructed_s_end": 0.7552,
+            "expected_s_end": 0.7708
           },
           {
             "t_start": 6.0,
             "t_end": 8.0,
-            "n_start": 56,
-            "n_end": 42,
-            "risk_table_loss": 14,
-            "events_reconstructed": 11,
-            "censors_reconstructed": 3,
-            "digitized_s_start": 0.7061,
-            "digitized_s_end": 0.5649,
-            "reconstructed_s_end": 0.5584,
-            "expected_s_end": 0.5351
+            "n_start": 61,
+            "n_end": 44,
+            "risk_table_loss": 17,
+            "events_reconstructed": 15,
+            "censors_reconstructed": 2,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.7342,
+            "digitized_s_end": 0.5909,
+            "reconstructed_s_end": 0.5664,
+            "expected_s_end": 0.6275
           },
           {
             "t_start": 8.0,
             "t_end": 10.0,
-            "n_start": 42,
-            "n_end": 33,
-            "risk_table_loss": 9,
-            "events_reconstructed": 9,
+            "n_start": 44,
+            "n_end": 36,
+            "risk_table_loss": 8,
+            "events_reconstructed": 8,
             "censors_reconstructed": 0,
-            "digitized_s_start": 0.5649,
-            "digitized_s_end": 0.4413,
-            "reconstructed_s_end": 0.4387,
-            "expected_s_end": 0.4797
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.5909,
+            "digitized_s_end": 0.4663,
+            "reconstructed_s_end": 0.4634,
+            "expected_s_end": 0.5277
           },
           {
             "t_start": 10.0,
             "t_end": 12.0,
-            "n_start": 33,
-            "n_end": 27,
-            "risk_table_loss": 6,
+            "n_start": 36,
+            "n_end": 28,
+            "risk_table_loss": 8,
             "events_reconstructed": 6,
-            "censors_reconstructed": 27,
-            "digitized_s_start": 0.4413,
-            "digitized_s_end": 0.2638,
-            "reconstructed_s_end": 0.3589,
-            "expected_s_end": 0.407
+            "censors_reconstructed": 2,
+            "terminal_carryover_censors": 28,
+            "digitized_s_start": 0.4663,
+            "digitized_s_end": 0.3842,
+            "reconstructed_s_end": 0.3823,
+            "expected_s_end": 0.466
           }
         ],
         "hardpoint_deltas": [
           {
             "time": 6,
-            "expected": 0.6578,
-            "actual": 0.6986,
-            "error": 0.0408,
+            "expected": 0.7708,
+            "actual": 0.7552,
+            "error": 0.0156,
             "pass": true
           }
         ]

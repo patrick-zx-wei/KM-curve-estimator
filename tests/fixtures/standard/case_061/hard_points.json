@@ -3,40 +3,40 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9678,
+        "survival": 0.9836,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.8954,
+        "survival": 0.912,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.691,
+        "survival": 0.7818,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.4562,
+        "survival": 0.5818,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.3015,
+        "survival": 0.4848,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.134,
+        "survival": 0.0,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 33.53,
+    "median_survival": 42.57,
     "quartiles": {
-      "25pct": 21.43,
-      "50pct": 33.53,
-      "75pct": 54.28
+      "25pct": 30.76,
+      "50pct": 42.57,
+      "75pct": 54.69
     }
   },
   "Treatment": {
@@ -48,35 +48,33 @@
       },
       {
         "time": 12,
-        "survival": 0.9799,
+        "survival": 0.9861,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.9545,
+        "survival": 0.8952,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.897,
+        "survival": 0.8264,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.868,
+        "survival": 0.8264,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.6016,
+        "survival": 0.8264,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 67.81,
+    "median_survival": null,
     "quartiles": {
-      "25pct": 54.86,
-      "50pct": 67.81,
-      "75pct": 77.76
+      "25pct": 73.93
     }
   }
 }

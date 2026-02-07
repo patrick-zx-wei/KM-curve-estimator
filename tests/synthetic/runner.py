@@ -8,6 +8,8 @@ Requires OPENAI_API_KEY and GEMINI_API_KEY environment variables.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
 import json
 from pathlib import Path
 
@@ -37,6 +39,7 @@ def run_case(
     Returns:
         Results dict with per-stage comparison metrics.
     """
+    print(f"[RUN] starting {case_name}", flush=True)
     case_dir = Path(fixtures_dir) / case_name
     if not case_dir.exists():
         return {"error": f"Case directory not found: {case_dir}"}
@@ -176,6 +179,7 @@ def run_case(
         results["reconstruction_meta"] = {"error": "no pipeline output"}
 
     # Stage diagnostics: attribute failures to digitization vs reconstruction per arm.
+    results["benchmark_track"] = _classify_benchmark_track(results)
     results["diagnostics"] = _build_case_diagnostics(results)
     results["interval_debug"] = _build_interval_debug_artifacts(state, test_case, results)
 
@@ -193,16 +197,18 @@ def run_case(
 def run_all(
     fixtures_dir: str | Path = "tests/fixtures/standard",
     write_results: bool = True,
+    max_workers: int = 1,
 ) -> dict:
     """Run the pipeline on all cases in a profile and produce a summary report."""
     fixtures_dir = Path(fixtures_dir)
     manifest = load_manifest(fixtures_dir)
 
-    all_results = []
-    for entry in manifest:
-        case_name = entry["name"]
-        result = run_case(case_name, fixtures_dir, write_results=write_results)
-        all_results.append(result)
+    all_results = _run_manifest_cases(
+        manifest=manifest,
+        fixtures_dir=fixtures_dir,
+        write_results=write_results,
+        max_workers=max_workers,
+    )
 
     return _build_summary(all_results, fixtures_dir, write_results)
 
@@ -212,6 +218,7 @@ def run_filtered(
     difficulty_range: tuple[int, int] | None = None,
     names: list[str] | None = None,
     write_results: bool = True,
+    max_workers: int = 1,
 ) -> dict:
     """Run the pipeline on a filtered subset of cases."""
     fixtures_dir = Path(fixtures_dir)
@@ -225,13 +232,67 @@ def run_filtered(
         name_set = set(names)
         filtered = [e for e in filtered if e["name"] in name_set]
 
-    all_results = []
-    for entry in filtered:
-        case_name = entry["name"]
-        result = run_case(case_name, fixtures_dir, write_results=write_results)
-        all_results.append(result)
+    all_results = _run_manifest_cases(
+        manifest=filtered,
+        fixtures_dir=fixtures_dir,
+        write_results=write_results,
+        max_workers=max_workers,
+    )
 
     return _build_summary(all_results, fixtures_dir, write_results)
+
+
+def _run_manifest_cases(
+    manifest: list[dict],
+    fixtures_dir: Path,
+    write_results: bool,
+    max_workers: int,
+) -> list[dict]:
+    """Run manifest entries serially or with bounded thread parallelism."""
+    if max_workers <= 1:
+        all_results: list[dict] = []
+        for entry in manifest:
+            case_name = entry["name"]
+            result = run_case(case_name, fixtures_dir, write_results=write_results)
+            all_results.append(result)
+        return all_results
+
+    # Preserve manifest order in outputs for deterministic summaries.
+    ordered_results: list[dict | None] = [None] * len(manifest)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_idx = {
+            executor.submit(
+                run_case,
+                entry["name"],
+                fixtures_dir,
+                write_results,
+            ): idx
+            for idx, entry in enumerate(manifest)
+        }
+        for future in as_completed(future_to_idx):
+            idx = future_to_idx[future]
+            case_name = str(manifest[idx].get("name", f"case_{idx:03d}"))
+            difficulty = int(manifest[idx].get("difficulty", 0))
+            try:
+                ordered_results[idx] = future.result()
+            except Exception as exc:
+                ordered_results[idx] = {
+                    "case_name": case_name,
+                    "difficulty": difficulty,
+                    "n_curves": 0,
+                    "pipeline_errors": [{
+                        "stage": "runtime",
+                        "message": f"Unhandled exception: {type(exc).__name__}: {exc}",
+                    }],
+                    "mmpu": {"error": "runner exception"},
+                    "digitize": {"error": "runner exception"},
+                    "hard_points": {"error": "runner exception"},
+                    "reconstruction": {"error": "runner exception"},
+                    "validation": {"error": "runner exception"},
+                    "passed": False,
+                }
+
+    return [result for result in ordered_results if result is not None]
 
 
 def _survival_at(coords: list[tuple[float, float]], t: float) -> float:
@@ -335,6 +396,18 @@ def _build_interval_debug_artifacts(state, test_case, results: dict) -> dict:
         }
 
     return {"per_curve": per_curve}
+
+
+def _classify_benchmark_track(results: dict) -> str:
+    """Classify case into full (risk-table constrained) vs cv-only track."""
+    mmpu = results.get("mmpu", {})
+    recon_meta = results.get("reconstruction_meta", {})
+    expected = bool(mmpu.get("risk_table_expected")) if isinstance(mmpu, dict) else False
+    detected = bool(mmpu.get("risk_table_detected")) if isinstance(mmpu, dict) else False
+    mode = str(recon_meta.get("mode", "")) if isinstance(recon_meta, dict) else ""
+    if expected and detected and mode == "full":
+        return "full_track"
+    return "cv_only_track"
 
 
 def _check_pass(results: dict) -> bool:
@@ -445,6 +518,145 @@ def _build_case_diagnostics(results: dict) -> dict:
     }
 
 
+def _build_track_summary(all_results: list[dict]) -> dict[str, dict]:
+    """Aggregate pass-rate/MAE by benchmark track."""
+    buckets: dict[str, dict[str, object]] = {
+        "full_track": {"cases": 0, "passed": 0, "mae_values": []},
+        "cv_only_track": {"cases": 0, "passed": 0, "mae_values": []},
+    }
+    for result in all_results:
+        track = str(result.get("benchmark_track", _classify_benchmark_track(result)))
+        if track not in buckets:
+            track = "cv_only_track"
+        bucket = buckets[track]
+        bucket["cases"] = int(bucket["cases"]) + 1
+        if result.get("passed", False):
+            bucket["passed"] = int(bucket["passed"]) + 1
+
+        reconstruction = result.get("reconstruction", {})
+        if isinstance(reconstruction, dict):
+            for metrics in reconstruction.values():
+                if isinstance(metrics, dict) and isinstance(metrics.get("mae"), (int, float)):
+                    cast_list = bucket["mae_values"]
+                    if isinstance(cast_list, list):
+                        cast_list.append(float(metrics["mae"]))
+
+    summary: dict[str, dict] = {}
+    for track, bucket in buckets.items():
+        cases = int(bucket["cases"])
+        passed = int(bucket["passed"])
+        mae_values = bucket["mae_values"] if isinstance(bucket["mae_values"], list) else []
+        summary[track] = {
+            "cases": cases,
+            "passed": passed,
+            "pass_rate": round(passed / max(1, cases), 4),
+            "mean_reconstruction_mae": (
+                round(float(np.mean(mae_values)), 4) if mae_values else None
+            ),
+            "median_reconstruction_mae": (
+                round(float(np.median(mae_values)), 4) if mae_values else None
+            ),
+        }
+    return summary
+
+
+def _build_interval_bias_dashboard(all_results: list[dict]) -> dict:
+    """Aggregate time-indexed reconstruction and hard-point bias diagnostics."""
+    interval_bins: dict[float, dict[str, list[float]]] = {}
+    hardpoint_bins: dict[float, dict[str, list[float]]] = {}
+
+    for result in all_results:
+        interval_debug = result.get("interval_debug", {})
+        if isinstance(interval_debug, dict):
+            per_curve = interval_debug.get("per_curve", {})
+            if isinstance(per_curve, dict):
+                for curve_payload in per_curve.values():
+                    if not isinstance(curve_payload, dict):
+                        continue
+                    intervals = curve_payload.get("intervals", [])
+                    if not isinstance(intervals, list):
+                        continue
+                    for interval in intervals:
+                        if not isinstance(interval, dict):
+                            continue
+                        t_end = float(interval.get("t_end", 0.0))
+                        rec_s = interval.get("reconstructed_s_end")
+                        exp_s = interval.get("expected_s_end")
+                        dig_s = interval.get("digitized_s_end")
+                        if not isinstance(rec_s, (int, float)) or not isinstance(exp_s, (int, float)):
+                            continue
+                        bucket = interval_bins.setdefault(
+                            t_end,
+                            {
+                                "reconstruction_bias": [],
+                                "digitization_bias": [],
+                            },
+                        )
+                        bucket["reconstruction_bias"].append(float(rec_s - exp_s))
+                        if isinstance(dig_s, (int, float)):
+                            bucket["digitization_bias"].append(float(dig_s - exp_s))
+
+        hard_points = result.get("hard_points", {})
+        if isinstance(hard_points, dict):
+            for hp_payload in hard_points.values():
+                if not isinstance(hp_payload, dict):
+                    continue
+                landmarks = hp_payload.get("landmarks", [])
+                if not isinstance(landmarks, list):
+                    continue
+                for lm in landmarks:
+                    if not isinstance(lm, dict):
+                        continue
+                    t = lm.get("time")
+                    exp_s = lm.get("expected")
+                    act_s = lm.get("actual")
+                    passed = bool(lm.get("pass", False))
+                    if not isinstance(t, (int, float)):
+                        continue
+                    if not isinstance(exp_s, (int, float)) or not isinstance(act_s, (int, float)):
+                        continue
+                    bucket = hardpoint_bins.setdefault(
+                        float(t),
+                        {"bias": [], "abs_error": [], "fail": []},
+                    )
+                    bias = float(act_s - exp_s)
+                    bucket["bias"].append(bias)
+                    bucket["abs_error"].append(abs(bias))
+                    bucket["fail"].append(0.0 if passed else 1.0)
+
+    interval_summary: dict[str, dict] = {}
+    for t_end, payload in sorted(interval_bins.items()):
+        rec_bias = payload["reconstruction_bias"]
+        dig_bias = payload["digitization_bias"]
+        interval_summary[str(round(t_end, 3))] = {
+            "n": len(rec_bias),
+            "mean_reconstruction_bias": round(float(np.mean(rec_bias)), 4) if rec_bias else None,
+            "mean_abs_reconstruction_bias": (
+                round(float(np.mean(np.abs(np.asarray(rec_bias, dtype=np.float64)))), 4)
+                if rec_bias
+                else None
+            ),
+            "mean_digitization_bias": round(float(np.mean(dig_bias)), 4) if dig_bias else None,
+        }
+
+    hardpoint_summary: dict[str, dict] = {}
+    for t, payload in sorted(hardpoint_bins.items()):
+        bias = payload["bias"]
+        abs_error = payload["abs_error"]
+        fail = payload["fail"]
+        hardpoint_summary[str(round(t, 3))] = {
+            "n": len(bias),
+            "mean_bias": round(float(np.mean(bias)), 4) if bias else None,
+            "mean_abs_error": round(float(np.mean(abs_error)), 4) if abs_error else None,
+            "fail_rate": round(float(np.mean(fail)), 4) if fail else None,
+        }
+
+    return {
+        "interval_end_bias": interval_summary,
+        "hardpoint_bias": hardpoint_summary,
+    }
+
+
 def _build_summary(
     all_results: list[dict],
     output_dir: Path,
@@ -536,6 +748,8 @@ def _build_summary(
         "worst_cases": failed_cases[:10],
         "failure_breakdown": failure_breakdown,
         "stage_attribution": stage_attribution,
+        "benchmark_tracks": _build_track_summary(all_results),
+        "metrics_dashboard": _build_interval_bias_dashboard(all_results),
         "by_difficulty": {
             str(k): v for k, v in sorted(by_difficulty.items())
         },
