@@ -19,6 +19,12 @@
     "curve_count_mismatch": 0,
     "pipeline_crash": 0
   },
+  "stage_attribution": {
+    "reconstruction_limited": 4,
+    "clean": 5,
+    "digitization_limited": 3,
+    "mixed": 1
+  },
   "by_difficulty": {
     "4": {
       "n": 4,

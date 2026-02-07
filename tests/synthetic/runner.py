@@ -147,11 +147,21 @@ def run_case(
             }
             for curve in state.output.curves
         }
+        results["reconstruction_meta"] = {
+            "mode": state.output.reconstruction_mode.value,
+            "patient_counts": {
+                curve.group_name: len(curve.patients)
+                for curve in state.output.curves
+            },
+            "warnings": list(state.output.warnings),
+        }
     else:
         results["validation"] = {"error": "no pipeline output"}
+        results["reconstruction_meta"] = {"error": "no pipeline output"}
 
     # Stage diagnostics: attribute failures to digitization vs reconstruction per arm.
     results["diagnostics"] = _build_case_diagnostics(results)
+    results["interval_debug"] = _build_interval_debug_artifacts(state, test_case, results)
 
     # Overall pass/fail
     results["passed"] = _check_pass(results)
@@ -206,6 +216,98 @@ def run_filtered(
         all_results.append(result)
 
     return _build_summary(all_results, fixtures_dir, write_results)
+
+
+def _survival_at(coords: list[tuple[float, float]], t: float) -> float:
+    """Evaluate a KM step function at time t."""
+    if not coords:
+        return 1.0
+    ordered = sorted(coords, key=lambda p: p[0])
+    if t < ordered[0][0]:
+        return 1.0
+    for i in range(len(ordered) - 1, -1, -1):
+        if ordered[i][0] <= t:
+            return float(ordered[i][1])
+    return float(ordered[0][1])
+
+
+def _build_interval_debug_artifacts(state, test_case, results: dict) -> dict:
+    """Build per-interval reconstruction diagnostics for failed-case debugging."""
+    if not state.output:
+        return {"error": "no pipeline output"}
+
+    expected_curves = {c.group_name: c.step_coords for c in test_case.curves}
+    hard_points = results.get("hard_points", {})
+    recon_metrics = results.get("reconstruction", {})
+
+    risk_table = None
+    if state.plot_metadata is not None:
+        risk_table = state.plot_metadata.risk_table
+    risk_time_points = list(risk_table.time_points) if risk_table is not None else []
+    risk_counts: dict[str, list[int]] = {}
+    if risk_table is not None:
+        risk_counts = {group.name: list(group.counts) for group in risk_table.groups}
+
+    per_curve: dict[str, dict] = {}
+    for curve in state.output.curves:
+        name = curve.group_name
+        patients = list(curve.patients)
+        recon_coords = _km_from_ipd(patients)
+        digitized_coords = state.digitized_curves.get(name, []) if state.digitized_curves else []
+        expected_coords = expected_curves.get(name, [])
+
+        interval_ledger: list[dict] = []
+        counts = risk_counts.get(name, [])
+        if len(risk_time_points) >= 2 and len(counts) == len(risk_time_points):
+            for j in range(len(risk_time_points) - 1):
+                t_start = float(risk_time_points[j])
+                t_end = float(risk_time_points[j + 1])
+                n_start = int(counts[j])
+                n_end = int(counts[j + 1])
+                events = sum(
+                    1 for p in patients if (t_start < float(p.time) <= t_end and bool(p.event))
+                )
+                censors = sum(
+                    1 for p in patients if (t_start < float(p.time) <= t_end and not bool(p.event))
+                )
+                interval_ledger.append({
+                    "t_start": t_start,
+                    "t_end": t_end,
+                    "n_start": n_start,
+                    "n_end": n_end,
+                    "risk_table_loss": int(n_start - n_end),
+                    "events_reconstructed": int(events),
+                    "censors_reconstructed": int(censors),
+                    "digitized_s_start": round(_survival_at(digitized_coords, t_start), 4),
+                    "digitized_s_end": round(_survival_at(digitized_coords, t_end), 4),
+                    "reconstructed_s_end": round(_survival_at(recon_coords, t_end), 4),
+                    "expected_s_end": round(_survival_at(expected_coords, t_end), 4),
+                })
+
+        hardpoint_deltas: list[dict] = []
+        hp_group = hard_points.get(name, {}) if isinstance(hard_points, dict) else {}
+        if isinstance(hp_group, dict):
+            for landmark in hp_group.get("landmarks", []):
+                hardpoint_deltas.append({
+                    "time": landmark.get("time"),
+                    "expected": landmark.get("expected"),
+                    "actual": landmark.get("actual"),
+                    "error": landmark.get("error"),
+                    "pass": bool(landmark.get("pass", False)),
+                })
+
+        rec_mae = None
+        metric_group = recon_metrics.get(name, {}) if isinstance(recon_metrics, dict) else {}
+        if isinstance(metric_group, dict):
+            rec_mae = metric_group.get("mae")
+
+        per_curve[name] = {
+            "reconstruction_mae": rec_mae,
+            "intervals": interval_ledger,
+            "hardpoint_deltas": hardpoint_deltas,
+        }
+
+    return {"per_curve": per_curve}
 
 
 def _check_pass(results: dict) -> bool:

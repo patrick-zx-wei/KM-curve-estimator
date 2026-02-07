@@ -677,27 +677,52 @@ def digitize(state: PipelineState) -> PipelineState:
         mapping,
         image=image,
         curve_color_priors=expected_colors,
+        crossing_relaxed=False,
     )
     has_color_priors = any(color is not None for color in expected_colors.values())
-    if has_color_priors and ambiguity_score >= DUAL_PATH_AMBIGUITY_THRESHOLD:
-        neutral_clean_curves = resolve_overlaps(
+    if ambiguity_score >= DUAL_PATH_AMBIGUITY_THRESHOLD:
+        candidate_paths: list[tuple[str, dict[str, list[tuple[int, int]]], float]] = []
+        baseline_name = "color-prior" if has_color_priors else "default"
+        color_score = _pixel_curve_set_score(clean_curves, mapping)
+        candidate_paths.append((baseline_name, clean_curves, color_score))
+
+        if has_color_priors:
+            neutral_clean_curves = resolve_overlaps(
+                raw_curves,
+                mapping,
+                image=image,
+                curve_color_priors=None,
+                crossing_relaxed=False,
+            )
+            neutral_score = _pixel_curve_set_score(neutral_clean_curves, mapping)
+            candidate_paths.append(("neutral", neutral_clean_curves, neutral_score))
+
+        crossing_clean_curves = resolve_overlaps(
             raw_curves,
             mapping,
             image=image,
-            curve_color_priors=None,
+            curve_color_priors=expected_colors if has_color_priors else None,
+            crossing_relaxed=True,
         )
-        color_score = _pixel_curve_set_score(clean_curves, mapping)
-        neutral_score = _pixel_curve_set_score(neutral_clean_curves, mapping)
-        if neutral_score + DUAL_PATH_SELECTION_MARGIN < color_score:
-            clean_curves = neutral_clean_curves
+        crossing_score = _pixel_curve_set_score(crossing_clean_curves, mapping)
+        candidate_paths.append(("crossing-relaxed", crossing_clean_curves, crossing_score))
+
+        best_name, best_curves, best_score = min(candidate_paths, key=lambda item: item[2])
+        if best_name != baseline_name and (
+            best_score + DUAL_PATH_SELECTION_MARGIN < color_score
+        ):
+            clean_curves = best_curves
             dual_path_warnings.append(
-                "Ambiguous overlap: selected neutral tracing "
-                f"(score {color_score:.2f} -> {neutral_score:.2f})"
+                "Ambiguous overlap: selected "
+                f"{best_name} tracing (score {color_score:.2f} -> {best_score:.2f})"
             )
         else:
+            score_summary = ", ".join(
+                f"{name}={score:.2f}" for name, _, score in candidate_paths
+            )
             dual_path_warnings.append(
-                "Ambiguous overlap: kept color-prior tracing "
-                f"(score {color_score:.2f} vs {neutral_score:.2f})"
+                f"Ambiguous overlap: kept {baseline_name} tracing "
+                f"({score_summary})"
             )
 
     # Step 4: Convert to real coordinates
