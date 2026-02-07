@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 
@@ -114,6 +115,7 @@ TIER_LEGACY = TierConfig(
 )
 
 TIERS = [TIER_PRISTINE, TIER_STANDARD, TIER_LEGACY]
+GapPattern = Literal["diverging", "parallel", "converging", "crossover"]
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +426,210 @@ def _sample_weibull_ks(
     ]
 
 
+def _clip_k(value: float) -> float:
+    return float(np.clip(value, 0.45, 2.8))
+
+
+def _choose_gap_pattern(
+    rng: np.random.Generator,
+    tier_name: str,
+    n_curves: int,
+) -> GapPattern:
+    """Sample clinically plausible KM gap patterns."""
+    if tier_name == "pristine":
+        patterns = ["parallel", "diverging", "converging", "crossover"]
+        weights = np.array([0.48, 0.36, 0.12, 0.04], dtype=np.float64)
+    elif tier_name == "standard":
+        patterns = ["parallel", "diverging", "converging", "crossover"]
+        weights = np.array([0.44, 0.34, 0.16, 0.06], dtype=np.float64)
+    else:
+        patterns = ["parallel", "diverging", "converging", "crossover"]
+        weights = np.array([0.40, 0.30, 0.20, 0.10], dtype=np.float64)
+
+    # Multi-arm crossover is rare and often visually underdetermined.
+    if n_curves >= 3:
+        weights[patterns.index("crossover")] *= 0.25
+        weights = weights / np.sum(weights)
+
+    return rng.choice(patterns, p=weights)  # type: ignore[return-value]
+
+
+def _sample_pattern_parameters(
+    rng: np.random.Generator,
+    n_curves: int,
+    base_k: float,
+    base_scale: float,
+    pattern: GapPattern,
+) -> tuple[list[float], list[float]]:
+    """Generate per-arm Weibull parameters from a target gap pattern."""
+    if n_curves <= 1:
+        return [_clip_k(base_k)], [float(base_scale)]
+
+    control_k = _clip_k(base_k * rng.uniform(0.92, 1.08))
+    control_scale = float(base_scale * rng.uniform(0.95, 1.05))
+    ks = [control_k]
+    scales = [control_scale]
+
+    n_extra = n_curves - 1
+    if pattern == "parallel":
+        improvements = sorted(rng.uniform(1.12, 1.50, size=n_extra))
+        for imp in improvements:
+            ks.append(_clip_k(control_k * rng.uniform(0.94, 1.06)))
+            scales.append(float(control_scale * imp))
+    elif pattern == "diverging":
+        control_k = _clip_k(max(control_k, 1.0))
+        ks[0] = control_k
+        improvements = sorted(rng.uniform(1.08, 1.40, size=n_extra))
+        for idx, imp in enumerate(improvements):
+            k_shift = rng.uniform(0.18, 0.48) + 0.05 * idx
+            ks.append(_clip_k(control_k - k_shift))
+            scales.append(float(control_scale * imp))
+    elif pattern == "converging":
+        control_k = _clip_k(min(control_k, 1.05))
+        ks[0] = control_k
+        improvements = sorted(rng.uniform(1.12, 1.42, size=n_extra), reverse=True)
+        for idx, imp in enumerate(improvements):
+            k_shift = rng.uniform(0.28, 0.72) + 0.06 * idx
+            ks.append(_clip_k(control_k + k_shift))
+            scales.append(float(control_scale * imp))
+    else:  # crossover
+        control_k = _clip_k(control_k * rng.uniform(0.78, 0.95))
+        ks[0] = control_k
+        cross_k = _clip_k(control_k + rng.uniform(0.75, 1.20))
+        cross_scale = float(control_scale * rng.uniform(1.35, 1.75))
+        ks.append(cross_k)
+        scales.append(cross_scale)
+        for _ in range(max(0, n_extra - 1)):
+            ks.append(_clip_k(control_k * rng.uniform(0.95, 1.08)))
+            scales.append(float(control_scale * rng.uniform(1.06, 1.28)))
+
+    return ks, scales
+
+
+def _step_survival_at(curve: SyntheticTestCase, curve_idx: int, t: float) -> float:
+    coords = curve.curves[curve_idx].step_coords
+    if not coords:
+        return 1.0
+    if t < coords[0][0]:
+        return 1.0
+    for i in range(len(coords) - 1, -1, -1):
+        if coords[i][0] <= t:
+            return float(coords[i][1])
+    return float(coords[0][1])
+
+
+def _n_at_risk_at(curve_case: SyntheticTestCase, curve_idx: int, t: float) -> int:
+    counts = curve_case.curves[curve_idx].n_at_risk
+    if not counts:
+        return len(curve_case.curves[curve_idx].patients)
+    out = counts[0][1]
+    for t_i, n_i in counts:
+        if t_i <= t + 1e-9:
+            out = n_i
+        else:
+            break
+    return int(out)
+
+
+def _primary_pair_indices(case: SyntheticTestCase) -> tuple[int, int]:
+    names = [c.group_name.strip().lower() for c in case.curves]
+    control_idx = next((i for i, n in enumerate(names) if n == "control"), 0)
+    treatment_idx = next((i for i, _ in enumerate(names) if i != control_idx), 1)
+    return control_idx, treatment_idx
+
+
+def _pattern_fit(
+    case: SyntheticTestCase,
+    pattern: GapPattern,
+) -> tuple[bool, float]:
+    """Return (accepted, score) for pattern realism on the primary pair."""
+    if len(case.curves) < 2:
+        return True, 1.0
+
+    ctrl_idx, trt_idx = _primary_pair_indices(case)
+    max_time = float(case.x_axis.end)
+    t_early = 0.25 * max_time
+    t_mid = 0.50 * max_time
+    t_late = 0.75 * max_time
+
+    d_early = _step_survival_at(case, trt_idx, t_early) - _step_survival_at(case, ctrl_idx, t_early)
+    d_mid = _step_survival_at(case, trt_idx, t_mid) - _step_survival_at(case, ctrl_idx, t_mid)
+    d_late = _step_survival_at(case, trt_idx, t_late) - _step_survival_at(case, ctrl_idx, t_late)
+
+    abs_early = abs(d_early)
+    abs_mid = abs(d_mid)
+    abs_late = abs(d_late)
+    max_abs = max(abs_early, abs_mid, abs_late)
+    score = max_abs
+    accepted = False
+
+    if pattern == "parallel":
+        drift = abs(d_early - d_mid) + abs(d_mid - d_late)
+        accepted = (
+            max_abs >= 0.06
+            and drift <= 0.12
+            and (np.sign(d_mid) == np.sign(d_late) or abs_mid < 0.01 or abs_late < 0.01)
+        )
+        score += 0.08 - min(0.08, drift)
+    elif pattern == "diverging":
+        sign = np.sign(d_late if abs_late >= 1e-3 else d_mid)
+        growth_1 = sign * (d_mid - d_early)
+        growth_2 = sign * (d_late - d_mid)
+        accepted = (
+            sign != 0
+            and sign * d_late >= 0.06
+            and growth_1 >= -0.01
+            and growth_2 >= 0.01
+            and sign * (d_late - d_early) >= 0.03
+        )
+        score += sign * (d_late - d_early)
+    elif pattern == "converging":
+        sign = np.sign(d_early if abs_early >= 1e-3 else d_mid)
+        shrink_1 = sign * (d_early - d_mid)
+        shrink_2 = sign * (d_mid - d_late)
+        accepted = (
+            sign != 0
+            and sign * d_early >= 0.06
+            and shrink_1 >= 0.0
+            and shrink_2 >= -0.01
+            and abs_late <= max(0.05, abs_early - 0.02)
+        )
+        score += sign * (d_early - d_late)
+    else:  # crossover
+        sign_changes = 0
+        if d_early * d_mid < -0.001:
+            sign_changes += 1
+        if d_mid * d_late < -0.001:
+            sign_changes += 1
+        accepted = sign_changes >= 1 and max_abs >= 0.06 and abs(d_late - d_early) >= 0.06
+        score += abs(d_late - d_early)
+
+    # Guard against deceptive giant late gaps when very few are at risk.
+    n0 = min(len(case.curves[ctrl_idx].patients), len(case.curves[trt_idx].patients))
+    n_late = min(_n_at_risk_at(case, ctrl_idx, t_late), _n_at_risk_at(case, trt_idx, t_late))
+    low_risk_threshold = max(8, int(0.06 * n0))
+    if n_late < low_risk_threshold and abs_late > 0.18:
+        accepted = False
+        score -= 0.15
+
+    return accepted, float(score)
+
+
+def _best_matching_pattern(case: SyntheticTestCase) -> GapPattern:
+    """Pick the best-fitting realized pattern for metadata labeling."""
+    patterns: list[GapPattern] = ["parallel", "diverging", "converging", "crossover"]
+    accepted_candidates: list[tuple[float, GapPattern]] = []
+    scored_candidates: list[tuple[float, GapPattern]] = []
+    for pat in patterns:
+        accepted, score = _pattern_fit(case, pat)
+        scored_candidates.append((score, pat))
+        if accepted:
+            accepted_candidates.append((score, pat))
+    if accepted_candidates:
+        return max(accepted_candidates, key=lambda item: item[0])[1]
+    return max(scored_candidates, key=lambda item: item[0])[1]
+
+
 def _compute_difficulty(
     n_curves: int,
     weibull_ks: list[float],
@@ -504,16 +710,16 @@ def generate_standard(
         n_curves = int(case_rng.choice([2, 3, 4, 5], p=[0.50, 0.30, 0.15, 0.05]))
         log_k = np.log(0.6) + sample[0] * (np.log(2.2) - np.log(0.6))
         base_k = np.exp(log_k)
-        weibull_ks = _sample_weibull_ks(case_rng, base_k, n_curves)
         n_per_arm = int(50 + sample[3] * 450)  # 50-500
         scale_factor = 0.35 + sample[1] * 0.75
+        base_scale = scale_factor * max_time
 
         # Tier-specific modifiers, censoring, y_start, line styles
         modifiers, censoring_rate, y_start, line_styles = _apply_tier_modifiers(
             case_rng, tier, sample[2], n_curves
         )
 
-        weibull_scale_val = scale_factor * max_time
+        gap_pattern = _choose_gap_pattern(case_rng, tier.name, n_curves)
         if n_curves <= 2:
             group_names = ["Control", "Treatment"][:n_curves]
         elif n_curves == 3:
@@ -521,34 +727,80 @@ def generate_standard(
         else:
             group_names = [f"Arm {chr(65 + j)}" for j in range(n_curves)]
 
+        if gap_pattern == "crossover":
+            enforce_separation = False
+            min_separation = 0.015
+        elif gap_pattern == "converging":
+            enforce_separation = True
+            min_separation = 0.035
+        elif gap_pattern == "parallel":
+            enforce_separation = True
+            min_separation = 0.060
+        else:
+            enforce_separation = True
+            min_separation = 0.050
+
         has_post = any(
             isinstance(m, (LowResolution, JPEGArtifacts, NoisyBackground, GaussianBlur))
             for m in modifiers
         )
-        difficulty = _compute_difficulty(
-            n_curves, weibull_ks, censoring_rate, y_start, n_per_arm, has_post
-        )
-        difficulty = max(tier.min_difficulty, difficulty)
+        tc: SyntheticTestCase | None = None
+        best_score = -1e9
+        best_case: SyntheticTestCase | None = None
 
-        tc = generate_test_case(
-            name=f"case_{i + 1:03d}",
-            seed=case_seed,
-            n_curves=n_curves,
-            n_per_arm=n_per_arm,
-            max_time=max_time,
-            weibull_ks=weibull_ks,
-            weibull_scale=weibull_scale_val,
-            censoring_rate=censoring_rate,
-            y_axis_start=y_start,
-            group_names=group_names,
-            modifiers=modifiers,
-            difficulty=difficulty,
-            tier=tier.name,
-            line_styles=line_styles,
-            enforce_curve_separation=True,
-            min_curve_separation=0.08,
-            max_curve_generation_attempts=8,
-        )
+        # Retry a few times until the primary arm-pair matches the intended gap pattern.
+        for attempt in range(7):
+            pattern_rng = np.random.default_rng(case_seed * 97 + attempt * 1009 + 17)
+            weibull_ks, weibull_scales = _sample_pattern_parameters(
+                pattern_rng,
+                n_curves=n_curves,
+                base_k=base_k,
+                base_scale=base_scale,
+                pattern=gap_pattern,
+            )
+            difficulty = _compute_difficulty(
+                n_curves, weibull_ks, censoring_rate, y_start, n_per_arm, has_post
+            )
+            difficulty = max(tier.min_difficulty, difficulty)
+
+            candidate = generate_test_case(
+                name=f"case_{i + 1:03d}",
+                seed=case_seed + attempt * 13,
+                n_curves=n_curves,
+                n_per_arm=n_per_arm,
+                max_time=max_time,
+                weibull_ks=weibull_ks,
+                weibull_scales=weibull_scales,
+                weibull_scale=base_scale,
+                censoring_rate=censoring_rate,
+                y_axis_start=y_start,
+                group_names=group_names,
+                modifiers=modifiers,
+                difficulty=difficulty,
+                tier=tier.name,
+                line_styles=line_styles,
+                enforce_curve_separation=enforce_separation,
+                min_curve_separation=min_separation,
+                max_curve_generation_attempts=8,
+                gap_pattern=gap_pattern,
+            )
+
+            accepted, score = _pattern_fit(candidate, gap_pattern)
+            if score > best_score:
+                best_score = score
+                best_case = candidate
+            if accepted:
+                tc = candidate
+                break
+
+        if tc is None:
+            tc = best_case
+        if tc is None:
+            raise RuntimeError("Failed to generate synthetic test case")
+        realized_ok, _ = _pattern_fit(tc, gap_pattern)
+        if not realized_ok:
+            tc.gap_pattern = _best_matching_pattern(tc)
+
         _generate_and_save(tc, output_dir)
         cases.append(tc)
 

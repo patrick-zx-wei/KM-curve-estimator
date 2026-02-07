@@ -178,6 +178,7 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "y_axis_start": test_case.y_axis.start,
         "difficulty": test_case.difficulty,
         "tier": test_case.tier,
+        "gap_pattern": test_case.gap_pattern,
         "dpi": 150,
         "modifiers": get_modifier_names(test_case.modifiers),
         "title": test_case.title,
@@ -363,6 +364,7 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
         modifiers=modifiers,
         difficulty=metadata.get("difficulty", 1),
         tier=metadata.get("tier", "standard"),
+        gap_pattern=metadata.get("gap_pattern"),
         image_path=str(graph_path) if graph_path.exists() else None,
         draft_image_path=str(draft_path) if draft_path.exists() else None,
     )
@@ -382,6 +384,7 @@ def save_manifest(
                 "seed": c.seed,
                 "difficulty": c.difficulty,
                 "tier": c.tier,
+                "gap_pattern": c.gap_pattern,
                 "modifiers": get_modifier_names(c.modifiers),
                 "n_curves": len(c.curves),
                 "dir": f"{c.name}/",
