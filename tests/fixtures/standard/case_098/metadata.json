@@ -1,6 +1,6 @@
 {
   "name": "case_098",
-  "seed": 1197,
+  "seed": 1223,
   "n_groups": 3,
   "n_patients_per_arm": 402,
   "groups": [
@@ -12,11 +12,20 @@
   "y_axis_start": 0.2,
   "difficulty": 4,
   "tier": "legacy",
+  "gap_pattern": "crossover",
+  "background_style": "white",
+  "curve_direction": "downward",
+  "frame_layout": "l_axis",
+  "font_typography": "sans",
   "dpi": 150,
   "modifiers": [
+    "BackgroundStyle",
+    "CurveDirection",
+    "FrameLayout",
+    "FontTypography",
     "CensoringMarks",
+    "RiskTableDisplay",
     "TruncatedYAxis",
-    "GridLines",
     "Annotations",
     "ThinLines",
     "LowResolution",
@@ -25,6 +34,35 @@
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
+  "x_axis": {
+    "label": "Time (months)",
+    "start": 0.0,
+    "end": 96.0,
+    "tick_interval": 20.0,
+    "tick_values": [
+      0.0,
+      20.0,
+      40.0,
+      60.0,
+      80.0,
+      96.0
+    ],
+    "scale": "linear"
+  },
+  "y_axis": {
+    "label": "Survival Probability",
+    "start": 0.2,
+    "end": 1.0,
+    "tick_interval": 0.2,
+    "tick_values": [
+      0.2,
+      0.4,
+      0.6,
+      0.8,
+      1.0
+    ],
+    "scale": "linear"
+  },
   "total_patients": 1206,
-  "total_events": 590
+  "total_events": 186
 }

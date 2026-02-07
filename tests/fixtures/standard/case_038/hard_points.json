@@ -3,80 +3,78 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9397,
+        "survival": 0.8745,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.8257,
+        "survival": 0.7851,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.6423,
+        "survival": 0.5931,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.5139,
+        "survival": 0.499,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.403,
+        "survival": 0.3838,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.2706,
+        "survival": 0.2913,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 37.68,
+    "median_survival": 35.21,
     "quartiles": {
-      "25pct": 17.87,
-      "50pct": 37.68,
-      "75pct": 61.25
+      "25pct": 13.86,
+      "50pct": 35.21
     }
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9068,
+        "survival": 0.9075,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.8259,
+        "survival": 0.832,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.6321,
+        "survival": 0.6969,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.4688,
+        "survival": 0.5633,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.3191,
+        "survival": 0.4713,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.2266,
+        "survival": 0.4036,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 33.31,
+    "median_survival": 46.23,
     "quartiles": {
-      "25pct": 16.51,
-      "50pct": 33.31,
-      "75pct": 59.21
+      "25pct": 19.46,
+      "50pct": 46.23
     }
   }
 }

@@ -69,6 +69,9 @@ def preprocess(state: PipelineState) -> PipelineState:
     elif method in ("lanczos_up", "lanczos_down"):
         image = cv_utils.resize_lanczos(image, scale_factor=scale_factor)
 
+    # Normalize gray chart backgrounds toward white to improve downstream masking.
+    image = cv_utils.normalize_plot_background(image)
+
     # Denoise (adaptive to noise level)
     if cv_utils.needs_tiling(image):
         image = cv_utils.process_in_tiles(image, cv_utils.denoise_nlmeans)

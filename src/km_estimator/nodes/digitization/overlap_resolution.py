@@ -5,13 +5,15 @@ from __future__ import annotations
 from bisect import bisect_left
 from itertools import product
 from math import prod
-from typing import Any
+from typing import Any, Literal
 
 import cv2
 import numpy as np
 from numpy.typing import NDArray
 
 from .axis_calibration import AxisMapping
+
+CurveDirection = Literal["downward", "upward"]
 
 MAX_CANDIDATES_PER_CURVE = 3
 MAX_STATES_PER_X = 128
@@ -66,6 +68,7 @@ def _column_stats(
 def enforce_step_function(
     points: list[tuple[float, float]],
     time_tolerance: float = 0.001,
+    direction: CurveDirection = "downward",
 ) -> list[tuple[float, float]]:
     """
     Convert digitized points to proper step function format.
@@ -102,29 +105,43 @@ def enforce_step_function(
     if len(deduped) < 2:
         return deduped
 
-    # Build step function: for each drop, add horizontal then vertical
-    # Track minimum survival seen so far (KM curves are monotonically non-increasing)
+    # Build step function with direction-aware monotonicity:
+    # - downward: non-increasing
+    # - upward: non-decreasing
     step_points: list[tuple[float, float]] = [deduped[0]]
-    min_survival = deduped[0][1]
+    monotone_bound = deduped[0][1]
 
     for i in range(1, len(deduped)):
         curr_t, curr_s = deduped[i]
         prev_t, prev_s = step_points[-1]
 
-        # Clamp any survival increase to previous level (noise correction)
-        if curr_s > min_survival:
-            curr_s = min_survival
+        if direction == "downward":
+            # Clamp any survival increase to previous level (noise correction).
+            if curr_s > monotone_bound:
+                curr_s = monotone_bound
 
-        # If survival dropped, add the step shape
-        if curr_s < prev_s:
-            # Horizontal segment: carry previous survival to current time
-            step_points.append((curr_t, prev_s))
-            # Vertical drop: drop to current survival at current time
-            step_points.append((curr_t, curr_s))
-            min_survival = curr_s
+            if curr_s < prev_s:
+                # Horizontal segment: carry previous survival to current time.
+                step_points.append((curr_t, prev_s))
+                # Vertical drop: drop to current survival at current time.
+                step_points.append((curr_t, curr_s))
+                monotone_bound = curr_s
+            else:
+                # Survival stayed same - extend horizontal.
+                step_points.append((curr_t, curr_s))
         else:
-            # Survival stayed same - extend horizontal
-            step_points.append((curr_t, curr_s))
+            # Clamp any decrease to previous level (noise correction for upward curves).
+            if curr_s < monotone_bound:
+                curr_s = monotone_bound
+
+            if curr_s > prev_s:
+                # Horizontal segment: carry previous level to current time.
+                step_points.append((curr_t, prev_s))
+                # Vertical rise at current time.
+                step_points.append((curr_t, curr_s))
+                monotone_bound = curr_s
+            else:
+                step_points.append((curr_t, curr_s))
 
     return step_points
 
@@ -356,16 +373,24 @@ def _prune_states_with_identity_diversity(
     return kept
 
 
-def _transition_cost(prev_y: int, curr_y: int, x_gap: int) -> float:
+def _transition_cost(
+    prev_y: int,
+    curr_y: int,
+    x_gap: int,
+    curve_direction: CurveDirection = "downward",
+) -> float:
     """
     Transition penalty between adjacent x-columns.
 
     The graph is left-to-right in x, with strong penalty for y decreases
     (which would imply survival increasing in KM semantics).
     """
-    upward_move = max(0, prev_y - curr_y - ALLOWED_UPWARD_MOVE_PX)
+    if curve_direction == "downward":
+        adverse_move = max(0, prev_y - curr_y - ALLOWED_UPWARD_MOVE_PX)
+    else:
+        adverse_move = max(0, curr_y - prev_y - ALLOWED_UPWARD_MOVE_PX)
     smooth = abs(curr_y - prev_y) / max(1, x_gap)
-    return upward_move * UPWARD_MOVE_PENALTY + smooth * SMOOTHNESS_WEIGHT
+    return adverse_move * UPWARD_MOVE_PENALTY + smooth * SMOOTHNESS_WEIGHT
 
 
 def _find_nearest_x(xs_sorted: list[int], target_x: int) -> int | None:
@@ -701,6 +726,7 @@ def _transition_matrix_vectorized(
     curr_missing: NDArray[np.bool_],
     x_gap: int,
     swap_penalty: float = SWAP_PENALTY,
+    curve_direction: CurveDirection = "downward",
 ) -> NDArray[np.float32]:
     """
     Compute transition costs between all prev/curr states in vectorized form.
@@ -721,9 +747,12 @@ def _transition_matrix_vectorized(
     valid = ~(both_missing | one_missing)
 
     x_gap_safe = float(max(1, x_gap))
-    upward_move = np.maximum(0.0, prev_exp - curr_exp - float(ALLOWED_UPWARD_MOVE_PX))
+    if curve_direction == "downward":
+        adverse_move = np.maximum(0.0, prev_exp - curr_exp - float(ALLOWED_UPWARD_MOVE_PX))
+    else:
+        adverse_move = np.maximum(0.0, curr_exp - prev_exp - float(ALLOWED_UPWARD_MOVE_PX))
     smooth = np.abs(curr_exp - prev_exp) / x_gap_safe
-    base = upward_move * float(UPWARD_MOVE_PENALTY) + smooth * float(SMOOTHNESS_WEIGHT)
+    base = adverse_move * float(UPWARD_MOVE_PENALTY) + smooth * float(SMOOTHNESS_WEIGHT)
     base = np.where(valid, base, 0.0).sum(axis=2, dtype=np.float32)
 
     transition = base
@@ -755,6 +784,7 @@ def _trace_curves_joint(
     curve_color_priors: dict[str, tuple[float, float, float] | None] | None,
     max_fallback_gap_px: int,
     crossing_relaxed: bool = False,
+    curve_direction: CurveDirection = "downward",
 ) -> dict[str, list[tuple[int, int]]]:
     """Jointly trace all curves with state exclusivity and identity priors."""
     if not x_values:
@@ -866,6 +896,7 @@ def _trace_curves_joint(
             curr_missing=curr_missing,
             x_gap=x_gap,
             swap_penalty=swap_penalty,
+            curve_direction=curve_direction,
         )
         total = prev_cost[:, None] + transition + curr_data_cost[None, :]
         best_parent = np.argmin(total, axis=0).astype(np.int32)
@@ -891,24 +922,37 @@ def _trace_curves_joint(
     return traced_by_curve
 
 
-def _enforce_monotone_pixels(points: list[tuple[int, int]]) -> list[tuple[int, int]]:
-    """Enforce monotone non-decreasing y in pixel coordinates."""
+def _enforce_monotone_pixels(
+    points: list[tuple[int, int]],
+    curve_direction: CurveDirection = "downward",
+) -> list[tuple[int, int]]:
+    """Enforce monotone pixel trend by curve direction."""
     if not points:
         return points
     monotone: list[tuple[int, int]] = []
-    max_y = points[0][1]
-    for px, py in points:
-        if py < max_y:
-            py = max_y
-        else:
-            max_y = py
-        monotone.append((px, py))
+    if curve_direction == "downward":
+        max_y = points[0][1]
+        for px, py in points:
+            if py < max_y:
+                py = max_y
+            else:
+                max_y = py
+            monotone.append((px, py))
+    else:
+        min_y = points[0][1]
+        for px, py in points:
+            if py > min_y:
+                py = min_y
+            else:
+                min_y = py
+            monotone.append((px, py))
     return monotone
 
 
 def _fill_small_gaps(
     points: list[tuple[int, int]],
     gap_threshold: int,
+    curve_direction: CurveDirection = "downward",
 ) -> list[tuple[int, int]]:
     """Fill small x-gaps by interpolation to keep curve continuity."""
     if len(points) < 2:
@@ -925,8 +969,11 @@ def _fill_small_gaps(
             for fill_x in range(px + 1, next_px):
                 ratio = (fill_x - px) / gap
                 fill_y = int(py + ratio * (next_py - py))
-                # Keep monotone in pixel space.
-                fill_y = max(fill_y, py)
+                # Keep monotone trend in pixel space.
+                if curve_direction == "downward":
+                    fill_y = max(fill_y, py)
+                else:
+                    fill_y = min(fill_y, py)
                 filled.append((fill_x, fill_y))
 
     return filled
@@ -938,6 +985,7 @@ def resolve_overlaps(
     image: NDArray[Any] | None = None,
     curve_color_priors: dict[str, tuple[float, float, float] | None] | None = None,
     crossing_relaxed: bool = False,
+    curve_direction: CurveDirection = "downward",
 ) -> dict[str, list[tuple[int, int]]]:
     """Resolve overlaps by jointly tracing all curves with identity priors."""
     clean: dict[str, list[tuple[int, int]]] = {}
@@ -960,13 +1008,14 @@ def resolve_overlaps(
         curve_color_priors=curve_color_priors,
         max_fallback_gap_px=max_fallback_gap_px,
         crossing_relaxed=crossing_relaxed,
+        curve_direction=curve_direction,
     )
 
     for name, traced in traced_by_curve.items():
         if not traced:
             clean[name] = []
             continue
-        monotone = _enforce_monotone_pixels(traced)
-        clean[name] = _fill_small_gaps(monotone, gap_threshold)
+        monotone = _enforce_monotone_pixels(traced, curve_direction=curve_direction)
+        clean[name] = _fill_small_gaps(monotone, gap_threshold, curve_direction=curve_direction)
 
     return clean

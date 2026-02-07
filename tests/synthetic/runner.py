@@ -42,6 +42,17 @@ def run_case(
         return {"error": f"Case directory not found: {case_dir}"}
 
     test_case = load_test_case(case_dir)
+    expected_curve_direction = "downward"
+    metadata_path = case_dir / "metadata.json"
+    if metadata_path.exists():
+        try:
+            with open(metadata_path) as f:
+                case_metadata = json.load(f)
+            raw_direction = str(case_metadata.get("curve_direction", "downward")).lower()
+            if raw_direction in ("downward", "upward"):
+                expected_curve_direction = raw_direction
+        except (OSError, json.JSONDecodeError):
+            pass
 
     # Lazy import — requires LLM API keys and full pipeline deps
     from km_estimator.pipeline import run_pipeline
@@ -93,6 +104,11 @@ def run_case(
             "n_curves_detected": len(pm.curves),
             "n_curves_expected": len(test_case.curves),
             "curves_match": len(pm.curves) == len(test_case.curves),
+            "curve_direction_detected": getattr(pm, "curve_direction", "downward"),
+            "curve_direction_expected": expected_curve_direction,
+            "curve_direction_match": (
+                getattr(pm, "curve_direction", "downward") == expected_curve_direction
+            ),
             "risk_table_detected": pm.risk_table is not None,
             "risk_table_expected": test_case.risk_table is not None,
         }

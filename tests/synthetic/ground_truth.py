@@ -67,6 +67,10 @@ def _extract_style_profile(modifiers: list[Modifier]) -> dict[str, str]:
 
 def build_ground_truth_metadata(test_case: SyntheticTestCase) -> PlotMetadata:
     """Build the PlotMetadata the pipeline should ideally extract."""
+    style_profile = _extract_style_profile(test_case.modifiers)
+    curve_direction = style_profile["curve_direction"]
+    if not test_case.modifiers and test_case.curve_direction in ("downward", "upward"):
+        curve_direction = test_case.curve_direction
     curves = [
         CurveInfo(
             name=c.group_name,
@@ -82,6 +86,7 @@ def build_ground_truth_metadata(test_case: SyntheticTestCase) -> PlotMetadata:
         risk_table=test_case.risk_table,
         title=test_case.title,
         annotations=test_case.annotations,
+        curve_direction=curve_direction,
     )
 
 
@@ -397,6 +402,11 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
         difficulty=metadata.get("difficulty", 1),
         tier=metadata.get("tier", "standard"),
         gap_pattern=metadata.get("gap_pattern"),
+        curve_direction=(
+            str(metadata.get("curve_direction", "downward")).lower()
+            if str(metadata.get("curve_direction", "downward")).lower() in ("downward", "upward")
+            else "downward"
+        ),
         image_path=str(graph_path) if graph_path.exists() else None,
         draft_image_path=str(draft_path) if draft_path.exists() else None,
     )

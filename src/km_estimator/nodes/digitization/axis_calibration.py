@@ -76,58 +76,117 @@ def calibrate_axes(
     h, w = gray.shape
 
     # Detect edges and lines
-    edges = cv2.Canny(gray, 50, 150)
+    edges = cv2.Canny(gray, 45, 140)
     lines = cv2.HoughLinesP(
-        edges, 1, np.pi / 180, threshold=100, minLineLength=w // 4, maxLineGap=10
+        edges, 1, np.pi / 180, threshold=80, minLineLength=max(w, h) // 5, maxLineGap=8
     )
 
     x_axis_y: int | None = None  # y-pixel of horizontal x-axis
     y_axis_x: int | None = None  # x-pixel of vertical y-axis
+    top_border_y: int | None = None
+    right_border_x: int | None = None
 
     if lines is not None:
-        horizontals: list[int] = []
-        verticals: list[int] = []
+        horizontals: list[tuple[int, int]] = []  # (y, length)
+        verticals: list[tuple[int, int]] = []  # (x, length)
 
         for line in lines:
             lx1, ly1, lx2, ly2 = line[0]
-            if abs(ly2 - ly1) < 10:  # horizontal (y nearly same)
-                horizontals.append((ly1 + ly2) // 2)
-            elif abs(lx2 - lx1) < 10:  # vertical (x nearly same)
-                verticals.append((lx1 + lx2) // 2)
+            line_len = int(np.hypot(lx2 - lx1, ly2 - ly1))
+            if abs(ly2 - ly1) < 8 and line_len >= int(w * 0.35):  # horizontal
+                horizontals.append(((ly1 + ly2) // 2, line_len))
+            elif abs(lx2 - lx1) < 8 and line_len >= int(h * 0.35):  # vertical
+                verticals.append(((lx1 + lx2) // 2, line_len))
 
-        # X-axis: bottom-most horizontal in lower 30% of image
-        for y_pos in sorted(horizontals, reverse=True):
-            if y_pos > h * 0.7:
+        # X-axis: bottom-most strong horizontal in lower half of image.
+        for y_pos, _ in sorted(horizontals, key=lambda item: (item[0], item[1]), reverse=True):
+            if y_pos > h * 0.5:
                 x_axis_y = y_pos
                 break
 
-        # Y-axis: left-most vertical in left 30% of image
-        for x_pos in sorted(verticals):
-            if x_pos < w * 0.3:
+        # Y-axis: left-most strong vertical in left half of image.
+        for x_pos, _ in sorted(verticals, key=lambda item: (item[0], -item[1])):
+            if x_pos < w * 0.5:
                 y_axis_x = x_pos
                 break
 
-    # Fallback: use image edge percentages
+        if x_axis_y is not None:
+            top_candidates = [
+                (y_pos, length)
+                for y_pos, length in horizontals
+                if y_pos < x_axis_y - max(6, int(h * 0.03))
+            ]
+            if top_candidates:
+                top_border_y = min(top_candidates, key=lambda item: item[0])[0]
+
+        if y_axis_x is not None:
+            right_candidates = [
+                (x_pos, length)
+                for x_pos, length in verticals
+                if x_pos > y_axis_x + max(6, int(w * 0.03))
+            ]
+            if right_candidates:
+                right_border_x = max(right_candidates, key=lambda item: item[0])[0]
+
+    # Projection fallback for missing border detections.
+    if x_axis_y is None or y_axis_x is None or top_border_y is None or right_border_x is None:
+        edge_row_density = np.count_nonzero(edges, axis=1) / max(1, w)
+        edge_col_density = np.count_nonzero(edges, axis=0) / max(1, h)
+
+        row_floor = max(0.015, float(np.percentile(edge_row_density, 80)))
+        col_floor = max(0.015, float(np.percentile(edge_col_density, 80)))
+
+        if x_axis_y is None:
+            lower_slice = edge_row_density[int(h * 0.55):]
+            if lower_slice.size > 0 and float(np.max(lower_slice)) >= row_floor:
+                x_axis_y = int(int(h * 0.55) + int(np.argmax(lower_slice)))
+
+        if y_axis_x is None:
+            left_slice = edge_col_density[:int(w * 0.45)]
+            if left_slice.size > 0 and float(np.max(left_slice)) >= col_floor:
+                y_axis_x = int(np.argmax(left_slice))
+
+        if top_border_y is None:
+            upper_slice = edge_row_density[:int(h * 0.45)]
+            if upper_slice.size > 0 and float(np.max(upper_slice)) >= row_floor:
+                top_border_y = int(np.argmax(upper_slice))
+
+        if right_border_x is None:
+            right_start = int(w * 0.55)
+            right_slice = edge_col_density[right_start:]
+            if right_slice.size > 0 and float(np.max(right_slice)) >= col_floor:
+                right_border_x = int(right_start + int(np.argmax(right_slice)))
+
+    # Percentage fallback when lines/projections are weak.
     if x_axis_y is None:
         x_axis_y = int(h * 0.85)
     if y_axis_x is None:
         y_axis_x = int(w * 0.1)
+    if top_border_y is None:
+        top_border_y = int(h * 0.05)
+    if right_border_x is None:
+        right_border_x = int(w * 0.95)
 
-    # Estimate plot region
-    plot_x1 = int(w * 0.95)  # right edge
-    plot_y0 = int(h * 0.05)  # top edge
+    # Sanity clamping to avoid degenerate regions.
+    top_border_y = int(np.clip(top_border_y, 0, h - 2))
+    x_axis_y = int(np.clip(x_axis_y, top_border_y + 2, h - 1))
+    y_axis_x = int(np.clip(y_axis_x, 0, w - 2))
+    right_border_x = int(np.clip(right_border_x, y_axis_x + 2, w - 1))
 
     # Validate non-zero region
-    if plot_x1 <= y_axis_x or x_axis_y <= plot_y0:
+    if right_border_x <= y_axis_x or x_axis_y <= top_border_y:
         return ProcessingError(
             stage=ProcessingStage.DIGITIZE,
             error_type="invalid_plot_region",
             recoverable=False,
-            message=f"Invalid plot region: ({y_axis_x}, {plot_y0}, {plot_x1}, {x_axis_y})",
+            message=(
+                f"Invalid plot region: ({y_axis_x}, {top_border_y}, "
+                f"{right_border_x}, {x_axis_y})"
+            ),
             details={"image_size": (w, h)},
         )
 
-    plot_region = (y_axis_x, plot_y0, plot_x1, x_axis_y)
+    plot_region = (y_axis_x, top_border_y, right_border_x, x_axis_y)
 
     return AxisMapping(
         plot_region=plot_region,

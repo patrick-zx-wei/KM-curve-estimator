@@ -28,6 +28,7 @@ from .modifiers import (
     Modifier,
     ModifierStage,
     NoisyBackground,
+    RiskTableDisplay,
     ThickLines,
     ThinLines,
     TruncatedYAxis,
@@ -150,13 +151,7 @@ def render_test_case(
     figure_mods = [m for m in test_case.modifiers if m.stage == ModifierStage.FIGURE]
     post_mods = [m for m in test_case.modifiers if m.stage == ModifierStage.POST_RENDER]
 
-    # Check if risk table display is requested
-    has_risk_table = any(
-        isinstance(m, type) and m.__class__.__name__ == "RiskTableDisplay"
-        for m in figure_mods
-    )
-    # More direct check
-    from .modifiers import RiskTableDisplay
+    # Check if risk table display is requested.
     has_risk_table = any(isinstance(m, RiskTableDisplay) for m in figure_mods)
 
     if has_risk_table and test_case.risk_table:
@@ -313,7 +308,7 @@ def render_test_case(
             )
 
             # Counts at each time point
-            for j, (t, count) in enumerate(zip(rt.time_points, group.counts)):
+            for t, count in zip(rt.time_points, group.counts):
                 ax_table.text(
                     t, y_pos,
                     str(count),
@@ -358,9 +353,12 @@ def _apply_post_render_modifiers(image_path: Path, modifiers: list[Modifier]) ->
             )
 
         elif isinstance(mod, JPEGArtifacts):
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), mod.quality]
-            _, encoded = cv2.imencode(".jpg", img, encode_param)
-            img = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+            encode_param: tuple[int, int] = (int(cv2.IMWRITE_JPEG_QUALITY), int(mod.quality))
+            ok, encoded = cv2.imencode(".jpg", img, encode_param)
+            if ok:
+                decoded = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+                if decoded is not None:
+                    img = decoded
 
         elif isinstance(mod, NoisyBackground):
             rng = np.random.default_rng(42)

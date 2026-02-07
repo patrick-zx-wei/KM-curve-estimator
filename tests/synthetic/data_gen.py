@@ -57,6 +57,7 @@ class SyntheticTestCase:
     difficulty: int = 1
     tier: str = "standard"
     gap_pattern: str | None = None
+    curve_direction: str = "downward"
     image_path: str | None = None
     draft_image_path: str | None = None
 
