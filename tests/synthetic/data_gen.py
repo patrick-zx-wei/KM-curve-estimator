@@ -56,6 +56,7 @@ class SyntheticTestCase:
     modifiers: list[Modifier]
     difficulty: int = 1
     tier: str = "standard"
+    gap_pattern: str | None = None
     image_path: str | None = None
     draft_image_path: str | None = None
 
@@ -296,6 +297,7 @@ def generate_test_case(
     max_time: float = 60.0,
     weibull_ks: list[float] | None = None,
     weibull_scale: float | None = None,
+    weibull_scales: list[float] | None = None,
     censoring_rate: float = 0.02,
     y_axis_start: float = 0.0,
     group_names: list[str] | None = None,
@@ -309,6 +311,7 @@ def generate_test_case(
     enforce_curve_separation: bool = False,
     min_curve_separation: float = 0.08,
     max_curve_generation_attempts: int = 6,
+    gap_pattern: str | None = None,
 ) -> SyntheticTestCase:
     """Generate a complete synthetic test case.
 
@@ -319,7 +322,8 @@ def generate_test_case(
         n_per_arm: Patients per arm
         max_time: Maximum follow-up time
         weibull_ks: Shape parameters per curve (controls hazard pattern)
-        weibull_scale: Scale parameter (if None, defaults to 0.7 * max_time)
+        weibull_scale: Shared scale parameter (if None, defaults to 0.7 * max_time)
+        weibull_scales: Optional per-curve scale parameters
         censoring_rate: Exponential censoring rate
         y_axis_start: Y-axis minimum (0.0 = standard, >0 = truncated)
         group_names: Names for each curve
@@ -336,8 +340,14 @@ def generate_test_case(
 
     if weibull_ks is None:
         weibull_ks = [1.0] * n_curves
+    if len(weibull_ks) != n_curves:
+        raise ValueError("weibull_ks length must match n_curves")
     if weibull_scale is None:
         weibull_scale = 0.7 * max_time
+    if weibull_scales is None:
+        weibull_scales = [weibull_scale] * n_curves
+    if len(weibull_scales) != n_curves:
+        raise ValueError("weibull_scales length must match n_curves")
     if group_names is None:
         group_names = GROUP_NAMES[:n_curves]
     if annotations is None:
@@ -372,7 +382,7 @@ def generate_test_case(
                 n_patients=n_per_arm,
                 max_time=max_time,
                 weibull_k=weibull_ks[i],
-                weibull_scale=weibull_scale,
+                weibull_scale=weibull_scales[i],
                 censoring_rate=censoring_rate,
                 admin_censoring=True,
                 rng=rng,
@@ -466,4 +476,5 @@ def generate_test_case(
         modifiers=modifiers,
         difficulty=difficulty,
         tier=tier,
+        gap_pattern=gap_pattern,
     )
