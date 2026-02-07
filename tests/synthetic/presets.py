@@ -29,6 +29,7 @@ from .modifiers import (
     Modifier,
     NoisyBackground,
     RiskTableDisplay,
+    ThickLines,
     ThinLines,
     TruncatedYAxis,
 )
@@ -67,14 +68,14 @@ class TierConfig:
 TIER_PRISTINE = TierConfig(
     name="pristine",
     count=50,
-    risk_table_prob=0.70,
+    risk_table_prob=0.90,
     annotations_prob=0.30,
     grid_lines_prob=0.30,
     truncated_y_prob=0.10,
-    thin_lines_prob=0.10,
+    thin_lines_prob=0.03,
     high_censoring_prob=0.10,
-    normal_censoring_range=(0.01, 0.05),
-    high_censoring_range=(0.06, 0.15),
+    normal_censoring_range=(0.02, 0.06),
+    high_censoring_range=(0.08, 0.16),
     # Pristine: native resolution, lossless — no post-render applied
     lowres_width_range=(1200, 1200),
     jpeg_quality_range=(100, 100),
@@ -85,14 +86,14 @@ TIER_PRISTINE = TierConfig(
 TIER_STANDARD = TierConfig(
     name="standard",
     count=35,
-    risk_table_prob=0.75,
+    risk_table_prob=0.90,
     annotations_prob=0.45,
     grid_lines_prob=0.50,
     truncated_y_prob=0.20,
-    thin_lines_prob=0.28,
+    thin_lines_prob=0.12,
     high_censoring_prob=0.43,
-    normal_censoring_range=(0.01, 0.05),
-    high_censoring_range=(0.06, 0.15),
+    normal_censoring_range=(0.03, 0.08),
+    high_censoring_range=(0.10, 0.20),
     # Standard: web-optimized journal (mild JPEG, slight downscale)
     lowres_width_range=(1000, 1200),
     jpeg_quality_range=(80, 95),
@@ -103,14 +104,14 @@ TIER_STANDARD = TierConfig(
 TIER_LEGACY = TierConfig(
     name="legacy",
     count=15,
-    risk_table_prob=0.80,
+    risk_table_prob=0.90,
     annotations_prob=0.60,
     grid_lines_prob=0.55,
     truncated_y_prob=0.40,
-    thin_lines_prob=0.40,
+    thin_lines_prob=0.20,
     high_censoring_prob=0.66,
-    normal_censoring_range=(0.01, 0.05),
-    high_censoring_range=(0.06, 0.15),
+    normal_censoring_range=(0.04, 0.10),
+    high_censoring_range=(0.12, 0.24),
     # Legacy: scanned / old papers
     lowres_width_range=(800, 950),
     jpeg_quality_range=(65, 75),
@@ -245,8 +246,11 @@ def _apply_tier_modifiers(
     if case_rng.random() < tier.annotations_prob:
         modifiers.append(Annotations())
 
-    if case_rng.random() < tier.thin_lines_prob:
-        modifiers.append(ThinLines(linewidth=case_rng.uniform(0.8, 1.2)))
+    thin_roll = case_rng.random()
+    if thin_roll < tier.thin_lines_prob:
+        modifiers.append(ThinLines(linewidth=case_rng.uniform(1.3, 1.8)))
+    elif thin_roll < tier.thin_lines_prob + 0.30:
+        modifiers.append(ThickLines(linewidth=case_rng.uniform(2.8, 3.4)))
 
     # Line styles (75% solid, 20% mixed, 5% dotted)
     line_styles = _pick_line_styles(case_rng, n_curves)
@@ -341,7 +345,7 @@ def _difficult_truncated_noisy(seed: int) -> SyntheticTestCase:
             CensoringMarks(),
             RiskTableDisplay(),
             GridLines(alpha=0.25),
-            ThinLines(linewidth=0.9),
+            ThinLines(linewidth=1.3),
             NoisyBackground(sigma=5.0),
         ],
         difficulty=4,
@@ -356,7 +360,7 @@ def _difficult_crossing_compressed(seed: int) -> SyntheticTestCase:
         n_curves=2,
         n_per_arm=180,
         max_time=60.0,
-        weibull_ks=[0.7, 2.1],
+        weibull_ks=[0.75, 1.95],
         weibull_scale=35.0,
         censoring_rate=0.015,
         modifiers=[
@@ -404,8 +408,8 @@ def _difficult_sparse_degraded(seed: int) -> SyntheticTestCase:
         n_curves=2,
         n_per_arm=95,
         max_time=48.0,
-        weibull_ks=[1.0, 1.0],
-        weibull_scale=18.0,
+        weibull_ks=[0.95, 1.05],
+        weibull_scale=24.0,
         censoring_rate=0.08,
         modifiers=[
             CensoringMarks(),
@@ -500,13 +504,13 @@ def _sample_weibull_ks(
     if n_curves <= 1:
         return [float(base_k)]
 
-    lower_k = 0.45
-    upper_k = 2.8
+    lower_k = 0.6
+    upper_k = 2.0
     best_ks: list[float] = []
     best_gap = -1.0
 
     for _ in range(max_attempts):
-        ks = [float(np.clip(base_k * rng.uniform(0.75, 1.35), lower_k, upper_k)) for _ in range(n_curves)]
+        ks = [float(np.clip(base_k * rng.uniform(0.80, 1.25), lower_k, upper_k)) for _ in range(n_curves)]
         sorted_ks = sorted(ks)
         min_observed_gap = min(sorted_ks[i + 1] - sorted_ks[i] for i in range(len(sorted_ks) - 1))
         if min_observed_gap > best_gap:
@@ -518,7 +522,7 @@ def _sample_weibull_ks(
     # Fallback: deterministic spread around base_k when random draws are too close.
     center = float(np.clip(base_k, lower_k, upper_k))
     half = (n_curves - 1) / 2.0
-    spread = max(min_gap, 0.22)
+    spread = max(min_gap, 0.18)
     return [
         float(np.clip(center + (idx - half) * spread, lower_k, upper_k))
         for idx in range(n_curves)
@@ -526,7 +530,29 @@ def _sample_weibull_ks(
 
 
 def _clip_k(value: float) -> float:
-    return float(np.clip(value, 0.45, 2.8))
+    return float(np.clip(value, 0.6, 2.0))
+
+
+def _enforce_min_multiplier_gap(
+    values: np.ndarray,
+    min_gap: float,
+    low: float,
+    high: float,
+) -> np.ndarray:
+    """Ensure sorted multipliers are separated by at least min_gap."""
+    if values.size <= 1:
+        return values
+
+    out = np.sort(values.astype(np.float64, copy=True))
+    for idx in range(1, out.size):
+        if out[idx] - out[idx - 1] < min_gap:
+            out[idx] = out[idx - 1] + min_gap
+
+    if out[-1] > high:
+        out -= out[-1] - high
+    if out[0] < low:
+        out += low - out[0]
+    return np.clip(out, low, high)
 
 
 def _choose_gap_pattern(
@@ -537,13 +563,13 @@ def _choose_gap_pattern(
     """Sample clinically plausible KM gap patterns."""
     if tier_name == "pristine":
         patterns = ["parallel", "diverging", "converging", "crossover"]
-        weights = np.array([0.48, 0.36, 0.12, 0.04], dtype=np.float64)
+        weights = np.array([0.52, 0.22, 0.22, 0.04], dtype=np.float64)
     elif tier_name == "standard":
         patterns = ["parallel", "diverging", "converging", "crossover"]
-        weights = np.array([0.44, 0.34, 0.16, 0.06], dtype=np.float64)
+        weights = np.array([0.48, 0.22, 0.24, 0.06], dtype=np.float64)
     else:
         patterns = ["parallel", "diverging", "converging", "crossover"]
-        weights = np.array([0.40, 0.30, 0.20, 0.10], dtype=np.float64)
+        weights = np.array([0.44, 0.22, 0.24, 0.10], dtype=np.float64)
 
     # Multi-arm crossover is rare and often visually underdetermined.
     if n_curves >= 3:
@@ -571,30 +597,46 @@ def _sample_pattern_parameters(
 
     n_extra = n_curves - 1
     if pattern == "parallel":
-        improvements = sorted(rng.uniform(1.12, 1.50, size=n_extra))
+        improvements = _enforce_min_multiplier_gap(
+            rng.uniform(1.12, 1.58, size=n_extra),
+            min_gap=0.05,
+            low=1.12,
+            high=1.58,
+        )
         for imp in improvements:
             ks.append(_clip_k(control_k * rng.uniform(0.94, 1.06)))
             scales.append(float(control_scale * imp))
     elif pattern == "diverging":
         control_k = _clip_k(max(control_k, 1.0))
         ks[0] = control_k
-        improvements = sorted(rng.uniform(1.08, 1.40, size=n_extra))
+        improvements = _enforce_min_multiplier_gap(
+            rng.uniform(1.10, 1.48, size=n_extra),
+            min_gap=0.05,
+            low=1.10,
+            high=1.48,
+        )
         for idx, imp in enumerate(improvements):
-            k_shift = rng.uniform(0.18, 0.48) + 0.05 * idx
+            k_shift = rng.uniform(0.12, 0.32) + 0.04 * idx
             ks.append(_clip_k(control_k - k_shift))
             scales.append(float(control_scale * imp))
     elif pattern == "converging":
         control_k = _clip_k(min(control_k, 1.05))
         ks[0] = control_k
-        improvements = sorted(rng.uniform(1.12, 1.42, size=n_extra), reverse=True)
+        improvements = _enforce_min_multiplier_gap(
+            rng.uniform(1.10, 1.48, size=n_extra),
+            min_gap=0.05,
+            low=1.10,
+            high=1.48,
+        )
+        improvements = improvements[::-1]
         for idx, imp in enumerate(improvements):
-            k_shift = rng.uniform(0.28, 0.72) + 0.06 * idx
+            k_shift = rng.uniform(0.18, 0.45) + 0.05 * idx
             ks.append(_clip_k(control_k + k_shift))
             scales.append(float(control_scale * imp))
     else:  # crossover
         control_k = _clip_k(control_k * rng.uniform(0.78, 0.95))
         ks[0] = control_k
-        cross_k = _clip_k(control_k + rng.uniform(0.75, 1.20))
+        cross_k = _clip_k(control_k + rng.uniform(0.45, 0.85))
         cross_scale = float(control_scale * rng.uniform(1.35, 1.75))
         ks.append(cross_k)
         scales.append(cross_scale)
@@ -745,7 +787,7 @@ def _compute_difficulty(
 
     # Extreme Weibull shapes
     for k in weibull_ks:
-        if k < 0.5 or k > 5.0:
+        if k < 0.6 or k > 2.0:
             score += 0.5
 
     # Crossing curves (some k<1 and some k>1)
@@ -831,11 +873,11 @@ def generate_standard(
         max_time = max_time_choices[int(sample[4] * 7.99)]
 
         # Statistical parameters from LHS
-        n_curves = int(case_rng.choice([2, 3, 4, 5], p=[0.50, 0.30, 0.15, 0.05]))
-        log_k = np.log(0.6) + sample[0] * (np.log(2.2) - np.log(0.6))
+        n_curves = int(case_rng.choice([1, 2, 3], p=[0.15, 0.70, 0.15]))
+        log_k = np.log(0.6) + sample[0] * (np.log(2.0) - np.log(0.6))
         base_k = np.exp(log_k)
         n_per_arm = int(50 + sample[3] * 450)  # 50-500
-        scale_factor = 0.35 + sample[1] * 0.75
+        scale_factor = 0.50 + sample[1] * 0.60
         base_scale = scale_factor * max_time
 
         style_profile = {
@@ -860,16 +902,19 @@ def generate_standard(
 
         if gap_pattern == "crossover":
             enforce_separation = False
-            min_separation = 0.015
+            min_separation = 0.025
         elif gap_pattern == "converging":
-            enforce_separation = True
+            enforce_separation = bool(case_rng.random() < 0.65)
             min_separation = 0.035
         elif gap_pattern == "parallel":
-            enforce_separation = True
-            min_separation = 0.060
-        else:
-            enforce_separation = True
+            enforce_separation = bool(case_rng.random() < 0.70)
             min_separation = 0.050
+        else:
+            enforce_separation = bool(case_rng.random() < 0.70)
+            min_separation = 0.045
+
+        if n_curves >= 3:
+            min_separation += 0.005
 
         has_post = any(
             isinstance(m, (LowResolution, JPEGArtifacts, NoisyBackground, GaussianBlur))

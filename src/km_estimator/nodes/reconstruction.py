@@ -31,6 +31,8 @@ FULL_RECON_ALT_SWITCH_MARGIN = 0.01
 FULL_RECON_ALT_MAX_RATIO = 1.35
 FULL_RECON_ALT_MAX_ABS_MARGIN = 12
 FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX = 0.35
+MAX_TERMINAL_CENSOR_FRACTION = 0.45
+TERMINAL_CENSOR_SURVIVAL_MARGIN = 0.05
 
 
 def _estimate_interval_end_survival(
@@ -330,6 +332,7 @@ def _reconcile_patient_total(
     target_total: int,
     final_time: float,
     warnings: list[str],
+    max_terminal_additions: int | None = None,
 ) -> None:
     """Ensure patient record count matches target by adjusting right-censored tail."""
     diff = int(target_total - len(patients))
@@ -337,9 +340,18 @@ def _reconcile_patient_total(
         return
 
     if diff > 0:
-        for _ in range(diff):
+        additions = diff
+        if max_terminal_additions is not None:
+            additions = min(diff, max(0, int(max_terminal_additions)))
+        for _ in range(additions):
             patients.append(PatientRecord(time=float(final_time), event=False))
-        warnings.append(f"Added {diff} terminal censored patients to match cohort size")
+        if additions > 0:
+            warnings.append(f"Added {additions} terminal censored patients to match cohort size")
+        if additions < diff:
+            warnings.append(
+                "Capped terminal censored additions; patient total remains below target "
+                f"by {diff - additions}"
+            )
         return
 
     remove_needed = -diff
@@ -516,15 +528,32 @@ def _guyot_ikm(
 
     # Add final right-censored survivors still at risk at last follow-up.
     final_time = float(time_points[-1])
-    final_at_risk = max(0, int(n_at_risk[-1]))
+    target_total = max(0, int(n_at_risk[0]))
+    raw_final_at_risk = max(0, int(n_at_risk[-1]))
+    s_end_curve = float(np.clip(_get_survival_at_time(survival_lookup, final_time), 0.0, 1.0))
+    survival_cap = int(round(target_total * min(1.0, s_end_curve + TERMINAL_CENSOR_SURVIVAL_MARGIN)))
+    fraction_cap = int(round(target_total * MAX_TERMINAL_CENSOR_FRACTION))
+    terminal_cap = min(target_total, max(8, survival_cap, fraction_cap))
+    final_at_risk = min(raw_final_at_risk, terminal_cap)
+    if raw_final_at_risk > final_at_risk:
+        warnings.append(
+            f"Capped terminal right-censored survivors from {raw_final_at_risk} "
+            f"to {final_at_risk} at t={final_time}"
+        )
     if final_at_risk > 0:
         for _ in range(final_at_risk):
             patients.append(PatientRecord(time=final_time, event=False))
         warnings.append(f"Added {final_at_risk} terminal right-censored survivors at t={final_time}")
 
     # Guardrail: reconcile generated patient count to initial at-risk cohort.
-    target_total = max(0, int(n_at_risk[0]))
-    _reconcile_patient_total(patients, target_total, final_time, warnings)
+    remaining_terminal_cap = max(0, terminal_cap - final_at_risk)
+    _reconcile_patient_total(
+        patients,
+        target_total,
+        final_time,
+        warnings,
+        max_terminal_additions=remaining_terminal_cap,
+    )
 
     # Sort by time
     patients.sort(key=lambda p: p.time)

@@ -32,6 +32,7 @@ _NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
 FAST_PHASE_TIMEOUT_SECONDS = 12
 FAST_PHASE_MAX_RETRIES = 1
 RISK_TABLE_CROP_RATIOS = (0.35, 0.45, 0.52, 0.60, 0.70)
+RISK_TABLE_REPLACEMENT_MARGIN = 0.25
 UPWARD_DIRECTION_HINTS = (
     "cumulative incidence",
     "incidence",
@@ -271,6 +272,20 @@ def _risk_table_quality(rt: RiskTable | None) -> float:
     for group in rt.groups:
         group_quality += _counts_monotone_score(group.counts)
     return len(rt.groups) * 100.0 + len(times) * 2.0 + monotone + group_quality
+
+
+def _risk_table_needs_recovery(rt: RiskTable | None, curve_names: list[str]) -> bool:
+    """Decide whether to run OCR recovery for risk table."""
+    if rt is None:
+        return True
+    if len(rt.time_points) < 2:
+        return True
+    expected = set(curve_names)
+    got = {g.name for g in rt.groups}
+    if expected and len(expected & got) < len(expected):
+        return True
+    quality_floor = len(curve_names) * 100.0 + 8.0
+    return _risk_table_quality(rt) < quality_floor
 
 
 def _parse_risk_table_from_ocr(
@@ -875,16 +890,26 @@ def mmpu(state: PipelineState) -> PipelineState:
     plot_metadata = metadata_result.result
     plot_metadata = _infer_curve_direction(plot_metadata, ocr_tokens, warnings)
 
-    # Risk-table recovery pass:
-    # 1) Parse from OCR risk_table_text when metadata lacks table.
-    # 2) If still missing, OCR bottom crop and parse table-focused content.
-    if plot_metadata.risk_table is None and ocr_tokens is not None:
+    # Risk-table recovery pass (quality-aware):
+    # 1) Always attempt OCR parsing when tokens are available.
+    # 2) Replace metadata table only when OCR quality is materially better.
+    # 3) If still weak/missing, run cropped lower-region OCR.
+    if ocr_tokens is not None:
         curve_names = [c.name for c in plot_metadata.curves]
+        best_rt = plot_metadata.risk_table
+        best_score = _risk_table_quality(best_rt)
+
         parsed_rt = _parse_risk_table_from_ocr(ocr_tokens, curve_names)
-        if parsed_rt is not None:
-            plot_metadata = plot_metadata.model_copy(update={"risk_table": parsed_rt})
-            warnings.append("Recovered risk table from OCR tokens")
-        else:
+        parsed_score = _risk_table_quality(parsed_rt)
+        if parsed_rt is not None and parsed_score > best_score + RISK_TABLE_REPLACEMENT_MARGIN:
+            best_rt = parsed_rt
+            best_score = parsed_score
+            if plot_metadata.risk_table is None:
+                warnings.append("Recovered risk table from OCR tokens")
+            else:
+                warnings.append("Replaced low-quality metadata risk table using OCR tokens")
+
+        if _risk_table_needs_recovery(best_rt, curve_names):
             crop_rt, crop_warnings, crop_tokens, crop_gemini_used = (
                 _extract_risk_table_from_cropped_region(
                     image_path=image_path,
@@ -899,9 +924,17 @@ def mmpu(state: PipelineState) -> PipelineState:
             warnings.extend(crop_warnings)
             if crop_tokens:
                 total_cost += _calculate_cost(crop_tokens, crop_gemini_used)
-            if crop_rt is not None:
-                plot_metadata = plot_metadata.model_copy(update={"risk_table": crop_rt})
-                warnings.append("Recovered risk table from cropped lower-region OCR")
+            crop_score = _risk_table_quality(crop_rt)
+            if crop_rt is not None and crop_score > best_score + RISK_TABLE_REPLACEMENT_MARGIN:
+                best_rt = crop_rt
+                best_score = crop_score
+                if plot_metadata.risk_table is None and parsed_rt is None:
+                    warnings.append("Recovered risk table from cropped lower-region OCR")
+                else:
+                    warnings.append("Replaced risk table using cropped lower-region OCR")
+
+        if best_rt is not None and best_rt is not plot_metadata.risk_table:
+            plot_metadata = plot_metadata.model_copy(update={"risk_table": best_rt})
 
     plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, image_path, warnings)
     plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
@@ -1088,21 +1121,30 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
     plot_metadata = metadata_result.result
     plot_metadata = _infer_curve_direction(plot_metadata, ocr_tokens, warnings)
 
-    # Async risk-table recovery mirrors sync logic.
-    if plot_metadata.risk_table is None and ocr_tokens is not None:
+    # Async risk-table recovery mirrors sync quality-aware behavior.
+    if ocr_tokens is not None:
         curve_names = [c.name for c in plot_metadata.curves]
+        best_rt = plot_metadata.risk_table
+        best_score = _risk_table_quality(best_rt)
+
         parsed_rt = _parse_risk_table_from_ocr(ocr_tokens, curve_names)
-        if parsed_rt is not None:
-            plot_metadata = plot_metadata.model_copy(update={"risk_table": parsed_rt})
-            warnings.append("Recovered risk table from OCR tokens")
-        else:
+        parsed_score = _risk_table_quality(parsed_rt)
+        if parsed_rt is not None and parsed_score > best_score + RISK_TABLE_REPLACEMENT_MARGIN:
+            best_rt = parsed_rt
+            best_score = parsed_score
+            if plot_metadata.risk_table is None:
+                warnings.append("Recovered risk table from OCR tokens")
+            else:
+                warnings.append("Replaced low-quality metadata risk table using OCR tokens")
+
+        if _risk_table_needs_recovery(best_rt, curve_names):
             image = cv_utils.load_image(image_path, stage=ProcessingStage.MMPU)
             if not isinstance(image, ProcessingError):
                 h = image.shape[0]
                 tmp_dir = Path(gettempdir()) / "km_estimator"
                 tmp_dir.mkdir(parents=True, exist_ok=True)
-                best_rt: RiskTable | None = None
-                best_score = -1.0
+                crop_best_rt: RiskTable | None = None
+                crop_best_score = -1.0
                 for ratio in RISK_TABLE_CROP_RATIOS:
                     y0 = max(0, int(h * ratio))
                     crop = image[y0:, :]
@@ -1129,17 +1171,27 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                         if ocr_crop.result is not None and ocr_crop.error is None:
                             crop_rt = _parse_risk_table_from_ocr(ocr_crop.result, curve_names)
                             score = _risk_table_quality(crop_rt)
-                            if crop_rt is not None and score > best_score:
-                                best_score = score
-                                best_rt = crop_rt
+                            if crop_rt is not None and score > crop_best_score:
+                                crop_best_score = score
+                                crop_best_rt = crop_rt
                     finally:
                         try:
                             crop_path.unlink(missing_ok=True)
                         except OSError:
                             pass
-                if best_rt is not None:
-                    plot_metadata = plot_metadata.model_copy(update={"risk_table": best_rt})
-                    warnings.append("Recovered risk table from cropped lower-region OCR")
+                if (
+                    crop_best_rt is not None
+                    and crop_best_score > best_score + RISK_TABLE_REPLACEMENT_MARGIN
+                ):
+                    best_rt = crop_best_rt
+                    best_score = crop_best_score
+                    if plot_metadata.risk_table is None and parsed_rt is None:
+                        warnings.append("Recovered risk table from cropped lower-region OCR")
+                    else:
+                        warnings.append("Replaced risk table using cropped lower-region OCR")
+
+        if best_rt is not None and best_rt is not plot_metadata.risk_table:
+            plot_metadata = plot_metadata.model_copy(update={"risk_table": best_rt})
 
     plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, image_path, warnings)
     plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)

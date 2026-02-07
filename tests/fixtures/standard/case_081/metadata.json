@@ -1,12 +1,11 @@
 {
   "name": "case_081",
-  "seed": 1180,
-  "n_groups": 3,
+  "seed": 1232,
+  "n_groups": 2,
   "n_patients_per_arm": 413,
   "groups": [
     "Control",
-    "Treatment A",
-    "Treatment B"
+    "Treatment"
   ],
   "max_time": 24.0,
   "y_axis_start": 0.0,
@@ -24,6 +23,7 @@
     "FrameLayout",
     "FontTypography",
     "CensoringMarks",
+    "RiskTableDisplay",
     "Annotations",
     "JPEGArtifacts"
   ],
@@ -60,6 +60,6 @@
     ],
     "scale": "linear"
   },
-  "total_patients": 1239,
-  "total_events": 933
+  "total_patients": 826,
+  "total_events": 649
 }

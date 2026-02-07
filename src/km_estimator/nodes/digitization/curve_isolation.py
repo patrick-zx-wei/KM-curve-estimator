@@ -44,6 +44,11 @@ SPARSE_MIN_POINTS_FOR_COMPLETION = 12
 BORDER_LINE_OCCUPANCY_RATIO = 0.65
 BORDER_LINE_THICKNESS = 1
 BORDER_MARGIN_RATIO = 0.02
+TOP_BAND_RESCUE_RATIO = 0.22
+TOP_BAND_RESCUE_MIN_PIXELS = 24
+TOP_BAND_RESCUE_MAX_DENSITY = 0.22
+BORDER_GRAY_SAT_MAX = 55
+BORDER_GRAY_VAL_MAX = 245
 
 
 def parse_curve_color(color_description: str | None) -> tuple[float, float, float] | None:
@@ -162,6 +167,54 @@ def _sparse_curve_mask(roi: NDArray, roi_area: int) -> NDArray:
     return _remove_small_components(sparse, min_component_area)
 
 
+def _top_band_curve_mask(roi: NDArray) -> NDArray:
+    """Extra rescue pass focused on the top region where early KM segments live."""
+    h, w = roi.shape[:2]
+    if h < 12 or w < 12:
+        return np.zeros((h, w), dtype=np.uint8)
+
+    top_h = max(8, int(h * TOP_BAND_RESCUE_RATIO))
+    top_roi = roi[:top_h, :]
+    top_hsv = cv2.cvtColor(top_roi, cv2.COLOR_BGR2HSV)
+    top_gray = cv2.cvtColor(top_roi, cv2.COLOR_BGR2GRAY)
+
+    # Relaxed color gate for faint early segments near the top border.
+    color_relaxed = cv2.inRange(
+        top_hsv,
+        np.array([0, 6, 25], dtype=np.uint8),
+        np.array([180, 255, 255], dtype=np.uint8),
+    )
+    non_bg = cv2.inRange(top_gray, 0, 248)
+    rescue = cv2.bitwise_and(color_relaxed, non_bg)
+
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    rescue = cv2.morphologyEx(rescue, cv2.MORPH_CLOSE, kernel)
+    rescue = cv2.morphologyEx(rescue, cv2.MORPH_OPEN, kernel)
+    rescue = _remove_small_components(
+        rescue,
+        min_area=max(3, int((top_h * w) * MIN_COMPONENT_AREA_RATIO)),
+    )
+
+    out = np.zeros((h, w), dtype=np.uint8)
+    out[:top_h, :] = rescue
+    return out
+
+
+def _merge_top_band_rescue(base_mask: NDArray, roi: NDArray) -> NDArray:
+    """Merge top-band rescue mask only when it is sparse enough to be credible."""
+    top_mask = _top_band_curve_mask(roi)
+    h, w = roi.shape[:2]
+    top_h = max(8, int(h * TOP_BAND_RESCUE_RATIO))
+    top_count = int(np.count_nonzero(top_mask[:top_h, :]))
+    top_density = top_count / max(1, top_h * w)
+    if (
+        top_count >= TOP_BAND_RESCUE_MIN_PIXELS
+        and top_density <= TOP_BAND_RESCUE_MAX_DENSITY
+    ):
+        return cv2.bitwise_or(base_mask, top_mask)
+    return base_mask
+
+
 def _extract_curve_mask(
     roi: NDArray,
     min_pixels: int,
@@ -183,7 +236,8 @@ def _extract_curve_mask(
         or primary_density < MIN_PRIMARY_MASK_DENSITY
     )
     if not low_signal:
-        return _suppress_border_lines(primary)
+        merged = _merge_top_band_rescue(primary, roi)
+        return _suppress_border_lines(merged, roi=roi)
 
     adaptive = _adaptive_curve_mask(roi, roi_area)
     sparse = _sparse_curve_mask(roi, roi_area)
@@ -206,10 +260,11 @@ def _extract_curve_mask(
     if combined_count > best_count and combined_density <= MAX_MASK_DENSITY:
         best = combined
 
-    return _suppress_border_lines(best)
+    best = _merge_top_band_rescue(best, roi)
+    return _suppress_border_lines(best, roi=roi)
 
 
-def _suppress_border_lines(mask: NDArray) -> NDArray:
+def _suppress_border_lines(mask: NDArray, roi: NDArray | None = None) -> NDArray:
     """Remove axis-like border lines that contaminate curve clustering."""
     if mask.ndim != 2:
         return mask
@@ -221,6 +276,12 @@ def _suppress_border_lines(mask: NDArray) -> NDArray:
     margin_x = max(2, int(w * BORDER_MARGIN_RATIO))
 
     cleaned = mask.copy()
+    sat: NDArray | None = None
+    val: NDArray | None = None
+    if roi is not None and roi.shape[:2] == mask.shape:
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        sat = hsv[:, :, 1]
+        val = hsv[:, :, 2]
 
     row_occ = np.count_nonzero(cleaned, axis=1) / max(1, w)
     remove_rows = np.where(row_occ >= BORDER_LINE_OCCUPANCY_RATIO)[0]
@@ -228,7 +289,17 @@ def _suppress_border_lines(mask: NDArray) -> NDArray:
         if row <= margin_y or row >= h - margin_y - 1:
             y0 = max(0, row - BORDER_LINE_THICKNESS)
             y1 = min(h, row + BORDER_LINE_THICKNESS + 1)
-            cleaned[y0:y1, :] = 0
+            if sat is None or val is None:
+                cleaned[y0:y1, :] = 0
+            else:
+                region = cleaned[y0:y1, :]
+                present = region > 0
+                if np.any(present):
+                    border_like = (
+                        (sat[y0:y1, :] <= BORDER_GRAY_SAT_MAX)
+                        & (val[y0:y1, :] <= BORDER_GRAY_VAL_MAX)
+                    )
+                    region[present & border_like] = 0
 
     col_occ = np.count_nonzero(cleaned, axis=0) / max(1, h)
     remove_cols = np.where(col_occ >= BORDER_LINE_OCCUPANCY_RATIO)[0]
@@ -236,7 +307,17 @@ def _suppress_border_lines(mask: NDArray) -> NDArray:
         if col <= margin_x or col >= w - margin_x - 1:
             x0 = max(0, col - BORDER_LINE_THICKNESS)
             x1 = min(w, col + BORDER_LINE_THICKNESS + 1)
-            cleaned[:, x0:x1] = 0
+            if sat is None or val is None:
+                cleaned[:, x0:x1] = 0
+            else:
+                region = cleaned[:, x0:x1]
+                present = region > 0
+                if np.any(present):
+                    border_like = (
+                        (sat[:, x0:x1] <= BORDER_GRAY_SAT_MAX)
+                        & (val[:, x0:x1] <= BORDER_GRAY_VAL_MAX)
+                    )
+                    region[present & border_like] = 0
 
     return cleaned
 

@@ -275,17 +275,27 @@ def _build_interval_debug_artifacts(state, test_case, results: dict) -> dict:
         interval_ledger: list[dict] = []
         counts = risk_counts.get(name, [])
         if len(risk_time_points) >= 2 and len(counts) == len(risk_time_points):
+            last_interval_idx = len(risk_time_points) - 2
             for j in range(len(risk_time_points) - 1):
                 t_start = float(risk_time_points[j])
                 t_end = float(risk_time_points[j + 1])
                 n_start = int(counts[j])
                 n_end = int(counts[j + 1])
-                events = sum(
-                    1 for p in patients if (t_start < float(p.time) <= t_end and bool(p.event))
-                )
-                censors = sum(
-                    1 for p in patients if (t_start < float(p.time) <= t_end and not bool(p.event))
-                )
+                events = 0
+                censors = 0
+                terminal_carryover_censors = 0
+                for p in patients:
+                    pt = float(p.time)
+                    if not (t_start < pt <= t_end):
+                        continue
+                    if bool(p.event):
+                        events += 1
+                        continue
+                    # Final-time right-censored survivors are denominator carryover.
+                    if j == last_interval_idx and abs(pt - t_end) <= 1e-9:
+                        terminal_carryover_censors += 1
+                        continue
+                    censors += 1
                 interval_ledger.append({
                     "t_start": t_start,
                     "t_end": t_end,
@@ -294,6 +304,7 @@ def _build_interval_debug_artifacts(state, test_case, results: dict) -> dict:
                     "risk_table_loss": int(n_start - n_end),
                     "events_reconstructed": int(events),
                     "censors_reconstructed": int(censors),
+                    "terminal_carryover_censors": int(terminal_carryover_censors),
                     "digitized_s_start": round(_survival_at(digitized_coords, t_start), 4),
                     "digitized_s_end": round(_survival_at(digitized_coords, t_end), 4),
                     "reconstructed_s_end": round(_survival_at(recon_coords, t_end), 4),

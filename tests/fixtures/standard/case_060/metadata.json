@@ -1,17 +1,16 @@
 {
   "name": "case_060",
   "seed": 1211,
-  "n_groups": 4,
+  "n_groups": 3,
   "n_patients_per_arm": 392,
   "groups": [
-    "Arm A",
-    "Arm B",
-    "Arm C",
-    "Arm D"
+    "Control",
+    "Treatment A",
+    "Treatment B"
   ],
   "max_time": 24.0,
   "y_axis_start": 0.0,
-  "difficulty": 4,
+  "difficulty": 2,
   "tier": "standard",
   "gap_pattern": "diverging",
   "background_style": "white",
@@ -61,6 +60,6 @@
     ],
     "scale": "linear"
   },
-  "total_patients": 1568,
-  "total_events": 863
+  "total_patients": 1176,
+  "total_events": 655
 }

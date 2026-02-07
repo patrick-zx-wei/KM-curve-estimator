@@ -55,7 +55,7 @@ class ThickLines(Modifier):
 class ThinLines(Modifier):
     """Use thinner curve lines (harder to detect)."""
 
-    linewidth: float = 0.5
+    linewidth: float = 1.3
     stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
 
 

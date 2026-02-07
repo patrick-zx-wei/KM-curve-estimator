@@ -41,10 +41,10 @@
         "description": "2-year survival"
       }
     ],
-    "median_survival": 24.56,
+    "median_survival": 24.78,
     "quartiles": {
-      "25pct": 23.69,
-      "50pct": 24.56
+      "25pct": 23.91,
+      "50pct": 24.78
     }
   }
 }

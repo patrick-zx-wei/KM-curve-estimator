@@ -3,80 +3,75 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7386,
+        "survival": 0.7378,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.5472,
+        "survival": 0.5823,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.3207,
+        "survival": 0.3653,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.2316,
+        "survival": 0.2515,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.1737,
+        "survival": 0.1173,
         "description": "4-year survival"
-      },
-      {
-        "time": 60,
-        "survival": 0.0711,
-        "description": "5-year survival"
       }
     ],
-    "median_survival": 15.14,
+    "median_survival": 17.76,
     "quartiles": {
-      "25pct": 5.51,
-      "50pct": 15.14,
-      "75pct": 31.75
+      "25pct": 5.41,
+      "50pct": 17.76,
+      "75pct": 36.39
     }
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9804,
+        "survival": 0.9092,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.926,
+        "survival": 0.8439,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.594,
+        "survival": 0.5919,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.3481,
+        "survival": 0.3207,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.1326,
+        "survival": 0.2363,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.058,
+        "survival": 0.0591,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 29.66,
+    "median_survival": 26.06,
     "quartiles": {
-      "25pct": 17.09,
-      "50pct": 29.66,
-      "75pct": 40.23
+      "25pct": 15.59,
+      "50pct": 26.06,
+      "75pct": 45.01
     }
   }
 }

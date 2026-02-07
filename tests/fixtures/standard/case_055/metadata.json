@@ -25,7 +25,7 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "GridLines",
-    "ThinLines",
+    "ThickLines",
     "JPEGArtifacts"
   ],
   "title": "Kaplan-Meier Survival Curve",

@@ -276,18 +276,28 @@ def _step_survival_at(step_coords: list[tuple[float, float]], t: float) -> float
 
 
 def _minimum_curve_separation(curves: list[SyntheticCurveData], max_time: float) -> float:
-    """Return minimum pairwise vertical separation across sampled time points."""
+    """Return robust pairwise vertical separation across sampled time points.
+
+    The strict minimum is often 0.0 because KM curves start at the same origin.
+    We therefore ignore near-identical overlaps and use a lower percentile.
+    """
     if len(curves) < 2:
         return float("inf")
 
-    sample_times = np.linspace(0.0, max_time, 48)
-    min_sep = float("inf")
+    start_t = max_time * 0.04
+    sample_times = np.linspace(start_t, max_time, 48)
+    observed_seps: list[float] = []
     for t in sample_times:
         vals = [_step_survival_at(c.step_coords, float(t)) for c in curves]
         for i in range(len(vals)):
             for j in range(i + 1, len(vals)):
-                min_sep = min(min_sep, abs(vals[i] - vals[j]))
-    return min_sep
+                sep = abs(vals[i] - vals[j])
+                if sep > 1e-4:
+                    observed_seps.append(sep)
+
+    if not observed_seps:
+        return 0.0
+    return float(np.percentile(observed_seps, 10))
 
 
 def generate_test_case(

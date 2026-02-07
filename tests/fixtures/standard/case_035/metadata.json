@@ -1,16 +1,15 @@
 {
   "name": "case_035",
   "seed": 1134,
-  "n_groups": 3,
+  "n_groups": 2,
   "n_patients_per_arm": 353,
   "groups": [
     "Control",
-    "Treatment A",
-    "Treatment B"
+    "Treatment"
   ],
   "max_time": 72.0,
   "y_axis_start": 0.2,
-  "difficulty": 2,
+  "difficulty": 1,
   "tier": "pristine",
   "gap_pattern": "parallel",
   "background_style": "sas_gray",
@@ -26,7 +25,7 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "TruncatedYAxis",
-    "ThinLines"
+    "ThickLines"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
@@ -62,6 +61,6 @@
     ],
     "scale": "linear"
   },
-  "total_patients": 1059,
-  "total_events": 377
+  "total_patients": 706,
+  "total_events": 264
 }
