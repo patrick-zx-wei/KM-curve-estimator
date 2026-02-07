@@ -33,6 +33,8 @@ FAST_PHASE_TIMEOUT_SECONDS = 12
 FAST_PHASE_MAX_RETRIES = 1
 RISK_TABLE_CROP_RATIOS = (0.35, 0.45, 0.52, 0.60, 0.70)
 RISK_TABLE_REPLACEMENT_MARGIN = 0.25
+AXIS_X_CROP_START_RATIO = 0.80
+AXIS_Y_CROP_END_RATIO = 0.24
 UPWARD_DIRECTION_HINTS = (
     "cumulative incidence",
     "incidence",
@@ -723,6 +725,7 @@ def _extract_risk_table_from_cropped_region(
         crop = image[y0:, :]
         if crop.size == 0:
             continue
+        crop = cv_utils.preprocess_risk_table_ocr_region(crop)
         crop_path = tmp_dir / f"risk_table_crop_{uuid.uuid4().hex[:10]}.png"
         save = cv_utils.save_image(crop, crop_path, stage=ProcessingStage.MMPU)
         if isinstance(save, ProcessingError):
@@ -757,6 +760,156 @@ def _extract_risk_table_from_cropped_region(
     if best_rt is None:
         warnings.append("Cropped risk-table OCR could not be parsed into structured table")
     return best_rt, warnings, best_tokens, best_gemini_used
+
+
+def _merge_text_labels(primary: list[str], supplemental: list[str]) -> list[str]:
+    """Merge OCR labels while preserving order and dropping exact duplicates."""
+    merged: list[str] = []
+    seen: set[str] = set()
+    for label in [*primary, *supplemental]:
+        text = str(label).strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(text)
+    return merged
+
+
+def _recover_axis_ticks_from_crops(
+    image_path: str,
+    confidence_threshold: float,
+    similarity_threshold: float,
+    timeout: int,
+    max_retries: int,
+    skip_verification: bool,
+) -> tuple[list[str], list[str], list[str], tuple[int, int] | None, bool]:
+    """Axis-specific OCR recovery using global-thresholded axis crops."""
+    warnings: list[str] = []
+    image = cv_utils.load_image(image_path, stage=ProcessingStage.MMPU)
+    if isinstance(image, ProcessingError):
+        return [], [], warnings, None, False
+
+    h, w = image.shape[:2]
+    x_crop = image[max(0, int(h * AXIS_X_CROP_START_RATIO)) :, :]
+    y_crop = image[:, : max(1, int(w * AXIS_Y_CROP_END_RATIO))]
+    crops = [("x", x_crop), ("y", y_crop)]
+
+    tmp_dir = Path(gettempdir()) / "km_estimator"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    recovered_x: list[str] = []
+    recovered_y: list[str] = []
+    total_tokens = [0, 0]
+    gemini_used_any = False
+
+    for axis_name, crop in crops:
+        if crop.size == 0:
+            continue
+        processed_crop = cv_utils.preprocess_axis_ocr_region(crop)
+        crop_path = tmp_dir / f"axis_{axis_name}_crop_{uuid.uuid4().hex[:10]}.png"
+        save = cv_utils.save_image(processed_crop, crop_path, stage=ProcessingStage.MMPU)
+        if isinstance(save, ProcessingError):
+            continue
+        try:
+            ocr_result = extract_ocr_tiered(
+                str(crop_path),
+                confidence_threshold=confidence_threshold,
+                similarity_threshold=similarity_threshold,
+                timeout=timeout,
+                max_retries=max_retries,
+                skip_verification=skip_verification,
+            )
+            warnings.extend(ocr_result.warnings)
+            if ocr_result.gpt_tokens:
+                total_tokens[0] += int(ocr_result.gpt_tokens[0])
+                total_tokens[1] += int(ocr_result.gpt_tokens[1])
+            gemini_used_any = gemini_used_any or bool(ocr_result.gemini_used)
+            if ocr_result.error or ocr_result.result is None:
+                continue
+            if axis_name == "x":
+                recovered_x.extend([str(v) for v in ocr_result.result.x_tick_labels])
+            else:
+                recovered_y.extend([str(v) for v in ocr_result.result.y_tick_labels])
+        finally:
+            try:
+                crop_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    token_tuple: tuple[int, int] | None = None
+    if total_tokens[0] > 0 or total_tokens[1] > 0:
+        token_tuple = (total_tokens[0], total_tokens[1])
+    return recovered_x, recovered_y, warnings, token_tuple, gemini_used_any
+
+
+async def _recover_axis_ticks_from_crops_async(
+    image_path: str,
+    confidence_threshold: float,
+    similarity_threshold: float,
+    timeout: int,
+    max_retries: int,
+    skip_verification: bool,
+) -> tuple[list[str], list[str], list[str], tuple[int, int] | None, bool]:
+    """Async axis-specific OCR recovery using global-thresholded axis crops."""
+    warnings: list[str] = []
+    image = cv_utils.load_image(image_path, stage=ProcessingStage.MMPU)
+    if isinstance(image, ProcessingError):
+        return [], [], warnings, None, False
+
+    h, w = image.shape[:2]
+    x_crop = image[max(0, int(h * AXIS_X_CROP_START_RATIO)) :, :]
+    y_crop = image[:, : max(1, int(w * AXIS_Y_CROP_END_RATIO))]
+    crops = [("x", x_crop), ("y", y_crop)]
+
+    tmp_dir = Path(gettempdir()) / "km_estimator"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    recovered_x: list[str] = []
+    recovered_y: list[str] = []
+    total_tokens = [0, 0]
+    gemini_used_any = False
+
+    for axis_name, crop in crops:
+        if crop.size == 0:
+            continue
+        processed_crop = cv_utils.preprocess_axis_ocr_region(crop)
+        crop_path = tmp_dir / f"axis_{axis_name}_crop_{uuid.uuid4().hex[:10]}.png"
+        save = cv_utils.save_image(processed_crop, crop_path, stage=ProcessingStage.MMPU)
+        if isinstance(save, ProcessingError):
+            continue
+        try:
+            ocr_result = await extract_ocr_tiered_async(
+                str(crop_path),
+                confidence_threshold=confidence_threshold,
+                similarity_threshold=similarity_threshold,
+                timeout=timeout,
+                max_retries=max_retries,
+                skip_verification=skip_verification,
+            )
+            warnings.extend(ocr_result.warnings)
+            if ocr_result.gpt_tokens:
+                total_tokens[0] += int(ocr_result.gpt_tokens[0])
+                total_tokens[1] += int(ocr_result.gpt_tokens[1])
+            gemini_used_any = gemini_used_any or bool(ocr_result.gemini_used)
+            if ocr_result.error or ocr_result.result is None:
+                continue
+            if axis_name == "x":
+                recovered_x.extend([str(v) for v in ocr_result.result.x_tick_labels])
+            else:
+                recovered_y.extend([str(v) for v in ocr_result.result.y_tick_labels])
+        finally:
+            try:
+                crop_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    token_tuple: tuple[int, int] | None = None
+    if total_tokens[0] > 0 or total_tokens[1] > 0:
+        token_tuple = (total_tokens[0], total_tokens[1])
+    return recovered_x, recovered_y, warnings, token_tuple, gemini_used_any
 
 
 def mmpu(state: PipelineState) -> PipelineState:
@@ -831,6 +984,30 @@ def mmpu(state: PipelineState) -> PipelineState:
         )
 
     ocr_tokens = ocr_result.result
+    if len(ocr_tokens.x_tick_labels) < 2 or len(ocr_tokens.y_tick_labels) < 2:
+        recovered_x, recovered_y, axis_warnings, axis_tokens, axis_gemini_used = (
+            _recover_axis_ticks_from_crops(
+                image_path=image_path,
+                confidence_threshold=cfg.tiered_confidence_threshold,
+                similarity_threshold=cfg.tiered_similarity_threshold,
+                timeout=min(cfg.api_timeout_seconds, FAST_PHASE_TIMEOUT_SECONDS),
+                max_retries=FAST_PHASE_MAX_RETRIES,
+                skip_verification=cfg.single_model_mode,
+            )
+        )
+        warnings.extend(axis_warnings)
+        if axis_tokens is not None:
+            total_cost += _calculate_cost(axis_tokens, axis_gemini_used)
+        merged_x = _merge_text_labels(ocr_tokens.x_tick_labels, recovered_x)
+        merged_y = _merge_text_labels(ocr_tokens.y_tick_labels, recovered_y)
+        if merged_x != ocr_tokens.x_tick_labels or merged_y != ocr_tokens.y_tick_labels:
+            warnings.append("Recovered additional axis tick labels from axis-specific OCR crops")
+            ocr_tokens = ocr_tokens.model_copy(
+                update={
+                    "x_tick_labels": merged_x,
+                    "y_tick_labels": merged_y,
+                }
+            )
 
     # Stage 2: Tiered metadata extraction with bounded two-phase retry policy.
     metadata_result = None
@@ -1062,6 +1239,30 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
         )
 
     ocr_tokens = ocr_result.result
+    if len(ocr_tokens.x_tick_labels) < 2 or len(ocr_tokens.y_tick_labels) < 2:
+        recovered_x, recovered_y, axis_warnings, axis_tokens, axis_gemini_used = (
+            await _recover_axis_ticks_from_crops_async(
+                image_path=image_path,
+                confidence_threshold=cfg.tiered_confidence_threshold,
+                similarity_threshold=cfg.tiered_similarity_threshold,
+                timeout=min(cfg.api_timeout_seconds, FAST_PHASE_TIMEOUT_SECONDS),
+                max_retries=FAST_PHASE_MAX_RETRIES,
+                skip_verification=cfg.single_model_mode,
+            )
+        )
+        warnings.extend(axis_warnings)
+        if axis_tokens is not None:
+            total_cost += _calculate_cost(axis_tokens, axis_gemini_used)
+        merged_x = _merge_text_labels(ocr_tokens.x_tick_labels, recovered_x)
+        merged_y = _merge_text_labels(ocr_tokens.y_tick_labels, recovered_y)
+        if merged_x != ocr_tokens.x_tick_labels or merged_y != ocr_tokens.y_tick_labels:
+            warnings.append("Recovered additional axis tick labels from axis-specific OCR crops")
+            ocr_tokens = ocr_tokens.model_copy(
+                update={
+                    "x_tick_labels": merged_x,
+                    "y_tick_labels": merged_y,
+                }
+            )
 
     # Stage 2: Tiered metadata extraction with bounded two-phase retry policy.
     metadata_result = None
@@ -1150,6 +1351,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                     crop = image[y0:, :]
                     if crop.size == 0:
                         continue
+                    crop = cv_utils.preprocess_risk_table_ocr_region(crop)
                     crop_path = tmp_dir / f"risk_table_crop_{uuid.uuid4().hex[:10]}.png"
                     save = cv_utils.save_image(crop, crop_path, stage=ProcessingStage.MMPU)
                     if isinstance(save, ProcessingError):

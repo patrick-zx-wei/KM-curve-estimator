@@ -2,14 +2,18 @@
 
 from bisect import bisect_right
 
+import cv2
 import numpy as np
+from numpy.typing import NDArray
 
+from km_estimator.nodes.digitization.axis_calibration import AxisMapping, calibrate_axes
 from km_estimator.utils.shape_metrics import (
     dtw_distance,
     frechet_distance,
     max_error,
     rmse,
 )
+from km_estimator.utils import cv_utils
 from km_estimator.models import (
     CurveIPD,
     IPDOutput,
@@ -31,8 +35,35 @@ FULL_RECON_ALT_SWITCH_MARGIN = 0.01
 FULL_RECON_ALT_MAX_RATIO = 1.35
 FULL_RECON_ALT_MAX_ABS_MARGIN = 12
 FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX = 0.35
-MAX_TERMINAL_CENSOR_FRACTION = 0.45
-TERMINAL_CENSOR_SURVIVAL_MARGIN = 0.05
+FULL_RECON_INTERVAL_OBJECTIVE_WEIGHT = 1.45
+FULL_RECON_LANDMARK_OBJECTIVE_WEIGHT = 0.55
+FULL_RECON_OBJECTIVE_SWITCH_MARGIN = 0.004
+FULL_RECON_FEEDBACK_ITERS = 2
+FULL_RECON_FEEDBACK_BLEND_ALPHA = 0.72
+FULL_RECON_FEEDBACK_MIN_IMPROVEMENT = 0.0015
+FULL_RECON_FEEDBACK_INTERVAL_SLACK = 0.02
+FULL_RECON_FEEDBACK_FIT_TRIGGER = 0.018
+FULL_RECON_FEEDBACK_INTERVAL_TRIGGER = 0.03
+FULL_RECON_FEEDBACK_LANDMARK_TRIGGER = 0.02
+FULL_RECON_FORCE_FEEDBACK_LOSS_THRESHOLD = 10
+HIGH_LOSS_EVENT_FLOOR_THRESHOLD = 10
+HIGH_LOSS_MIN_EVENT_FRACTION = 0.08
+HIGH_LOSS_HINT_EVENT_FRACTION = 0.35
+HIGH_LOSS_ZERO_EVENT_HINT_THRESHOLD = 0.8
+FULL_RECON_RESIDUAL_GRID_POINTS = 96
+FULL_RECON_RESIDUAL_MEAN_TRIGGER = 0.018
+FULL_RECON_RESIDUAL_PEAK_TRIGGER = 0.045
+FULL_RECON_RESIDUAL_WINDOW_RATIO = 0.18
+FULL_RECON_RESIDUAL_BLEND_ALPHA = 0.86
+FULL_RECON_RERENDER_TRIGGER = 0.40
+FULL_RECON_RERENDER_MIN_IMPROVEMENT = 0.03
+FULL_RECON_RERENDER_OBJECTIVE_WEIGHT = 0.40
+FULL_RECON_RERENDER_BLEND_ALPHA = 0.82
+CENSOR_HINT_MIN_STRENGTH = 0.12
+CENSOR_HINT_BLEND_BASE = 0.25
+CENSOR_HINT_BLEND_SCALE = 0.45
+MAX_TERMINAL_CENSOR_FRACTION = 0.30
+TERMINAL_CENSOR_SURVIVAL_MARGIN = 0.03
 
 
 def _estimate_interval_end_survival(
@@ -56,22 +87,42 @@ def _choose_interval_event_count(
     s_end: float,
     target_events: float,
     survival_weight: float = 1.0,
+    observed_event_hint: float | None = None,
 ) -> int:
-    """Choose integer event count minimizing survival mismatch and rounding drift."""
+    """Choose integer event count via constrained interval objective."""
     if lost_total <= 0 or n_start <= 0:
         return 0
 
     bounded_target = float(np.clip(target_events, 0.0, float(lost_total)))
+    bounded_hint = (
+        float(np.clip(observed_event_hint, 0.0, float(lost_total)))
+        if observed_event_hint is not None
+        else None
+    )
     center = int(round(bounded_target))
+    hint_center = int(round(bounded_hint)) if bounded_hint is not None else center
+    min_events_floor = 0
+    if lost_total >= HIGH_LOSS_EVENT_FLOOR_THRESHOLD:
+        floor_from_loss = int(round(float(lost_total) * HIGH_LOSS_MIN_EVENT_FRACTION))
+        floor_from_hint = (
+            int(round(float(bounded_hint) * HIGH_LOSS_HINT_EVENT_FRACTION))
+            if bounded_hint is not None
+            else 0
+        )
+        min_events_floor = int(
+            np.clip(max(1, floor_from_loss, floor_from_hint), 0, int(lost_total))
+        )
 
-    # Evaluate all candidates for smaller intervals; otherwise use a bounded local search.
+    # Integer optimization over candidate events under fixed interval loss.
     candidates: list[int]
-    if lost_total <= 40:
+    if lost_total <= 120:
         candidates = list(range(0, lost_total + 1))
     else:
-        low = max(0, center - 8)
-        high = min(lost_total, center + 8)
-        candidates = sorted(set([0, lost_total, *range(low, high + 1)]))
+        low = max(0, min(center, hint_center) - 10)
+        high = min(lost_total, max(center, hint_center) + 10)
+        candidates = sorted(
+            set([0, lost_total, center, hint_center, *range(low, high + 1)])
+        )
 
     best_events = center
     best_score = float("inf")
@@ -79,10 +130,30 @@ def _choose_interval_event_count(
         predicted_s_end = _estimate_interval_end_survival(n_start, lost_total, events, s_start)
         survival_error = abs(predicted_s_end - s_end)
         rounding_error = abs(float(events) - bounded_target)
-        score = survival_error * (8.0 * max(0.7, survival_weight)) + rounding_error * 0.35
+        hint_error = (
+            abs(float(events) - bounded_hint)
+            if bounded_hint is not None
+            else 0.0
+        )
+        score = survival_error * (8.5 * max(0.7, survival_weight)) + rounding_error * 0.35
+        if bounded_hint is not None:
+            score += hint_error * 0.22
+        if min_events_floor > 0 and events < min_events_floor:
+            deficit = float(min_events_floor - events)
+            score += 0.9 * deficit * deficit + 0.35 * deficit
         if score < best_score:
             best_score = score
             best_events = int(events)
+
+    if (
+        best_events == 0
+        and min_events_floor > 0
+        and max(
+            bounded_target,
+            (bounded_hint if bounded_hint is not None else 0.0),
+        ) >= HIGH_LOSS_ZERO_EVENT_HINT_THRESHOLD
+    ):
+        best_events = min_events_floor
 
     return int(np.clip(best_events, 0, lost_total))
 
@@ -233,6 +304,26 @@ def _extract_drop_points_in_interval(
         return [], []
     items = sorted(drop_by_time.items())
     return [t for t, _ in items], [w for _, w in items]
+
+
+def _interval_observed_event_hint(
+    drop_weights: list[float],
+    n_start: int,
+    s_start: float,
+    lost_total: int,
+) -> float | None:
+    """
+    Estimate equivalent event count from observed drop mass within one interval.
+
+    This provides an integer-optimization hint while still honoring risk-table loss.
+    """
+    if not drop_weights:
+        return None
+    observed_drop = float(np.sum(np.asarray(drop_weights, dtype=np.float64)))
+    if observed_drop <= 1e-9 or s_start <= 1e-9 or n_start <= 0:
+        return None
+    hinted = float(n_start * observed_drop / max(1e-9, s_start))
+    return float(np.clip(hinted, 0.0, float(max(0, lost_total))))
 
 
 def _interval_survival_weight(t_start: float, t_end: float) -> float:
@@ -405,6 +496,7 @@ def _guyot_ikm(
     coords: list[tuple[float, float]],
     risk_table: RiskTable,
     curve_name: str,
+    censoring_times: list[float] | None = None,
 ) -> tuple[list[PatientRecord], list[str]]:
     """
     Guyot iKM algorithm for IPD reconstruction with risk table.
@@ -437,12 +529,20 @@ def _guyot_ikm(
 
     survival_lookup = _build_survival_lookup(coords)
     normalized_coords = _normalize_step_coords(coords)
+    hint_censor_times = sorted(
+        float(t)
+        for t in (censoring_times or [])
+        if np.isfinite(float(t))
+    )
+    used_hint_intervals = 0
+    adjusted_by_hint_intervals = 0
     event_residual = 0.0
     carried_survival_bias_events = 0.0
 
     for j in range(len(time_points) - 1):
         t_start = time_points[j]
         t_end = time_points[j + 1]
+        is_last_interval = (j == len(time_points) - 2)
         n_start = int(n_at_risk[j])
         n_end = int(n_at_risk[j + 1])
 
@@ -475,6 +575,17 @@ def _guyot_ikm(
         survival_ratio = np.clip(s_end / max(s_start, 1e-9), 0.0, 1.0)
         expected_events = np.clip(n_start * (1.0 - survival_ratio), 0.0, float(n_start))
         target_events = expected_events + event_residual + carried_survival_bias_events
+        drop_times, drop_weights = _extract_drop_points_in_interval(
+            normalized_coords,
+            t_start,
+            t_end,
+        )
+        observed_event_hint = _interval_observed_event_hint(
+            drop_weights,
+            n_start=n_start,
+            s_start=s_start,
+            lost_total=lost_total,
+        )
         interval_weight = _interval_survival_weight(t_start, t_end)
         d_j = _choose_interval_event_count(
             n_start=n_start,
@@ -483,7 +594,54 @@ def _guyot_ikm(
             s_end=s_end,
             target_events=target_events,
             survival_weight=interval_weight,
+            observed_event_hint=observed_event_hint,
         )
+        interval_hint_times = []
+        if hint_censor_times:
+            if is_last_interval:
+                interval_hint_times = [
+                    ct for ct in hint_censor_times
+                    if t_start < ct < (t_end - 1e-9)
+                ]
+            else:
+                interval_hint_times = [
+                    ct for ct in hint_censor_times
+                    if t_start < ct <= (t_end + 1e-9)
+                ]
+        hint_censor_count = min(lost_total, len(interval_hint_times))
+        if hint_censor_count > 0:
+            used_hint_intervals += 1
+            hinted_events = int(np.clip(lost_total - hint_censor_count, 0, lost_total))
+            hint_strength = float(np.clip(
+                hint_censor_count / max(1, lost_total),
+                0.0,
+                1.0,
+            ))
+            if hint_strength >= CENSOR_HINT_MIN_STRENGTH:
+                blend = float(np.clip(
+                    CENSOR_HINT_BLEND_BASE + CENSOR_HINT_BLEND_SCALE * hint_strength,
+                    0.0,
+                    0.8,
+                ))
+                hinted_d_j = int(np.clip(
+                    round((1.0 - blend) * float(d_j) + blend * float(hinted_events)),
+                    0,
+                    lost_total,
+                ))
+                if hinted_d_j != d_j:
+                    adjusted_by_hint_intervals += 1
+                d_j = hinted_d_j
+
+        if (
+            d_j == 0
+            and lost_total >= HIGH_LOSS_EVENT_FLOOR_THRESHOLD
+            and (observed_event_hint or 0.0) >= HIGH_LOSS_ZERO_EVENT_HINT_THRESHOLD
+        ):
+            d_j = 1
+            warnings.append(
+                f"Forced minimum event at interval [{t_start}, {t_end}] "
+                f"for high-loss consistency (loss={lost_total})"
+            )
         event_residual = target_events - d_j
         c_j = int(max(0, lost_total - d_j))
         predicted_s_end = _estimate_interval_end_survival(n_start, lost_total, d_j, s_start)
@@ -496,11 +654,6 @@ def _guyot_ikm(
 
         # Place events at observed drop times when possible.
         if d_j > 0:
-            drop_times, drop_weights = _extract_drop_points_in_interval(
-                normalized_coords,
-                t_start,
-                t_end,
-            )
             s_mid = _get_survival_at_time(survival_lookup, 0.5 * (t_start + t_end))
             event_times = _weighted_event_times(
                 d_j,
@@ -522,8 +675,26 @@ def _guyot_ikm(
 
         # Distribute censorings uniformly in interval
         if c_j > 0:
-            censor_times = np.linspace(t_start, t_end, c_j + 2)[1:-1].tolist()
-            for ct in censor_times:
+            chosen_censor_times: list[float] = []
+            if interval_hint_times:
+                interval_hint_sorted = sorted(interval_hint_times)
+                if len(interval_hint_sorted) >= c_j:
+                    pick_idx = np.linspace(0, len(interval_hint_sorted) - 1, c_j)
+                    chosen_censor_times.extend(
+                        interval_hint_sorted[int(round(idx))]
+                        for idx in pick_idx.tolist()
+                    )
+                else:
+                    chosen_censor_times.extend(interval_hint_sorted)
+
+            remaining = c_j - len(chosen_censor_times)
+            if remaining > 0:
+                fallback_times = np.linspace(t_start, t_end, remaining + 2)[1:-1].tolist()
+                if is_last_interval:
+                    fallback_times = [min(float(t_end) - 1e-6, float(ct)) for ct in fallback_times]
+                chosen_censor_times.extend(float(ct) for ct in fallback_times)
+
+            for ct in sorted(chosen_censor_times[:c_j]):
                 patients.append(PatientRecord(time=float(ct), event=False))
 
     # Add final right-censored survivors still at risk at last follow-up.
@@ -557,6 +728,16 @@ def _guyot_ikm(
 
     # Sort by time
     patients.sort(key=lambda p: p.time)
+
+    if used_hint_intervals > 0:
+        warnings.append(
+            f"{curve_name}: used censoring-mark hints in {used_hint_intervals} intervals"
+        )
+    if adjusted_by_hint_intervals > 0:
+        warnings.append(
+            f"{curve_name}: adjusted event/censor split from censoring hints in "
+            f"{adjusted_by_hint_intervals} intervals"
+        )
 
     return patients, warnings
 
@@ -695,6 +876,423 @@ def _landmark_proxy_error(
     return float(np.mean(np.asarray(errors, dtype=np.float64))) if errors else 0.0
 
 
+def _reconstruction_objective(
+    fit_mae: float,
+    interval_mismatch: float,
+    landmark_error: float,
+) -> float:
+    """
+    Composite objective prioritizing risk-table consistency over raw pixel fit.
+
+    This emulates "snap-to-table" behavior: interval loss mismatch carries
+    larger weight than raw curve-fit MAE.
+    """
+    return float(
+        fit_mae
+        + FULL_RECON_INTERVAL_OBJECTIVE_WEIGHT * interval_mismatch
+        + FULL_RECON_LANDMARK_OBJECTIVE_WEIGHT * landmark_error
+    )
+
+
+def _blend_step_curves(
+    observed: list[tuple[float, float]],
+    candidate: list[tuple[float, float]],
+    alpha: float,
+) -> list[tuple[float, float]]:
+    """Blend two step curves over their union time grid and normalize."""
+    if not observed:
+        return _normalize_step_coords(candidate)
+    if not candidate:
+        return _normalize_step_coords(observed)
+
+    w = float(np.clip(alpha, 0.0, 1.0))
+    times = sorted({float(t) for t, _ in observed} | {float(t) for t, _ in candidate})
+    obs_lookup = _build_survival_lookup(observed)
+    cand_lookup = _build_survival_lookup(candidate)
+    blended = []
+    for t in times:
+        s_obs = _get_survival_at_time(obs_lookup, t)
+        s_cand = _get_survival_at_time(cand_lookup, t)
+        s = w * s_obs + (1.0 - w) * s_cand
+        blended.append((float(t), float(np.clip(s, 0.0, 1.0))))
+    return _normalize_step_coords(blended)
+
+
+def _should_run_feedback_refinement(
+    fit_mae: float,
+    interval_mismatch: float,
+    landmark_error: float,
+) -> bool:
+    """Adaptive compute policy: only run expensive refinement when quality is weak."""
+    return bool(
+        fit_mae >= FULL_RECON_FEEDBACK_FIT_TRIGGER
+        or interval_mismatch >= FULL_RECON_FEEDBACK_INTERVAL_TRIGGER
+        or landmark_error >= FULL_RECON_FEEDBACK_LANDMARK_TRIGGER
+    )
+
+
+def _has_high_loss_zero_event_intervals(
+    patients: list[PatientRecord],
+    risk_group: RiskGroup | None,
+    risk_time_points: list[float],
+    loss_threshold: int = FULL_RECON_FORCE_FEEDBACK_LOSS_THRESHOLD,
+) -> bool:
+    """Force refinement when high-loss intervals reconstruct with zero events."""
+    if risk_group is None or len(risk_time_points) < 2:
+        return False
+    counts = risk_group.counts
+    if len(counts) != len(risk_time_points):
+        return False
+
+    for j in range(len(risk_time_points) - 1):
+        t_start = float(risk_time_points[j])
+        t_end = float(risk_time_points[j + 1])
+        expected_loss = max(0, int(counts[j]) - int(counts[j + 1]))
+        if expected_loss < int(loss_threshold):
+            continue
+        events = sum(
+            1 for p in patients if (t_start < float(p.time) <= t_end and bool(p.event))
+        )
+        if events == 0:
+            return True
+    return False
+
+
+def _curve_residual_series(
+    observed: list[tuple[float, float]],
+    candidate: list[tuple[float, float]],
+    n_points: int = FULL_RECON_RESIDUAL_GRID_POINTS,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Compute signed residual series over a dense time grid."""
+    if not observed or not candidate:
+        return np.asarray([], dtype=np.float64), np.asarray([], dtype=np.float64)
+    t_min = max(float(observed[0][0]), float(candidate[0][0]))
+    t_max = max(float(observed[-1][0]), float(candidate[-1][0]))
+    if t_max <= t_min + 1e-9:
+        return np.asarray([], dtype=np.float64), np.asarray([], dtype=np.float64)
+    times = np.linspace(t_min, t_max, max(24, int(n_points)), dtype=np.float64)
+    obs_lookup = _build_survival_lookup(observed)
+    cand_lookup = _build_survival_lookup(candidate)
+    residual = np.asarray(
+        [
+            _get_survival_at_time(obs_lookup, float(t)) - _get_survival_at_time(cand_lookup, float(t))
+            for t in times
+        ],
+        dtype=np.float64,
+    )
+    return times, residual
+
+
+def _build_residual_guided_target(
+    observed: list[tuple[float, float]],
+    candidate: list[tuple[float, float]],
+) -> list[tuple[float, float]] | None:
+    """
+    Build a hotspot-focused target curve from residual map.
+
+    Emphasizes observed curve around the largest residual window.
+    """
+    times, residual = _curve_residual_series(observed, candidate)
+    if residual.size == 0:
+        return None
+    abs_resid = np.abs(residual)
+    mean_abs = float(np.mean(abs_resid))
+    peak_idx = int(np.argmax(abs_resid))
+    peak_abs = float(abs_resid[peak_idx])
+    if mean_abs < FULL_RECON_RESIDUAL_MEAN_TRIGGER and peak_abs < FULL_RECON_RESIDUAL_PEAK_TRIGGER:
+        return None
+
+    hotspot_t = float(times[peak_idx])
+    x_min = min(float(observed[0][0]), float(candidate[0][0]))
+    x_max = max(float(observed[-1][0]), float(candidate[-1][0]))
+    x_span = max(1e-6, x_max - x_min)
+    half_window = FULL_RECON_RESIDUAL_WINDOW_RATIO * x_span
+
+    union_times = sorted({float(t) for t, _ in observed} | {float(t) for t, _ in candidate})
+    obs_lookup = _build_survival_lookup(observed)
+    cand_lookup = _build_survival_lookup(candidate)
+    adjusted: list[tuple[float, float]] = []
+    for t in union_times:
+        s_obs = _get_survival_at_time(obs_lookup, t)
+        s_cand = _get_survival_at_time(cand_lookup, t)
+        if abs(t - hotspot_t) <= half_window:
+            alpha = FULL_RECON_RESIDUAL_BLEND_ALPHA
+        else:
+            alpha = FULL_RECON_FEEDBACK_BLEND_ALPHA
+        s = alpha * s_obs + (1.0 - alpha) * s_cand
+        adjusted.append((float(t), float(np.clip(s, 0.0, 1.0))))
+    return _normalize_step_coords(adjusted)
+
+
+def _pixel_mask_from_curve_points(
+    points: list[tuple[int, int]],
+    shape: tuple[int, int],
+) -> NDArray[np.uint8]:
+    """Build binary mask from isolated curve pixel points."""
+    h, w = shape
+    mask = np.zeros((h, w), dtype=np.uint8)
+    if not points:
+        return mask
+    for px, py in points:
+        cx = int(np.clip(px, 0, w - 1))
+        cy = int(np.clip(py, 0, h - 1))
+        mask[cy, cx] = 255
+    mask = cv2.dilate(mask, np.ones((3, 3), dtype=np.uint8), iterations=1)
+    return mask
+
+
+def _pixel_mask_from_real_curve(
+    coords: list[tuple[float, float]],
+    mapping: AxisMapping,
+    shape: tuple[int, int],
+) -> NDArray[np.uint8]:
+    """Rasterize a real-space KM curve into pixel mask for image-space comparison."""
+    h, w = shape
+    mask = np.zeros((h, w), dtype=np.uint8)
+    if not coords:
+        return mask
+
+    ordered = sorted((float(t), float(s)) for t, s in coords)
+    px_points: list[tuple[int, int]] = []
+    for t, s in ordered:
+        px, py = mapping.real_to_px(float(t), float(s))
+        cx = int(np.clip(px, 0, w - 1))
+        cy = int(np.clip(py, 0, h - 1))
+        px_points.append((cx, cy))
+    if len(px_points) == 1:
+        cx, cy = px_points[0]
+        mask[cy, cx] = 255
+        return cv2.dilate(mask, np.ones((3, 3), dtype=np.uint8), iterations=1)
+
+    arr = np.asarray(px_points, dtype=np.int32).reshape(-1, 1, 2)
+    cv2.polylines(mask, [arr], isClosed=False, color=255, thickness=2, lineType=cv2.LINE_AA)
+    return mask
+
+
+def _rerender_curve_error(
+    reference_pixels: list[tuple[int, int]] | None,
+    candidate_curve: list[tuple[float, float]],
+    mapping: AxisMapping | None,
+    image_shape: tuple[int, int] | None,
+) -> float:
+    """F1-based mismatch between rerendered candidate and isolated curve pixels."""
+    if (
+        reference_pixels is None
+        or not reference_pixels
+        or mapping is None
+        or image_shape is None
+    ):
+        return 0.0
+
+    ref_mask = _pixel_mask_from_curve_points(reference_pixels, image_shape)
+    cand_mask = _pixel_mask_from_real_curve(candidate_curve, mapping, image_shape)
+    ref_count = int(np.count_nonzero(ref_mask))
+    cand_count = int(np.count_nonzero(cand_mask))
+    if ref_count == 0 or cand_count == 0:
+        return 1.0
+
+    inter = int(np.count_nonzero((ref_mask > 0) & (cand_mask > 0)))
+    precision = inter / max(1, cand_count)
+    recall = inter / max(1, ref_count)
+    if precision + recall <= 1e-12:
+        return 1.0
+    f1 = (2.0 * precision * recall) / (precision + recall)
+    return float(np.clip(1.0 - f1, 0.0, 1.0))
+
+
+def _refine_full_reconstruction(
+    survival_coords: list[tuple[float, float]],
+    risk_table: RiskTable,
+    curve_name: str,
+    censoring_times: list[float],
+    initial_patients: list[PatientRecord],
+    initial_warnings: list[str],
+    rerender_ref_pixels: list[tuple[int, int]] | None = None,
+    rerender_mapping: AxisMapping | None = None,
+    rerender_image_shape: tuple[int, int] | None = None,
+) -> tuple[list[PatientRecord], list[str], float, float, float]:
+    """
+    Iterative self-correction loop for full-mode reconstruction.
+
+    Reconstruct -> compare against observed curve -> blend target -> reconstruct again.
+    Keeps updates only when composite objective improves.
+    """
+    risk_group = _find_matching_risk_group(risk_table, curve_name)
+    landmark_times = sorted(set(float(t) for t in risk_table.time_points if float(t) > 0))
+
+    best_patients = list(initial_patients)
+    best_warnings = list(initial_warnings)
+    best_curve = _km_from_ipd(best_patients)
+    best_fit = _calculate_mae(survival_coords, best_curve)
+    best_interval = _interval_loss_mismatch_fraction(best_patients, risk_group, risk_table.time_points)
+    best_landmark = _landmark_proxy_error(survival_coords, best_curve, landmark_times)
+    best_rerender = _rerender_curve_error(
+        rerender_ref_pixels,
+        best_curve,
+        rerender_mapping,
+        rerender_image_shape,
+    )
+    best_obj = _reconstruction_objective(best_fit, best_interval, best_landmark) + (
+        FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * best_rerender
+    )
+    needs_forced_feedback = _has_high_loss_zero_event_intervals(
+        best_patients,
+        risk_group,
+        risk_table.time_points,
+    )
+    run_feedback = (
+        _should_run_feedback_refinement(best_fit, best_interval, best_landmark)
+        or needs_forced_feedback
+    )
+
+    target_curve = list(survival_coords)
+    if run_feedback:
+        for iter_idx in range(FULL_RECON_FEEDBACK_ITERS):
+            target_curve = _blend_step_curves(
+                observed=survival_coords,
+                candidate=best_curve,
+                alpha=FULL_RECON_FEEDBACK_BLEND_ALPHA,
+            )
+            cand_patients, cand_warnings = _guyot_ikm(
+                target_curve,
+                risk_table,
+                curve_name,
+                censoring_times=censoring_times,
+            )
+            cand_curve = _km_from_ipd(cand_patients)
+            cand_fit = _calculate_mae(survival_coords, cand_curve)
+            cand_interval = _interval_loss_mismatch_fraction(
+                cand_patients, risk_group, risk_table.time_points
+            )
+            cand_landmark = _landmark_proxy_error(survival_coords, cand_curve, landmark_times)
+            cand_rerender = _rerender_curve_error(
+                rerender_ref_pixels,
+                cand_curve,
+                rerender_mapping,
+                rerender_image_shape,
+            )
+            cand_obj = _reconstruction_objective(
+                cand_fit, cand_interval, cand_landmark
+            ) + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * cand_rerender)
+
+            improved = cand_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
+            interval_ok = cand_interval <= best_interval + FULL_RECON_FEEDBACK_INTERVAL_SLACK
+            if improved and interval_ok:
+                best_patients = cand_patients
+                best_warnings = list(cand_warnings)
+                best_curve = cand_curve
+                best_fit = cand_fit
+                best_interval = cand_interval
+                best_landmark = cand_landmark
+                best_rerender = cand_rerender
+                best_obj = cand_obj
+                best_warnings.append(
+                    f"{curve_name}: feedback iteration {iter_idx + 1} improved objective to {best_obj:.4f}"
+                )
+    else:
+        best_warnings.append(
+            f"{curve_name}: adaptive compute skipped feedback refinement "
+            f"(fit={best_fit:.4f}, interval={best_interval:.4f}, landmark={best_landmark:.4f})"
+        )
+
+    if needs_forced_feedback:
+        best_warnings.append(
+            f"{curve_name}: forced feedback enabled due to high-loss zero-event interval pattern"
+        )
+
+    # Residual-map correction pass: one hotspot-focused rerun when drift remains.
+    residual_target = _build_residual_guided_target(survival_coords, best_curve)
+    if residual_target is not None:
+        residual_patients, residual_warnings = _guyot_ikm(
+            residual_target,
+            risk_table,
+            curve_name,
+            censoring_times=censoring_times,
+        )
+        residual_curve = _km_from_ipd(residual_patients)
+        residual_fit = _calculate_mae(survival_coords, residual_curve)
+        residual_interval = _interval_loss_mismatch_fraction(
+            residual_patients, risk_group, risk_table.time_points
+        )
+        residual_landmark = _landmark_proxy_error(survival_coords, residual_curve, landmark_times)
+        residual_rerender = _rerender_curve_error(
+            rerender_ref_pixels,
+            residual_curve,
+            rerender_mapping,
+            rerender_image_shape,
+        )
+        residual_obj = _reconstruction_objective(
+            residual_fit, residual_interval, residual_landmark
+        ) + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * residual_rerender)
+        if (
+            residual_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
+            and residual_interval <= best_interval + FULL_RECON_FEEDBACK_INTERVAL_SLACK
+        ):
+            best_patients = residual_patients
+            best_warnings = list(residual_warnings)
+            best_curve = residual_curve
+            best_fit = residual_fit
+            best_interval = residual_interval
+            best_landmark = residual_landmark
+            best_rerender = residual_rerender
+            best_obj = residual_obj
+            best_warnings.append(
+                f"{curve_name}: residual-map correction improved objective to {best_obj:.4f}"
+            )
+
+    if (
+        rerender_mapping is not None
+        and rerender_ref_pixels
+        and rerender_image_shape is not None
+        and best_rerender >= FULL_RECON_RERENDER_TRIGGER
+    ):
+        rerender_target = _blend_step_curves(
+            observed=survival_coords,
+            candidate=best_curve,
+            alpha=FULL_RECON_RERENDER_BLEND_ALPHA,
+        )
+        rerender_patients, rerender_warnings = _guyot_ikm(
+            rerender_target,
+            risk_table,
+            curve_name,
+            censoring_times=censoring_times,
+        )
+        rerender_curve = _km_from_ipd(rerender_patients)
+        rerender_fit = _calculate_mae(survival_coords, rerender_curve)
+        rerender_interval = _interval_loss_mismatch_fraction(
+            rerender_patients, risk_group, risk_table.time_points
+        )
+        rerender_landmark = _landmark_proxy_error(survival_coords, rerender_curve, landmark_times)
+        rerender_error = _rerender_curve_error(
+            rerender_ref_pixels,
+            rerender_curve,
+            rerender_mapping,
+            rerender_image_shape,
+        )
+        rerender_obj = _reconstruction_objective(
+            rerender_fit, rerender_interval, rerender_landmark
+        ) + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * rerender_error)
+        if (
+            rerender_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
+            and rerender_interval <= best_interval + FULL_RECON_FEEDBACK_INTERVAL_SLACK
+            and rerender_error + FULL_RECON_RERENDER_MIN_IMPROVEMENT < best_rerender
+        ):
+            best_patients = rerender_patients
+            best_warnings = list(rerender_warnings)
+            best_curve = rerender_curve
+            best_fit = rerender_fit
+            best_interval = rerender_interval
+            best_landmark = rerender_landmark
+            best_rerender = rerender_error
+            best_obj = rerender_obj
+            best_warnings.append(
+                f"{curve_name}: rerender correction improved objective to {best_obj:.4f} "
+                f"(rerender {best_rerender:.3f})"
+            )
+
+    return best_patients, best_warnings, best_fit, best_interval, best_landmark
+
+
 def _km_from_ipd(patients: list[PatientRecord]) -> list[tuple[float, float]]:
     """Reconstruct KM curve from patient records."""
     if not patients:
@@ -775,6 +1373,20 @@ def reconstruct(state: PipelineState) -> PipelineState:
     )
     y_start = state.plot_metadata.y_axis.start
     y_end = state.plot_metadata.y_axis.end
+    rerender_mapping: AxisMapping | None = None
+    rerender_shape: tuple[int, int] | None = None
+    if mode == ReconstructionMode.FULL and state.isolated_curve_pixels:
+        image_path = state.preprocessed_image_path or state.image_path
+        img = cv_utils.load_image(image_path, stage=ProcessingStage.RECONSTRUCT)
+        if not isinstance(img, ProcessingError):
+            mapping = calibrate_axes(img, state.plot_metadata)
+            if not isinstance(mapping, ProcessingError):
+                rerender_mapping = mapping
+                rerender_shape = img.shape[:2]
+            else:
+                all_warnings.append(
+                    "Skipped rerender correction setup: axis calibration unavailable in reconstruction stage"
+                )
 
     for name, coords in state.digitized_curves.items():
         survival_coords, converted_from_upward = _ensure_survival_space(
@@ -791,9 +1403,34 @@ def reconstruct(state: PipelineState) -> PipelineState:
         censoring = state.censoring_marks.get(name, []) if state.censoring_marks else []
 
         if mode == ReconstructionMode.FULL and risk_table:
-            patients_full, warnings_full = _guyot_ikm(survival_coords, risk_table, name)
+            patients_full, warnings_full = _guyot_ikm(
+                survival_coords,
+                risk_table,
+                name,
+                censoring_times=censoring,
+            )
+            (
+                patients_full,
+                warnings_full,
+                full_fit_mae,
+                full_interval_mismatch,
+                full_landmark_error,
+            ) = _refine_full_reconstruction(
+                survival_coords=survival_coords,
+                risk_table=risk_table,
+                curve_name=name,
+                censoring_times=censoring,
+                initial_patients=patients_full,
+                initial_warnings=warnings_full,
+                rerender_ref_pixels=(
+                    state.isolated_curve_pixels.get(name)
+                    if state.isolated_curve_pixels is not None
+                    else None
+                ),
+                rerender_mapping=rerender_mapping,
+                rerender_image_shape=rerender_shape,
+            )
             full_curve = _km_from_ipd(patients_full)
-            full_fit_mae = _calculate_mae(survival_coords, full_curve)
 
             risk_group = _find_matching_risk_group(risk_table, name)
             fallback_n = state.config.estimated_cohort_size
@@ -825,11 +1462,14 @@ def reconstruct(state: PipelineState) -> PipelineState:
             landmark_times = sorted(
                 set(float(t) for t in risk_table.time_points if float(t) > 0)
             )
-            full_landmark_error = _landmark_proxy_error(
-                survival_coords, full_curve, landmark_times
-            )
             alt_landmark_error = _landmark_proxy_error(
                 survival_coords, alt_curve, landmark_times
+            )
+            full_obj = _reconstruction_objective(
+                full_fit_mae, full_interval_mismatch, full_landmark_error
+            )
+            alt_obj = _reconstruction_objective(
+                alt_fit_mae, alt_interval_mismatch, alt_landmark_error
             )
 
             alt_size_plausible = True
@@ -851,10 +1491,10 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 patients_alt
                 and alt_size_plausible
                 and alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
-                and alt_fit_mae + FULL_RECON_ALT_SWITCH_MARGIN < full_fit_mae
+                and alt_obj + FULL_RECON_OBJECTIVE_SWITCH_MARGIN < full_obj
                 and (
                     full_fit_mae >= FULL_RECON_NON_REGRESSION_TRIGGER
-                    or (full_fit_mae - alt_fit_mae) >= 0.02
+                    or (full_obj - alt_obj) >= 0.015
                 )
             ):
                 choose_alt = True
@@ -867,8 +1507,8 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 and alt_size_plausible
                 and alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
                 and full_fit_mae > 0.06
-                and alt_fit_mae + 0.012 < full_fit_mae
-                and alt_landmark_error + 0.01 < full_landmark_error
+                and full_interval_mismatch > 0.10
+                and alt_obj + 0.01 < full_obj
             ):
                 choose_alt = True
 
@@ -877,7 +1517,7 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 warnings = list(warnings_alt)
                 warnings.append(
                     f"{name}: switched to estimated reconstruction "
-                    f"(fit MAE {full_fit_mae:.4f} -> {alt_fit_mae:.4f})"
+                    f"(objective {full_obj:.4f} -> {alt_obj:.4f})"
                 )
                 warnings.append(
                     f"{name}: estimated fallback checks "
@@ -890,6 +1530,11 @@ def reconstruct(state: PipelineState) -> PipelineState:
             else:
                 patients = patients_full
                 warnings = warnings_full
+                warnings.append(
+                    f"{name}: full-mode objective {full_obj:.4f} "
+                    f"(fit={full_fit_mae:.4f}, interval={full_interval_mismatch:.4f}, "
+                    f"landmark={full_landmark_error:.4f})"
+                )
         else:
             patients, warnings = _estimate_ipd(
                 survival_coords, censoring, initial_n=state.config.estimated_cohort_size

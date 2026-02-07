@@ -3,97 +3,85 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7456,
+        "survival": 0.7833,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6245,
+        "survival": 0.6746,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.4805,
+        "survival": 0.539,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.4228,
+        "survival": 0.4546,
         "description": "3-year survival"
-      },
-      {
-        "time": 48,
-        "survival": 0.3885,
-        "description": "4-year survival"
       }
     ],
-    "median_survival": 19.26,
+    "median_survival": 27.12,
     "quartiles": {
-      "25pct": 5.95,
-      "50pct": 19.26
+      "25pct": 7.89,
+      "50pct": 27.12
     }
   },
   "Treatment A": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.747,
+        "survival": 0.8543,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.6571,
+        "survival": 0.77,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.541,
+        "survival": 0.6733,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.4667,
+        "survival": 0.6131,
         "description": "3-year survival"
       }
     ],
-    "median_survival": 31.87,
+    "median_survival": null,
     "quartiles": {
-      "25pct": 5.81,
-      "50pct": 31.87
+      "25pct": 12.23
     }
   },
   "Treatment B": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7524,
+        "survival": 0.8249,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.689,
+        "survival": 0.7442,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.605,
+        "survival": 0.6268,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.5262,
+        "survival": 0.5155,
         "description": "3-year survival"
-      },
-      {
-        "time": 48,
-        "survival": 0.4592,
-        "description": "4-year survival"
       }
     ],
-    "median_survival": 41.16,
+    "median_survival": null,
     "quartiles": {
-      "25pct": 6.86,
-      "50pct": 41.16
+      "25pct": 11.93
     }
   }
 }

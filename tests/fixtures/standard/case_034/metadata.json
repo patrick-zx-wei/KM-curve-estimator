@@ -1,6 +1,6 @@
 {
   "name": "case_034",
-  "seed": 1133,
+  "seed": 1146,
   "n_groups": 2,
   "n_patients_per_arm": 417,
   "groups": [
@@ -23,6 +23,7 @@
     "FrameLayout",
     "FontTypography",
     "CensoringMarks",
+    "RiskTableDisplay",
     "Annotations"
   ],
   "title": "Kaplan-Meier Survival Curve",
@@ -59,5 +60,5 @@
     "scale": "linear"
   },
   "total_patients": 834,
-  "total_events": 513
+  "total_events": 371
 }

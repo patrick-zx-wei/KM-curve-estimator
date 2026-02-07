@@ -429,6 +429,131 @@ def normalize_plot_background(
     return normalized
 
 
+def _jpeg_blockiness_score(gray: GrayImage) -> float:
+    """
+    Estimate JPEG block artifacts using 8-pixel boundary contrast excess.
+
+    Returns a normalized score in [0, 1], where larger values indicate stronger
+    8x8 compression boundaries relative to nearby non-boundary gradients.
+    """
+    if gray.size == 0:
+        return 0.0
+    h, w = gray.shape[:2]
+    if h < 24 or w < 24:
+        return 0.0
+
+    gray_f = gray.astype(np.float32)
+    v_edges = np.arange(8, w - 1, 8, dtype=np.int32)
+    h_edges = np.arange(8, h - 1, 8, dtype=np.int32)
+    if v_edges.size == 0 and h_edges.size == 0:
+        return 0.0
+
+    boundary_terms: list[float] = []
+    interior_terms: list[float] = []
+
+    if v_edges.size > 0:
+        boundary_terms.append(float(np.mean(np.abs(gray_f[:, v_edges] - gray_f[:, v_edges - 1]))))
+        v_inner = np.clip(v_edges - 3, 1, w - 1)
+        interior_terms.append(float(np.mean(np.abs(gray_f[:, v_inner] - gray_f[:, v_inner - 1]))))
+    if h_edges.size > 0:
+        boundary_terms.append(float(np.mean(np.abs(gray_f[h_edges, :] - gray_f[h_edges - 1, :]))))
+        h_inner = np.clip(h_edges - 3, 1, h - 1)
+        interior_terms.append(float(np.mean(np.abs(gray_f[h_inner, :] - gray_f[h_inner - 1, :]))))
+
+    if not boundary_terms or not interior_terms:
+        return 0.0
+
+    boundary = float(np.mean(boundary_terms))
+    interior = float(np.mean(interior_terms))
+    excess = max(0.0, boundary - interior)
+    return float(np.clip(excess / 255.0, 0.0, 1.0))
+
+
+def preprocess_plot_roi_for_digitization(image: Image) -> Image:
+    """
+    Compression-aware enhancement for the plot ROI before curve masking.
+
+    Applies mild deblocking/contrast/sharpening while preserving curve colors.
+    """
+    if image.size == 0:
+        return image
+
+    bgr = ensure_bgr(image)
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    blockiness = _jpeg_blockiness_score(gray)
+
+    processed = bgr
+    if blockiness >= 0.014:
+        # Deblock aggressively only when 8x8 artifacts are likely.
+        sigma_color = int(np.clip(30 + 1800 * blockiness, 30, 70))
+        processed = cv2.bilateralFilter(processed, d=5, sigmaColor=sigma_color, sigmaSpace=5)
+    elif blockiness >= 0.008:
+        processed = cv2.bilateralFilter(processed, d=5, sigmaColor=28, sigmaSpace=5)
+
+    # Local contrast lift keeps faint thin lines visible after deblocking.
+    lab = cv2.cvtColor(processed, cv2.COLOR_BGR2LAB)
+    l_chan, a_chan, b_chan = cv2.split(lab)
+    clip_limit = 1.9 if blockiness >= 0.010 else 1.6
+    l_eq = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8)).apply(l_chan)
+    processed = cv2.cvtColor(cv2.merge([l_eq, a_chan, b_chan]), cv2.COLOR_LAB2BGR)
+
+    # Mild unsharp mask to recover thin step segments without amplifying noise.
+    blur = cv2.GaussianBlur(processed, (0, 0), 0.75)
+    sharpen_amount = 0.22 if blockiness >= 0.010 else 0.30
+    processed = cv2.addWeighted(processed, 1.0 + sharpen_amount, blur, -sharpen_amount, 0)
+
+    if image.dtype != processed.dtype:
+        return processed.astype(image.dtype)
+    return processed
+
+
+def preprocess_risk_table_ocr_region(image: Image) -> Image:
+    """
+    Enhance number-at-risk table crops for OCR-style extraction.
+
+    Uses adaptive thresholding to keep faint digits under uneven backgrounds.
+    """
+    if image.size == 0:
+        return image
+
+    bgr = ensure_bgr(image)
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (3, 3), 0)
+    norm = cv2.normalize(blur, None, 0, 255, cv2.NORM_MINMAX)
+    thresh = cv2.adaptiveThreshold(
+        norm,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        7,
+    )
+    # Keep dark text on light background for better OCR consistency.
+    if float(np.mean(thresh)) < 120.0:
+        thresh = cv2.bitwise_not(thresh)
+    cleaned = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, np.ones((2, 2), dtype=np.uint8))
+    return cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
+
+
+def preprocess_axis_ocr_region(image: Image) -> Image:
+    """
+    Enhance axis tick/label crops for OCR-style extraction.
+
+    Uses global thresholding (Otsu) to keep crisp tick numerals on clean axes.
+    """
+    if image.size == 0:
+        return image
+
+    bgr = ensure_bgr(image)
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    norm = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
+    _, thresh = cv2.threshold(norm, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    if float(np.mean(thresh)) < 120.0:
+        thresh = cv2.bitwise_not(thresh)
+    sharpened = cv2.GaussianBlur(thresh, (0, 0), 0.8)
+    return cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)
+
+
 # --- Denoising ---
 
 

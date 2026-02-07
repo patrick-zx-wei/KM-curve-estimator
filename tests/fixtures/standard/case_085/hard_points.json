@@ -3,80 +3,79 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8659,
+        "survival": 0.9054,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.7503,
+        "survival": 0.7878,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.5732,
+        "survival": 0.5184,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.4317,
+        "survival": 0.4663,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.2804,
+        "survival": 0.4239,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.184,
+        "survival": 0.2826,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 28.7,
+    "median_survival": 32.97,
     "quartiles": {
-      "25pct": 12.01,
-      "50pct": 28.7,
-      "75pct": 53.32
+      "25pct": 14.82,
+      "50pct": 32.97,
+      "75pct": 71.05
     }
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9717,
+        "survival": 0.9704,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.9219,
+        "survival": 0.909,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.6824,
+        "survival": 0.8178,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.5157,
+        "survival": 0.7377,
         "description": "3-year survival"
       },
       {
         "time": 48,
-        "survival": 0.4303,
+        "survival": 0.6798,
         "description": "4-year survival"
       },
       {
         "time": 60,
-        "survival": 0.3469,
+        "survival": 0.5401,
         "description": "5-year survival"
       }
     ],
-    "median_survival": 38.85,
+    "median_survival": 78.69,
     "quartiles": {
-      "25pct": 22.29,
-      "50pct": 38.85,
-      "75pct": 71.85
+      "25pct": 35.89,
+      "50pct": 78.69
     }
   }
 }

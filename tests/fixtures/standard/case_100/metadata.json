@@ -12,7 +12,7 @@
   "y_axis_start": 0.0,
   "difficulty": 4,
   "tier": "legacy",
-  "gap_pattern": "diverging",
+  "gap_pattern": "converging",
   "background_style": "sas_gray",
   "curve_direction": "upward",
   "frame_layout": "l_axis",
@@ -67,5 +67,5 @@
     "scale": "linear"
   },
   "total_patients": 381,
-  "total_events": 96
+  "total_events": 22
 }

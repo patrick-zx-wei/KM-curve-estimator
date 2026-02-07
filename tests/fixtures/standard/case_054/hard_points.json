@@ -3,58 +3,52 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9524,
+        "survival": 0.9376,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.8686,
+        "survival": 0.8266,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.5874,
+        "survival": 0.5801,
         "description": "2-year survival"
-      },
-      {
-        "time": 36,
-        "survival": 0.2756,
-        "description": "3-year survival"
       }
     ],
-    "median_survival": 27.5,
+    "median_survival": 28.49,
     "quartiles": {
-      "25pct": 16.72,
-      "50pct": 27.5
+      "25pct": 15.2,
+      "50pct": 28.49
     }
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9716,
+        "survival": 0.9736,
         "description": "6-month survival"
       },
       {
         "time": 12,
-        "survival": 0.8931,
+        "survival": 0.9311,
         "description": "1-year survival"
       },
       {
         "time": 24,
-        "survival": 0.6504,
+        "survival": 0.7506,
         "description": "2-year survival"
       },
       {
         "time": 36,
-        "survival": 0.3724,
+        "survival": 0.5867,
         "description": "3-year survival"
       }
     ],
-    "median_survival": 30.73,
+    "median_survival": null,
     "quartiles": {
-      "25pct": 18.77,
-      "50pct": 30.73
+      "25pct": 25.07
     }
   }
 }

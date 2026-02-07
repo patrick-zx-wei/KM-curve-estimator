@@ -31,6 +31,14 @@ COLOR_PRIOR_WEIGHT = 0.8
 COLOR_PATCH_RADIUS = 2
 MIN_COLOR_WEIGHT_FACTOR = 0.2
 SATURATION_CONFIDENCE_SCALE = 80.0
+COLUMN_DEFER_CONFIDENCE_THRESHOLD = 0.32
+COLUMN_DEFER_AMBIGUITY_THRESHOLD = 0.58
+COLUMN_DEFER_BASE_PENALTY = 0.28
+COLUMN_DEFER_CONFIDENCE_REWARD = 0.18
+LOW_CONFIDENCE_MISSING_TRANSITION_FACTOR = 0.65
+HIGH_CONFIDENCE_MISSING_TRANSITION_FACTOR = 1.2
+MISSING_COLUMN_ONE_SIDED_MAX_GAP_FACTOR = 2.0
+MISSING_COLUMN_SPAN_MAX_GAP_FACTOR = 2.5
 
 SMOOTHNESS_WEIGHT = 0.15
 UPWARD_MOVE_PENALTY = 8.0
@@ -51,11 +59,20 @@ AMBIGUITY_MODERATE_THRESHOLD = 0.5
 AMBIGUITY_HIGH_THRESHOLD = 0.85
 CROSSING_RELAXED_SWAP_FACTOR = 0.35
 CROSSING_LOCKED_SWAP_FACTOR = 1.25
+NON_CROSSING_SWAP_FACTOR = 1.65
+NON_CROSSING_STRONG_LOCK_FACTOR = 2.15
+ORDER_LOCK_PENALTY = 0.42
+ORDER_LOCK_STRONG_MULTIPLIER = 1.35
 EARLY_ENVELOPE_REF_QUANTILE = 0.18
 EARLY_ENVELOPE_MIN_SPAN_PX = 8
 EARLY_ENVELOPE_MIN_DELTA_PX = 2.0
 EARLY_ENVELOPE_TOLERANCE_PX = 2.0
 EARLY_ENVELOPE_PENALTY = 0.07
+COLOR_CALIBRATION_MIN_POINTS = 8
+COLOR_CALIBRATION_MAX_POINTS = 24
+COLOR_CALIBRATION_AMBIGUITY_MAX = 0.45
+COLOR_CALIBRATION_BLEND = 0.35
+COLOR_CALIBRATION_CONFIDENCE_FLOOR = 0.2
 
 
 def _column_stats(
@@ -414,6 +431,41 @@ def _find_nearest_x(xs_sorted: list[int], target_x: int) -> int | None:
     return right
 
 
+def _neighboring_x_bounds(xs_sorted: list[int], target_x: int) -> tuple[int | None, int | None]:
+    """Return closest observed x on left and right of target."""
+    if not xs_sorted:
+        return None, None
+    idx = bisect_left(xs_sorted, target_x)
+    left = xs_sorted[idx - 1] if idx > 0 else None
+    right = xs_sorted[idx] if idx < len(xs_sorted) else None
+    return left, right
+
+
+def _median_y_at_x(x_map: dict[int, list[int]], x: int | None) -> int | None:
+    """Robust median y for one observed x-column."""
+    if x is None:
+        return None
+    ys = x_map.get(x)
+    if not ys:
+        return None
+    return int(round(float(np.median(np.asarray(ys, dtype=np.float32)))))
+
+
+def _interpolate_y_between_bounds(
+    x_map: dict[int, list[int]],
+    x: int,
+    left_x: int,
+    right_x: int,
+) -> int | None:
+    """Linear y interpolation between left/right observed columns."""
+    left_y = _median_y_at_x(x_map, left_x)
+    right_y = _median_y_at_x(x_map, right_x)
+    if left_y is None or right_y is None or right_x <= left_x:
+        return None
+    ratio = float(x - left_x) / float(right_x - left_x)
+    return int(round(float(left_y) + ratio * float(right_y - left_y)))
+
+
 def _rgb01_to_lab(rgb: tuple[float, float, float]) -> tuple[float, float, float]:
     """Convert normalized RGB (0-1) to OpenCV LAB."""
     r = int(np.clip(round(rgb[0] * 255), 0, 255))
@@ -477,6 +529,116 @@ def _sample_color_prior_many(
     labs = lab_map[cy, cx]
     sat = sat_map[cy, cx]
     return labs.astype(np.float32, copy=False), sat.astype(np.float32, copy=False)
+
+
+def _candidate_set_confidence(
+    candidates: list[int | None],
+    costs: list[float],
+    ambiguity: float,
+) -> float:
+    """Estimate confidence of selecting one candidate y in this column."""
+    if not candidates or not costs:
+        return 0.1
+
+    sorted_costs = np.sort(np.asarray(costs, dtype=np.float32))
+    if sorted_costs.size <= 1:
+        margin = 1.0
+    else:
+        denom = max(0.25, abs(float(sorted_costs[0])) + 0.25)
+        margin = float(np.clip((sorted_costs[1] - sorted_costs[0]) / denom, 0.0, 1.0))
+
+    has_missing = any(val is None for val in candidates)
+    base = 0.25 + 0.55 * margin + 0.2 * (1.0 - ambiguity)
+    if has_missing:
+        base -= 0.12
+    if has_missing and len(candidates) == 1:
+        base = min(base, 0.22)
+    return float(np.clip(base, 0.05, 1.0))
+
+
+def _calibrate_expected_lab(
+    x_map: dict[int, list[int]],
+    sorted_keys: list[int],
+    expected_lab: tuple[float, float, float] | None,
+    color_maps: tuple[NDArray[np.float32], NDArray[np.float32]] | None,
+) -> tuple[float, float, float] | None:
+    """
+    Calibrate legend-derived color priors from confident local curve patches.
+
+    This keeps semantic color identity while adapting to antialiasing/compression shifts.
+    """
+    if expected_lab is None or color_maps is None or len(sorted_keys) < COLOR_CALIBRATION_MIN_POINTS:
+        return expected_lab
+
+    max_points = min(COLOR_CALIBRATION_MAX_POINTS, len(sorted_keys))
+    step = max(1, len(sorted_keys) // max_points)
+
+    samples: list[NDArray[np.float32]] = []
+    weights: list[float] = []
+    for x in sorted_keys[::step]:
+        ys = x_map.get(x)
+        if not ys:
+            continue
+        stats = _column_stats(ys)
+        ambiguity = _column_ambiguity(
+            ys,
+            x=x,
+            color_maps=color_maps,
+            expected_lab=expected_lab,
+            stats=stats,
+        )
+        if ambiguity > COLOR_CALIBRATION_AMBIGUITY_MAX:
+            continue
+
+        y_med = int(round(float(np.median(np.asarray(ys, dtype=np.float32)))))
+        lab, sat_conf = _sample_color_prior(color_maps, x, y_med)
+        if sat_conf < COLOR_CALIBRATION_CONFIDENCE_FLOOR:
+            continue
+        samples.append(np.asarray(lab, dtype=np.float32))
+        weights.append(max(0.05, sat_conf * (1.05 - ambiguity)))
+
+    if len(samples) < COLOR_CALIBRATION_MIN_POINTS:
+        return expected_lab
+
+    observed = np.average(np.stack(samples, axis=0), axis=0, weights=np.asarray(weights))
+    expected = np.asarray(expected_lab, dtype=np.float32)
+    blended = expected * (1.0 - COLOR_CALIBRATION_BLEND) + observed * COLOR_CALIBRATION_BLEND
+    return float(blended[0]), float(blended[1]), float(blended[2])
+
+
+def _state_order_lock_penalty(
+    ys: tuple[int | None, ...],
+    refs: list[tuple[bool, float | None, float]],
+    crossing_window: bool,
+    ambiguity: float,
+) -> float:
+    """Penalize pairwise identity order flips outside likely crossing windows."""
+    if crossing_window:
+        return 0.0
+
+    penalty = 0.0
+    for i in range(len(ys)):
+        yi = ys[i]
+        in_span_i, ref_i, _ = refs[i]
+        if yi is None or ref_i is None or not in_span_i:
+            continue
+        for j in range(i + 1, len(ys)):
+            yj = ys[j]
+            in_span_j, ref_j, _ = refs[j]
+            if yj is None or ref_j is None or not in_span_j:
+                continue
+            ref_diff = float(ref_i - ref_j)
+            if abs(ref_diff) <= float(CROSSING_MARGIN_PX + 1):
+                continue
+            curr_diff = float(yi - yj)
+            if abs(curr_diff) <= float(CROSSING_MARGIN_PX):
+                continue
+            if np.sign(ref_diff) != np.sign(curr_diff):
+                penalty += ORDER_LOCK_PENALTY
+
+    if ambiguity < AMBIGUITY_MODERATE_THRESHOLD:
+        penalty *= ORDER_LOCK_STRONG_MULTIPLIER
+    return float(penalty)
 
 
 def _state_overlap_penalty(y_values: tuple[int | None, ...]) -> float:
@@ -596,7 +758,7 @@ def _curve_candidates_for_x(
     n_curves: int,
     curve_direction: CurveDirection,
     early_envelope: tuple[int, int, float, float] | None,
-) -> tuple[list[int | None], list[float], float]:
+) -> tuple[list[int | None], list[float], float, float]:
     """Generate y-candidates and local costs for one curve at one x."""
     ys = x_map.get(x)
     if ys:
@@ -617,54 +779,65 @@ def _curve_candidates_for_x(
             for c in candidates
         ]
     else:
-        # If this x is left of the first observed evidence, prefer a missing state
-        # over hard-imputing from the first detected column.
-        if sorted_keys and x < sorted_keys[0]:
-            nearest_x = sorted_keys[0]
-            nearest_gap = abs(nearest_x - x)
-            if nearest_gap > max_fallback_gap_px:
-                return [None], [MISSING_COLUMN_PENALTY * 2.0], 0.35
-            gap_ratio = nearest_gap / max(1, max_fallback_gap_px)
-            nearest_ys = x_map[nearest_x]
-            nearest_y = int(np.median(nearest_ys))
+        left_x, right_x = _neighboring_x_bounds(sorted_keys, x)
+        in_span = left_x is not None and right_x is not None
+        left_gap = abs(x - left_x) if left_x is not None else 10**9
+        right_gap = abs(right_x - x) if right_x is not None else 10**9
+        nearest_gap = min(left_gap, right_gap)
+
+        if (
+            not in_span
+            and nearest_gap > int(max_fallback_gap_px * MISSING_COLUMN_ONE_SIDED_MAX_GAP_FACTOR)
+        ):
+            return [None], [MISSING_COLUMN_PENALTY * 1.9], 0.35, 0.18
+
+        if in_span and (
+            left_gap > int(max_fallback_gap_px * MISSING_COLUMN_SPAN_MAX_GAP_FACTOR)
+            or right_gap > int(max_fallback_gap_px * MISSING_COLUMN_SPAN_MAX_GAP_FACTOR)
+        ):
+            return [None], [MISSING_COLUMN_PENALTY * 1.7], 0.42, 0.20
+
+        if in_span and left_x is not None and right_x is not None:
+            interp_y = _interpolate_y_between_bounds(x_map, x, left_x, right_x)
+            left_y = _median_y_at_x(x_map, left_x)
+            right_y = _median_y_at_x(x_map, right_x)
+            span_gap = max(1.0, float(left_gap + right_gap))
+            gap_ratio = float(span_gap / max(1.0, 2.0 * max_fallback_gap_px))
+
+            candidates: list[int | None] = [None]
+            base_costs: list[float] = [
+                MISSING_COLUMN_PENALTY
+                * (0.72 + 0.22 * float(np.clip(gap_ratio, 0.0, 1.8)))
+            ]
+            if interp_y is not None:
+                candidates.append(interp_y)
+                base_costs.append(
+                    MISSING_COLUMN_PENALTY
+                    * (0.95 + 0.45 * float(np.clip(gap_ratio, 0.0, 2.2)))
+                )
+            if left_y is not None and left_gap <= max_fallback_gap_px and left_y not in candidates:
+                candidates.append(left_y)
+                base_costs.append(MISSING_COLUMN_PENALTY * (1.06 + 0.52 * gap_ratio))
+            if right_y is not None and right_gap <= max_fallback_gap_px and right_y not in candidates:
+                candidates.append(right_y)
+                base_costs.append(MISSING_COLUMN_PENALTY * (1.06 + 0.52 * gap_ratio))
+
+            ambiguity = float(np.clip(0.48 + 0.25 * gap_ratio, 0.35, 0.86))
+        else:
+            nearest_x = left_x if left_x is not None else right_x
+            nearest_y = _median_y_at_x(x_map, nearest_x)
+            if nearest_y is None:
+                return [None], [MISSING_COLUMN_PENALTY * 1.9], 0.38, 0.18
+
+            gap_ratio = float(
+                np.clip(nearest_gap / max(1.0, float(max_fallback_gap_px)), 0.0, 3.0)
+            )
             candidates = [None, nearest_y]
             base_costs = [
-                MISSING_COLUMN_PENALTY * (0.85 + 0.35 * gap_ratio),
-                MISSING_COLUMN_PENALTY * (1.6 + 0.9 * gap_ratio),
+                MISSING_COLUMN_PENALTY * (0.78 + 0.28 * gap_ratio),
+                MISSING_COLUMN_PENALTY * (1.45 + 0.95 * gap_ratio),
             ]
-            ambiguity = 0.55
-            if color_maps is None or expected_lab is None:
-                return candidates, base_costs, ambiguity
-            costs = []
-            for candidate_y, base in zip(candidates, base_costs):
-                if candidate_y is None:
-                    costs.append(base)
-                    continue
-                lab, sat_confidence = _sample_color_prior(color_maps, x, candidate_y)
-                color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
-                color_dist /= LAB_DISTANCE_NORMALIZER
-                color_weight = COLOR_PRIOR_WEIGHT * (
-                    MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
-                )
-                costs.append(base + color_dist * color_weight)
-            return candidates, costs, ambiguity
-
-        nearest_x = _find_nearest_x(sorted_keys, x)
-        if nearest_x is None or abs(nearest_x - x) > max_fallback_gap_px:
-            # No reliable nearby evidence for this x-column.
-            return [None], [MISSING_COLUMN_PENALTY * 2.0], 0.35
-        nearest_gap = abs(nearest_x - x)
-        gap_ratio = nearest_gap / max(1, max_fallback_gap_px)
-        nearest_ys = x_map[nearest_x]
-        nearest_y = int(np.median(nearest_ys))
-        in_span = bool(sorted_keys) and sorted_keys[0] <= x <= sorted_keys[-1]
-        candidates = [nearest_y, None]
-        base_costs = [
-            MISSING_COLUMN_PENALTY * (1.0 + gap_ratio),
-            MISSING_COLUMN_PENALTY * (1.3 + 0.4 * gap_ratio)
-            + (COVERAGE_MISSING_STATE_PENALTY if in_span else 0.0),
-        ]
-        ambiguity = 0.6 if in_span else 0.35
+            ambiguity = 0.62 if nearest_gap <= max_fallback_gap_px else 0.38
 
     if color_maps is None or expected_lab is None:
         if early_envelope is not None:
@@ -674,7 +847,23 @@ def _curve_candidates_for_x(
                 else cost
                 for y, cost in zip(candidates, base_costs)
             ]
-        return candidates, base_costs, ambiguity
+        confidence = _candidate_set_confidence(candidates, base_costs, ambiguity)
+        if (
+            ambiguity >= COLUMN_DEFER_AMBIGUITY_THRESHOLD
+            and confidence <= COLUMN_DEFER_CONFIDENCE_THRESHOLD
+        ):
+            defer_cost = (
+                COLUMN_DEFER_BASE_PENALTY
+                + ambiguity * 0.25
+                - confidence * COLUMN_DEFER_CONFIDENCE_REWARD
+            )
+            if None not in candidates:
+                candidates.append(None)
+                base_costs.append(float(defer_cost))
+            else:
+                none_idx = candidates.index(None)
+                base_costs[none_idx] = min(base_costs[none_idx], float(defer_cost))
+        return candidates, base_costs, ambiguity, confidence
 
     costs = []
     for candidate_y, base in zip(candidates, base_costs):
@@ -691,7 +880,25 @@ def _curve_candidates_for_x(
         if early_envelope is not None:
             penalty = _early_envelope_penalty(candidate_y, x, early_envelope, curve_direction)
         costs.append(base + color_dist * color_weight + penalty)
-    return candidates, costs, ambiguity
+    confidence = _candidate_set_confidence(candidates, costs, ambiguity)
+    if (
+        ambiguity >= COLUMN_DEFER_AMBIGUITY_THRESHOLD
+        and confidence <= COLUMN_DEFER_CONFIDENCE_THRESHOLD
+    ):
+        defer_cost = (
+            COLUMN_DEFER_BASE_PENALTY
+            + ambiguity * 0.25
+            - confidence * COLUMN_DEFER_CONFIDENCE_REWARD
+        )
+        if None not in candidates:
+            candidates.append(None)
+            costs.append(float(defer_cost))
+        else:
+            none_idx = candidates.index(None)
+            costs[none_idx] = min(costs[none_idx], float(defer_cost))
+        confidence = min(confidence, COLUMN_DEFER_CONFIDENCE_THRESHOLD)
+
+    return candidates, costs, ambiguity, confidence
 
 
 def _build_early_envelope(
@@ -828,6 +1035,7 @@ def _transition_matrix_vectorized(
     curr_missing: NDArray[np.bool_],
     x_gap: int,
     swap_penalty: float = SWAP_PENALTY,
+    missing_transition_penalty: float = MISSING_TRANSITION_PENALTY,
     curve_direction: CurveDirection = "downward",
 ) -> NDArray[np.float32]:
     """
@@ -858,8 +1066,8 @@ def _transition_matrix_vectorized(
     base = np.where(valid, base, 0.0).sum(axis=2, dtype=np.float32)
 
     transition = base
-    transition += both_missing.sum(axis=2, dtype=np.float32) * float(MISSING_TRANSITION_PENALTY * 0.5)
-    transition += one_missing.sum(axis=2, dtype=np.float32) * float(MISSING_TRANSITION_PENALTY)
+    transition += both_missing.sum(axis=2, dtype=np.float32) * float(missing_transition_penalty * 0.5)
+    transition += one_missing.sum(axis=2, dtype=np.float32) * float(missing_transition_penalty)
 
     n_curves = prev_y.shape[1]
     if n_curves >= 2:
@@ -909,6 +1117,16 @@ def _trace_curves_joint(
         )
         for name in curve_names
     }
+    if color_maps is not None:
+        expected_labs = {
+            name: _calibrate_expected_lab(
+                x_map=x_maps[name],
+                sorted_keys=sorted_keys[name],
+                expected_lab=expected_labs.get(name),
+                color_maps=color_maps,
+            )
+            for name in curve_names
+        }
     early_envelopes: dict[str, tuple[int, int, float, float] | None] = {
         name: _build_early_envelope(
             x_map=x_maps[name],
@@ -923,14 +1141,16 @@ def _trace_curves_joint(
     state_missing_by_x: list[NDArray[np.bool_]] = []
     state_data_cost_by_x: list[NDArray[np.float32]] = []
     ambiguity_by_x: list[float] = []
-    for x in x_values:
+    confidence_by_x: list[float] = []
+    for x_idx, x in enumerate(x_values):
         curve_candidates: list[list[int | None]] = []
         curve_costs: list[list[float]] = []
         curve_ambiguities: list[float] = []
+        curve_confidences: list[float] = []
         n_curves = len(curve_names)
         for name in curve_names:
             expected_lab = expected_labs.get(name)
-            candidates, costs, ambiguity = _curve_candidates_for_x(
+            candidates, costs, ambiguity, confidence = _curve_candidates_for_x(
                 x_maps[name],
                 sorted_keys[name],
                 x,
@@ -944,6 +1164,10 @@ def _trace_curves_joint(
             curve_candidates.append(candidates)
             curve_costs.append(costs)
             curve_ambiguities.append(ambiguity)
+            curve_confidences.append(confidence)
+
+        x_ambiguity = float(np.mean(curve_ambiguities)) if curve_ambiguities else 0.0
+        x_confidence = float(np.mean(curve_confidences)) if curve_confidences else 0.5
 
         curve_candidates, curve_costs = _trim_joint_candidates_for_budget(
             curve_candidates, curve_costs
@@ -957,9 +1181,14 @@ def _trace_curves_joint(
             cost = sum(curve_costs[i][choice] for i, choice in enumerate(combo))
             cost += _state_overlap_penalty(ys)
             cost += _state_identity_penalty(ys, refs)
+            cost += _state_order_lock_penalty(
+                ys=ys,
+                refs=refs,
+                crossing_window=bool(crossing_window_mask[x_idx]),
+                ambiguity=x_ambiguity,
+            )
             states.append((ys, float(cost)))
 
-        x_ambiguity = float(np.mean(curve_ambiguities)) if curve_ambiguities else 0.0
         beam_size = _adaptive_state_beam(x_ambiguity, len(curve_names))
         if crossing_relaxed and x_ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
             beam_size = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam_size + 48)
@@ -970,6 +1199,7 @@ def _trace_curves_joint(
         state_missing_by_x.append(missing_arr)
         state_data_cost_by_x.append(data_cost_arr)
         ambiguity_by_x.append(x_ambiguity)
+        confidence_by_x.append(x_confidence)
 
     dp_costs: list[np.ndarray] = []
     parents: list[np.ndarray] = []
@@ -990,16 +1220,28 @@ def _trace_curves_joint(
         curr_parent = np.full(n_curr, -1, dtype=np.int32)
         x_gap = x_values[i] - x_values[i - 1]
         local_ambiguity = max(ambiguity_by_x[i - 1], ambiguity_by_x[i])
+        local_confidence = min(confidence_by_x[i - 1], confidence_by_x[i])
         swap_penalty = SWAP_PENALTY
-        if crossing_relaxed:
-            in_crossing_window = bool(crossing_window_mask[i] or crossing_window_mask[i - 1])
-            if in_crossing_window:
+        in_crossing_window = bool(crossing_window_mask[i] or crossing_window_mask[i - 1])
+        if in_crossing_window:
+            if crossing_relaxed:
                 swap_penalty = SWAP_PENALTY * CROSSING_RELAXED_SWAP_FACTOR
-            else:
-                # Outside crossing windows, keep identity assignment stable.
-                swap_penalty = SWAP_PENALTY * CROSSING_LOCKED_SWAP_FACTOR
-                if local_ambiguity < AMBIGUITY_MODERATE_THRESHOLD:
-                    swap_penalty *= 1.1
+        else:
+            # Outside crossing windows, keep identity assignment stable.
+            swap_penalty = SWAP_PENALTY * NON_CROSSING_SWAP_FACTOR
+            if crossing_relaxed:
+                swap_penalty *= CROSSING_LOCKED_SWAP_FACTOR
+            if local_ambiguity < AMBIGUITY_MODERATE_THRESHOLD:
+                swap_penalty = max(
+                    swap_penalty,
+                    SWAP_PENALTY * NON_CROSSING_STRONG_LOCK_FACTOR,
+                )
+
+        missing_transition_penalty = MISSING_TRANSITION_PENALTY
+        if local_confidence <= COLUMN_DEFER_CONFIDENCE_THRESHOLD:
+            missing_transition_penalty *= LOW_CONFIDENCE_MISSING_TRANSITION_FACTOR
+        elif local_confidence >= 0.72:
+            missing_transition_penalty *= HIGH_CONFIDENCE_MISSING_TRANSITION_FACTOR
 
         transition = _transition_matrix_vectorized(
             prev_y=prev_y,
@@ -1008,6 +1250,7 @@ def _trace_curves_joint(
             curr_missing=curr_missing,
             x_gap=x_gap,
             swap_penalty=swap_penalty,
+            missing_transition_penalty=missing_transition_penalty,
             curve_direction=curve_direction,
         )
         total = prev_cost[:, None] + transition + curr_data_cost[None, :]
