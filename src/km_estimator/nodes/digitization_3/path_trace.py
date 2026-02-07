@@ -14,22 +14,31 @@ from .probability_map import EvidenceCube
 
 DirectionMode = Literal["downward", "upward", "unknown"]
 
-MAX_CANDIDATES_PER_COLUMN = 10
-MIN_COLUMN_SCORE = 0.16
+MAX_CANDIDATES_PER_COLUMN = 6
+MIN_COLUMN_SCORE = 0.24
 JOINT_MAX_STATES = 72
 COLLISION_DISTANCE_RATIO = 0.020
 ORDER_LOCK_PENALTY = 0.26
 SWAP_ALLOWED_PENALTY = 0.06
-SMOOTHNESS_WEIGHT = 1.15
+SMOOTHNESS_WEIGHT = 1.45
 DIRECTION_WEIGHT = 1.0
 AXIS_NEAR_WEIGHT = 0.8
 LOW_CONF_COLUMN_THRESHOLD = 0.22
 LOW_AMBIGUITY_THRESHOLD = 0.12
 JUMP_THRESHOLD_RATIO = 0.035
+JUMP_SOFT_RATIO = 0.045
+JUMP_HARD_RATIO = 0.12
+JUMP_PENALTY_WEIGHT = 3.0
+EXTREME_JUMP_PENALTY_WEIGHT = 8.0
 MONOTONE_TOLERANCE_RATIO = 0.006
 START_PRIOR_WEIGHT = 0.55
 START_PRIOR_WINDOW_RATIO = 0.12
 OVERLAP_AMBIG_PENALTY = 0.30
+HARDPOINT_PENALTY_WEIGHT = 6.0
+HARDPOINT_PENALTY_TOL_RATIO = 0.010
+HARDPOINT_PENALTY_RADIUS_RATIO = 0.035
+HARDPOINT_CANDIDATE_RADIUS_RATIO = 0.012
+HARDPOINT_CANDIDATE_BAND_RATIO = 0.045
 
 # Crossing detection caps and locality constraints
 MAX_CROSSING_WINDOWS = 10
@@ -85,6 +94,22 @@ def _direction_penalty(
     return 0.0
 
 
+def _jump_penalty(
+    prev_y: int,
+    cur_y: int,
+    height: int,
+) -> float:
+    dy = abs(int(cur_y) - int(prev_y))
+    soft = max(2, int(round(height * JUMP_SOFT_RATIO)))
+    hard = max(soft + 1, int(round(height * JUMP_HARD_RATIO)))
+    base = 0.0
+    if dy > soft:
+        base += JUMP_PENALTY_WEIGHT * (float(dy - soft) / float(max(1, height)))
+    if dy > hard:
+        base += EXTREME_JUMP_PENALTY_WEIGHT * (float(dy - hard) / float(max(1, height)))
+    return float(base)
+
+
 def _axis_penalty_value(
     axis_penalty_map: NDArray[np.float32],
     y: int,
@@ -118,6 +143,45 @@ def _start_anchor_penalty(
     dist = abs(int(y) - int(target)) / float(max(1, height))
     decay = 1.0 - (float(x) / float(max(1, window)))
     return START_PRIOR_WEIGHT * cfg.direction_multiplier * decay * dist
+
+
+def _nearest_hardpoint_y(
+    x: int,
+    hardpoints: tuple[tuple[int, int], ...] | None,
+    max_dx: int,
+) -> int | None:
+    if not hardpoints:
+        return None
+    best_dx = max_dx + 1
+    best_y: int | None = None
+    for ax, ay in hardpoints:
+        dx = abs(int(x) - int(ax))
+        if dx <= max_dx and dx < best_dx:
+            best_dx = dx
+            best_y = int(ay)
+    return best_y
+
+
+def _hardpoint_penalty(
+    y: int,
+    x: int,
+    width: int,
+    height: int,
+    hardpoints: tuple[tuple[int, int], ...] | None,
+) -> float:
+    if not hardpoints:
+        return 0.0
+    radius = max(2, int(round(width * HARDPOINT_PENALTY_RADIUS_RATIO)))
+    tol = max(1, int(round(height * HARDPOINT_PENALTY_TOL_RATIO)))
+    penalty = 0.0
+    for ax, ay in hardpoints:
+        dx = abs(int(x) - int(ax))
+        if dx > radius:
+            continue
+        decay = 1.0 - (float(dx) / float(radius + 1))
+        d = max(0, abs(int(y) - int(ay)) - tol)
+        penalty += HARDPOINT_PENALTY_WEIGHT * decay * (float(d) / float(max(1, height)))
+    return float(penalty)
 
 
 def _column_candidates(
@@ -163,6 +227,8 @@ def _extract_arm_diagnostics(
             "low_margin_frac": 1.0,
             "axis_capture_frac": 1.0,
             "jump_rate": 1.0,
+            "max_jump_ratio": 1.0,
+            "extreme_jump_frac": 1.0,
             "monotone_violation_mass": 1.0,
             "low_conf_frac": 1.0,
             "overlap_conflict_frac": 0.0,
@@ -199,20 +265,30 @@ def _extract_arm_diagnostics(
         )
 
     jump_thr = max(2, int(round(h * JUMP_THRESHOLD_RATIO)))
+    jump_hard = max(3, int(round(h * JUMP_HARD_RATIO)))
     jump_rate = 0.0
+    max_jump_ratio = 0.0
+    extreme_jump_frac = 0.0
     monotone_mass = 0.0
     if len(ys) >= 2:
         jumps = 0
+        extreme = 0
         tol = max(1, int(round(h * MONOTONE_TOLERANCE_RATIO)))
         for i in range(1, len(ys)):
             dy = int(ys[i] - ys[i - 1])
+            ady = abs(dy)
+            if ady > max_jump_ratio * float(max(1, h)):
+                max_jump_ratio = float(ady) / float(max(1, h))
             if abs(dy) > jump_thr:
                 jumps += 1
+            if ady > jump_hard:
+                extreme += 1
             if direction == "downward" and dy < -tol:
                 monotone_mass += float(-dy) / float(max(1, h))
             elif direction == "upward" and dy > tol:
                 monotone_mass += float(dy) / float(max(1, h))
         jump_rate = float(jumps) / float(len(ys) - 1)
+        extreme_jump_frac = float(extreme) / float(len(ys) - 1)
         monotone_mass = float(monotone_mass) / float(len(ys) - 1)
 
     return {
@@ -220,6 +296,8 @@ def _extract_arm_diagnostics(
         "low_margin_frac": low_margin_frac,
         "axis_capture_frac": axis_capture_frac,
         "jump_rate": jump_rate,
+        "max_jump_ratio": max_jump_ratio,
+        "extreme_jump_frac": extreme_jump_frac,
         "monotone_violation_mass": monotone_mass,
         "low_conf_frac": low_conf_frac,
         "overlap_conflict_frac": 0.0,
@@ -232,6 +310,8 @@ def _confidence_from_diagnostics(diag: dict[str, float], direction_confidence: f
     conf -= 0.70 * float(diag.get("axis_capture_frac", 0.0))
     conf -= 0.45 * float(diag.get("low_margin_frac", 0.0))
     conf -= 0.30 * float(diag.get("jump_rate", 0.0))
+    conf -= 0.95 * float(diag.get("extreme_jump_frac", 0.0))
+    conf -= 0.55 * float(diag.get("max_jump_ratio", 0.0))
     conf -= 0.90 * float(diag.get("monotone_violation_mass", 0.0))
     conf -= 0.35 * float(diag.get("overlap_conflict_frac", 0.0))
     conf -= 0.22 * float(diag.get("low_consensus_frac", 0.0))
@@ -394,13 +474,24 @@ def _trace_single(
     direction: DirectionMode,
     occupied_penalty: NDArray[np.float32] | None,
     candidate_mask: NDArray[np.bool_] | None,
+    hardpoint_guides: tuple[tuple[int, int], ...] | None,
     cfg: TraceConfig,
 ) -> tuple[list[int], dict[str, float]]:
     """Trace one arm path with dynamic programming."""
     h, w = score_map.shape
+    hp_radius = max(1, int(round(w * HARDPOINT_CANDIDATE_RADIUS_RATIO)))
+    hp_band = max(2, int(round(h * HARDPOINT_CANDIDATE_BAND_RATIO)))
     candidates_by_x: list[list[tuple[int, float]]] = []
     for x in range(w):
         hard = candidate_mask[:, x] if candidate_mask is not None else None
+        hp_y = _nearest_hardpoint_y(x, hardpoint_guides, hp_radius)
+        if hp_y is not None:
+            ys = np.arange(h, dtype=np.int32)
+            hp_mask = np.abs(ys - int(hp_y)) <= hp_band
+            if hard is not None and hard.shape[0] == h:
+                hard = np.logical_and(hard, hp_mask)
+            else:
+                hard = hp_mask
         cands = _column_candidates(
             score_map[:, x],
             top_k=MAX_CANDIDATES_PER_COLUMN,
@@ -425,6 +516,7 @@ def _trace_single(
                 if overlap_consensus_map is not None
                 else 0.0
             )
+            + _hardpoint_penalty(y, 0, w, h, hardpoint_guides)
             + (float(occupied_penalty[y, 0]) if occupied_penalty is not None else 0.0)
             for y, score in first
         ],
@@ -452,6 +544,7 @@ def _trace_single(
                     if overlap_consensus_map is not None
                     else 0.0
                 )
+                + _hardpoint_penalty(y_cur, x, w, h, hardpoint_guides)
                 + (float(occupied_penalty[y_cur, x]) if occupied_penalty is not None else 0.0)
             )
             best_value = np.inf
@@ -464,7 +557,8 @@ def _trace_single(
                     / float(max(1, h))
                 )
                 dir_pen = _direction_penalty(y_prev, y_cur, direction, h, cfg)
-                total = float(prev_cost[i]) + unary + smooth + dir_pen
+                jump_pen = _jump_penalty(y_prev, y_cur, h)
+                total = float(prev_cost[i]) + unary + smooth + dir_pen + jump_pen
                 if total < best_value:
                     best_value = total
                     best_idx = i
@@ -502,31 +596,54 @@ def _trace_joint_two(
     ambiguity_map: NDArray[np.float32],
     overlap_consensus_map: NDArray[np.float32] | None,
     direction: DirectionMode,
-    candidate_mask: NDArray[np.bool_] | None,
+    candidate_mask_a: NDArray[np.bool_] | None,
+    candidate_mask_b: NDArray[np.bool_] | None,
+    hardpoint_guides_a: tuple[tuple[int, int], ...] | None,
+    hardpoint_guides_b: tuple[tuple[int, int], ...] | None,
     cfg: TraceConfig,
 ) -> tuple[dict[str, list[int]], dict[str, dict[str, float]], list[str], list[tuple[int, int]]]:
     """Joint DP for two curves with strict, localized swap handling."""
     h, w = map_a.shape
     warnings: list[str] = []
 
-    candidates_a = [
-        _column_candidates(
-            map_a[:, x],
-            top_k=MAX_CANDIDATES_PER_COLUMN,
-            min_score=MIN_COLUMN_SCORE,
-            hard_mask=(candidate_mask[:, x] if candidate_mask is not None else None),
+    hp_radius = max(1, int(round(w * HARDPOINT_CANDIDATE_RADIUS_RATIO)))
+    hp_band = max(2, int(round(h * HARDPOINT_CANDIDATE_BAND_RATIO)))
+    candidates_a: list[list[tuple[int, float]]] = []
+    candidates_b: list[list[tuple[int, float]]] = []
+    for x in range(w):
+        hard_a = candidate_mask_a[:, x] if candidate_mask_a is not None else None
+        hard_b = candidate_mask_b[:, x] if candidate_mask_b is not None else None
+        hp_ya = _nearest_hardpoint_y(x, hardpoint_guides_a, hp_radius)
+        hp_yb = _nearest_hardpoint_y(x, hardpoint_guides_b, hp_radius)
+        ys = np.arange(h, dtype=np.int32)
+        if hp_ya is not None:
+            hp_mask_a = np.abs(ys - int(hp_ya)) <= hp_band
+            if hard_a is not None and hard_a.shape[0] == h:
+                hard_a = np.logical_and(hard_a, hp_mask_a)
+            else:
+                hard_a = hp_mask_a
+        if hp_yb is not None:
+            hp_mask_b = np.abs(ys - int(hp_yb)) <= hp_band
+            if hard_b is not None and hard_b.shape[0] == h:
+                hard_b = np.logical_and(hard_b, hp_mask_b)
+            else:
+                hard_b = hp_mask_b
+        candidates_a.append(
+            _column_candidates(
+                map_a[:, x],
+                top_k=MAX_CANDIDATES_PER_COLUMN,
+                min_score=MIN_COLUMN_SCORE,
+                hard_mask=hard_a,
+            )
         )
-        for x in range(w)
-    ]
-    candidates_b = [
-        _column_candidates(
-            map_b[:, x],
-            top_k=MAX_CANDIDATES_PER_COLUMN,
-            min_score=MIN_COLUMN_SCORE,
-            hard_mask=(candidate_mask[:, x] if candidate_mask is not None else None),
+        candidates_b.append(
+            _column_candidates(
+                map_b[:, x],
+                top_k=MAX_CANDIDATES_PER_COLUMN,
+                min_score=MIN_COLUMN_SCORE,
+                hard_mask=hard_b,
+            )
         )
-        for x in range(w)
-    ]
 
     # Initial deterministic expected ordering.
     y0a = candidates_a[0][0][0]
@@ -591,6 +708,8 @@ def _trace_joint_two(
                 )
                 + _start_anchor_penalty(ya, x, w, h, direction, cfg)
                 + _start_anchor_penalty(yb, x, w, h, direction, cfg)
+                + _hardpoint_penalty(ya, x, w, h, hardpoint_guides_a)
+                + _hardpoint_penalty(yb, x, w, h, hardpoint_guides_b)
                 + (
                     OVERLAP_AMBIG_PENALTY
                     * (2.0 - float(overlap_consensus_map[ya, x]) - float(overlap_consensus_map[yb, x]))
@@ -629,13 +748,14 @@ def _trace_joint_two(
                 dpen = _direction_penalty(pya, ya, direction, h, cfg) + _direction_penalty(
                     pyb, yb, direction, h, cfg
                 )
+                jump_pen = _jump_penalty(pya, ya, h) + _jump_penalty(pyb, yb, h)
                 order_pen = 0.0
                 if cur_sign != expected_sign:
                     if local_allow_swap:
                         order_pen = SWAP_ALLOWED_PENALTY * cfg.swap_multiplier
                     else:
                         order_pen = ORDER_LOCK_PENALTY * cfg.order_lock_multiplier
-                total = float(prev_cost[i]) + unary + smooth + dpen + order_pen
+                total = float(prev_cost[i]) + unary + smooth + dpen + jump_pen + order_pen
                 if total < best_value:
                     best_value = total
                     best_idx = i
@@ -702,6 +822,8 @@ def trace_curves(
     y0: int,
     trace_config: TraceConfig | None = None,
     candidate_mask: NDArray[np.bool_] | None = None,
+    arm_candidate_masks: dict[str, NDArray[np.bool_]] | None = None,
+    hardpoint_guides: dict[str, tuple[tuple[int, int], ...]] | None = None,
 ) -> TraceResult:
     """Trace all arms from score maps."""
     cfg = trace_config or TraceConfig()
@@ -737,7 +859,26 @@ def trace_curves(
             ambiguity,
             overlap_consensus,
             direction,
-            candidate_mask=candidate_mask,
+            candidate_mask_a=(
+                arm_candidate_masks.get(names[0], candidate_mask)
+                if arm_candidate_masks is not None
+                else candidate_mask
+            ),
+            candidate_mask_b=(
+                arm_candidate_masks.get(names[1], candidate_mask)
+                if arm_candidate_masks is not None
+                else candidate_mask
+            ),
+            hardpoint_guides_a=(
+                hardpoint_guides.get(names[0], ())
+                if hardpoint_guides is not None
+                else None
+            ),
+            hardpoint_guides_b=(
+                hardpoint_guides.get(names[1], ())
+                if hardpoint_guides is not None
+                else None
+            ),
             cfg=cfg,
         )
         y_paths.update(joint_paths)
@@ -760,6 +901,11 @@ def trace_curves(
             else cfg
         )
         for name in names:
+            arm_mask = (
+                arm_candidate_masks.get(name, candidate_mask)
+                if arm_candidate_masks is not None
+                else candidate_mask
+            )
             ys, diag = _trace_single(
                 arm_score_maps[name],
                 axis_pen,
@@ -767,7 +913,12 @@ def trace_curves(
                 overlap_consensus,
                 direction,
                 occupied_penalty=occupied,
-                candidate_mask=candidate_mask,
+                candidate_mask=arm_mask,
+                hardpoint_guides=(
+                    hardpoint_guides.get(name, ())
+                    if hardpoint_guides is not None
+                    else None
+                ),
                 cfg=single_cfg,
             )
             y_paths[name] = ys
@@ -792,6 +943,10 @@ def trace_curves(
             warnings.append(f"W_AXIS_CAPTURE_HIGH:{name}:{diag['axis_capture_frac']:.3f}")
         if float(diag.get("low_margin_frac", 0.0)) > 0.35:
             warnings.append(f"W_LOW_MARGIN_HIGH:{name}:{diag['low_margin_frac']:.3f}")
+        if float(diag.get("extreme_jump_frac", 0.0)) > 0.003:
+            warnings.append(f"W_EXTREME_JUMP_FRAC:{name}:{diag['extreme_jump_frac']:.4f}")
+        if float(diag.get("max_jump_ratio", 0.0)) > JUMP_HARD_RATIO:
+            warnings.append(f"W_MAX_JUMP_RATIO:{name}:{diag['max_jump_ratio']:.3f}")
         if float(diag.get("monotone_violation_mass", 0.0)) > 0.08:
             warnings.append(
                 f"W_MONOTONE_VIOLATION_MASS:{name}:{diag['monotone_violation_mass']:.3f}"

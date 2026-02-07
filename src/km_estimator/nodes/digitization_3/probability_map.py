@@ -17,11 +17,31 @@ COLOR_WEIGHT = 0.45
 AXIS_PENALTY_WEIGHT = 0.85
 AXIS_PENALTY_WEIGHT_UPWARD = 0.45
 AXIS_PENALTY_WEIGHT_UNKNOWN = 0.65
-TEXT_PENALTY_WEIGHT = 0.35
-COLOR_GOOD_DISTANCE = 42.0
+TEXT_PENALTY_WEIGHT = 0.58
+FRAME_PENALTY_WEIGHT = 0.70
+HORIZONTAL_SUPPORT_WEIGHT = 0.42
+HORIZONTAL_SUPPORT_MIN = 0.14
+HORIZONTAL_SUPPORT_KERNEL_RATIO = 0.012
+FRAME_LINE_DENSITY_MIN = 0.11
+FRAME_BAND_RATIO = 0.012
+FRAME_TOP_X_EXEMPT_RATIO = 0.06
+COLOR_GOOD_DISTANCE = 30.0
+COLOR_ANTI_WEIGHT = 0.50
+COLOR_STRICT_RELIABILITY = 0.35
+COLOR_STRICT_MIN_LIKELIHOOD = 0.38
+COLOR_STRICT_QUANTILE = 70.0
+COLOR_STRICT_OFF_PENALTY = 0.55
+COLOR_STRICT_MIN_DENSITY = 0.001
 CANDIDATE_AXIS_THRESH = 0.25
 CANDIDATE_AXIS_THRESH_UPWARD = 0.55
 CANDIDATE_AXIS_THRESH_UNKNOWN = 0.40
+CANDIDATE_TEXT_THRESH = 0.35
+CANDIDATE_RIDGE_THRESH = 0.24
+COMPONENT_MIN_AREA_RATIO = 0.00003
+COMPONENT_START_STRIP_RATIO = 0.14
+COMPONENT_START_BAND_RATIO = 0.22
+COMPONENT_XSPAN_KEEP_RATIO = 0.28
+COMPONENT_XMIN_KEEP_RATIO = 0.22
 HSL_KMEDOIDS_MAX_POINTS = 2600
 HSL_KMEDOIDS_MAX_ITERS = 6
 HSL_KMEDOIDS_KNN_K = 12
@@ -50,6 +70,111 @@ def _edge_response(gray: NDArray[np.uint8]) -> NDArray[np.float32]:
     edges = cv2.Canny(gray, 35, 110).astype(np.float32) / 255.0
     edges = cv2.GaussianBlur(edges, (3, 3), 0)
     return _normalize01(edges.astype(np.float32))
+
+
+def _frame_penalty(gray: NDArray[np.uint8]) -> tuple[NDArray[np.float32], bool, bool]:
+    """Detect and penalize top/right full-box frame lines."""
+    h, w = gray.shape
+    if h <= 0 or w <= 0:
+        return np.zeros_like(gray, dtype=np.float32), False, False
+
+    band = max(1, int(round(min(h, w) * FRAME_BAND_RATIO)))
+    ink = (gray < 130).astype(np.uint8)
+    top_density = float(np.mean(ink[:band, :])) if band < h else 0.0
+    right_density = float(np.mean(ink[:, max(0, w - band):])) if band < w else 0.0
+    has_top = top_density >= FRAME_LINE_DENSITY_MIN
+    has_right = right_density >= FRAME_LINE_DENSITY_MIN
+
+    pen = np.zeros((h, w), dtype=np.uint8)
+    if has_top:
+        x_exempt = max(0, int(round(w * FRAME_TOP_X_EXEMPT_RATIO)))
+        pen[:band, x_exempt:] = 255
+    if has_right:
+        pen[:, max(0, w - band):] = 255
+
+    pen = cv2.GaussianBlur((pen.astype(np.float32) / 255.0).astype(np.float32), (5, 5), 0)
+    pen = _normalize01(pen.astype(np.float32))
+    return pen, has_top, has_right
+
+
+def _horizontal_support(mask: NDArray[np.bool_]) -> NDArray[np.float32]:
+    """Score horizontal continuity to suppress vertical/text-like structures."""
+    h, w = mask.shape
+    if h <= 0 or w <= 0:
+        return np.zeros_like(mask, dtype=np.float32)
+    k = max(5, int(round(w * HORIZONTAL_SUPPORT_KERNEL_RATIO)))
+    if k % 2 == 0:
+        k += 1
+    kernel = np.ones((1, k), dtype=np.float32)
+    src = mask.astype(np.float32)
+    conv = cv2.filter2D(src, ddepth=-1, kernel=kernel, borderType=cv2.BORDER_REPLICATE)
+    support = conv / float(k)
+    return np.clip(support, 0.0, 1.0).astype(np.float32)
+
+
+def _prune_curve_components(
+    mask: NDArray[np.bool_],
+    direction: str,
+) -> tuple[NDArray[np.bool_], int, int]:
+    """
+    Keep only connected components that look like plausible curve fragments.
+
+    Heuristics:
+    - survives if connected to start region (left strip + expected start-y band)
+    - or has broad x-span and starts near the left side
+    """
+    h, w = mask.shape
+    if h <= 0 or w <= 0:
+        return mask, 0, 0
+
+    src = (mask.astype(np.uint8) * 255)
+    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(src, connectivity=8)
+    if n_labels <= 1:
+        return mask, 0, 0
+
+    min_area = max(4, int(round(h * w * COMPONENT_MIN_AREA_RATIO)))
+    x_start_max = max(1, int(round(w * COMPONENT_START_STRIP_RATIO)))
+    y_band = max(2, int(round(h * COMPONENT_START_BAND_RATIO)))
+    keep = np.zeros((h, w), dtype=np.uint8)
+    kept = 0
+    dropped = 0
+
+    for idx in range(1, n_labels):
+        x = int(stats[idx, cv2.CC_STAT_LEFT])
+        y = int(stats[idx, cv2.CC_STAT_TOP])
+        cw = int(stats[idx, cv2.CC_STAT_WIDTH])
+        ch = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        area = int(stats[idx, cv2.CC_STAT_AREA])
+        if area < min_area or cw <= 0 or ch <= 0:
+            dropped += 1
+            continue
+
+        x_min = x
+        x_max = x + cw - 1
+        y_min = y
+        y_max = y + ch - 1
+        x_span_ratio = float(cw) / float(max(1, w))
+        starts_left = x_min <= x_start_max
+
+        if direction == "upward":
+            in_start_band = y_max >= (h - y_band)
+        else:
+            in_start_band = y_min <= y_band
+
+        keep_comp = (starts_left and in_start_band) or (
+            x_span_ratio >= COMPONENT_XSPAN_KEEP_RATIO
+            and x_min <= int(round(w * COMPONENT_XMIN_KEEP_RATIO))
+        )
+
+        if keep_comp:
+            keep[labels == idx] = 255
+            kept += 1
+        else:
+            dropped += 1
+
+    if kept == 0:
+        return mask, 0, dropped
+    return keep.astype(bool), kept, dropped
 
 
 def _text_penalty(gray: NDArray[np.uint8]) -> NDArray[np.float32]:
@@ -304,6 +429,7 @@ class EvidenceCube:
     structure_map: NDArray[np.float32]
     overlap_consensus_map: NDArray[np.float32]
     candidate_mask: NDArray[np.bool_]
+    arm_candidate_masks: dict[str, NDArray[np.bool_]]
     arm_score_maps: dict[str, NDArray[np.float32]]
     ambiguity_map: NDArray[np.float32]
     warning_codes: tuple[str, ...]
@@ -324,6 +450,13 @@ def build_evidence_cube(
     ridge = _ridge_response(gray)
     edge = _edge_response(gray)
     text_pen = _text_penalty(gray)
+    frame_pen, has_top_frame, has_right_frame = _frame_penalty(gray)
+    prelim_mask = (
+        (ridge > max(0.10, CANDIDATE_RIDGE_THRESH * 0.7))
+        & (text_pen < min(0.65, CANDIDATE_TEXT_THRESH + 0.20))
+        & (frame_pen < 0.65)
+    )
+    h_support = _horizontal_support(prelim_mask.astype(np.bool_))
 
     axis_pen = cv2.bitwise_or(plot_model.axis_mask, plot_model.tick_mask)
     axis_pen_f = (axis_pen.astype(np.float32) / 255.0).astype(np.float32)
@@ -351,15 +484,19 @@ def build_evidence_cube(
     structure_base = (
         RIDGE_WEIGHT * ridge
         + EDGE_WEIGHT * edge
+        + HORIZONTAL_SUPPORT_WEIGHT * h_support
         - axis_weight * axis_pen_for_structure
         - TEXT_PENALTY_WEIGHT * text_pen
+        - FRAME_PENALTY_WEIGHT * frame_pen
     ).astype(np.float32)
     structure_map = _normalize01(structure_base)
 
     candidate_mask = (
-        (ridge > 0.20)
+        (ridge > CANDIDATE_RIDGE_THRESH)
         & (axis_pen_f < candidate_axis_thresh)
-        & (text_pen < 0.55)
+        & (text_pen < CANDIDATE_TEXT_THRESH)
+        & (frame_pen < 0.40)
+        & (h_support > HORIZONTAL_SUPPORT_MIN)
     )
     cand_density = float(np.mean(candidate_mask))
     if cand_density < 0.003:
@@ -375,9 +512,14 @@ def build_evidence_cube(
         n_clusters=max(1, len(arm_names)),
     )
     warnings.extend(cluster_warnings)
+    if has_top_frame or has_right_frame:
+        warnings.append(
+            f"I_FRAME_PENALTY_APPLIED:{int(has_top_frame)}:{int(has_right_frame)}"
+        )
     cluster_assignment = _assign_clusters_to_arms(arm_names, color_models, cluster_lab)
 
     arm_maps: dict[str, NDArray[np.float32]] = {}
+    arm_candidate_masks: dict[str, NDArray[np.bool_]] = {}
     for arm_name in arm_names:
         model = color_models[arm_name]
         color_like = _color_likelihood(
@@ -395,13 +537,56 @@ def build_evidence_cube(
             * np.clip(0.25 + 0.75 * model.reliability, 0.15, 1.0)
             * color_mix
         ).astype(np.float32)
-        base = (structure_base + color_term).astype(np.float32)
+        anti_color_penalty = (
+            COLOR_ANTI_WEIGHT
+            * np.clip(model.reliability, 0.0, 1.0)
+            * (1.0 - color_mix)
+        ).astype(np.float32)
+        base = (structure_base + color_term - anti_color_penalty).astype(np.float32)
+
+        # Strong color-lock mode when color model is reliable and dense enough:
+        # keep candidates near the arm's color signature and demote off-color pixels.
+        arm_mask = candidate_mask.copy()
+        if model.reliability >= COLOR_STRICT_RELIABILITY:
+            candidate_vals = color_mix[candidate_mask]
+            if candidate_vals.size > 0:
+                q_thr = float(np.percentile(candidate_vals, COLOR_STRICT_QUANTILE))
+                strict_thr = max(COLOR_STRICT_MIN_LIKELIHOOD, q_thr)
+            else:
+                strict_thr = COLOR_STRICT_MIN_LIKELIHOOD
+            strict_mask = color_mix >= strict_thr
+            strict_density = float(np.mean(strict_mask & candidate_mask))
+            if strict_density >= COLOR_STRICT_MIN_DENSITY:
+                arm_mask = candidate_mask & strict_mask
+                base = np.where(arm_mask, base, base - COLOR_STRICT_OFF_PENALTY).astype(np.float32)
+                warnings.append(
+                    f"I_COLOR_STRICT_LOCK:{arm_name}:{strict_density:.4f}:{strict_thr:.3f}"
+                )
+            else:
+                warnings.append(
+                    f"W_COLOR_STRICT_SPARSE_SKIP:{arm_name}:{strict_density:.4f}:{strict_thr:.3f}"
+                )
+
+        # Connectivity prune: drop disconnected UI/text components that are not
+        # plausible curve fragments.
+        pruned_mask, kept_components, dropped_components = _prune_curve_components(
+            arm_mask.astype(np.bool_),
+            direction=direction,
+        )
+        if kept_components > 0:
+            arm_mask = pruned_mask
+            warnings.append(
+                f"I_CURVE_COMPONENT_PRUNE:{arm_name}:{kept_components}:{dropped_components}"
+            )
+        elif dropped_components > 0:
+            warnings.append(f"W_CURVE_COMPONENT_PRUNE_EMPTY:{arm_name}:{dropped_components}")
 
         # Ridge-first candidates: attenuate non-candidates when dense enough.
         if cand_density >= 0.01:
-            base = np.where(candidate_mask, base, base - 0.20)
+            base = np.where(arm_mask, base, base - 0.20)
 
         arm_maps[arm_name] = _normalize01(base.astype(np.float32))
+        arm_candidate_masks[arm_name] = arm_mask.astype(np.bool_)
         if model.reliability <= 0.05:
             warnings.append(f"W_ARM_COLOR_UNINFORMATIVE:{arm_name}")
 
@@ -433,6 +618,7 @@ def build_evidence_cube(
         structure_map=structure_map,
         overlap_consensus_map=overlap_consensus_map,
         candidate_mask=candidate_mask.astype(np.bool_),
+        arm_candidate_masks=arm_candidate_masks,
         arm_score_maps=arm_maps,
         ambiguity_map=ambiguity,
         warning_codes=tuple(warnings),

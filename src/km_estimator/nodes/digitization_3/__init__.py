@@ -9,6 +9,7 @@ Design goals:
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -28,6 +29,15 @@ LOW_CONFIDENCE_FAIL_THRESHOLD = 0.30
 LOW_CONFIDENCE_REVIEW_THRESHOLD = 0.48
 HARD_FAIL_MIN_CONFIDENCE = 0.55
 EXTREME_FAIL_THRESHOLD = 0.12
+DIGITIZER_HARDPOINT_ENABLE_ENV = "KM_DIGITIZER_HARDPOINTS_ENABLE"
+DIGITIZER_HARDPOINT_PATH_ENV = "KM_DIGITIZER_HARDPOINTS_PATH"
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _dedupe_ordered(items: list[str]) -> list[str]:
@@ -99,6 +109,8 @@ def _gate_confidence(
         axis_cap = float(diag.get("axis_capture_frac", 0.0))
         low_margin = float(diag.get("low_margin_frac", 0.0))
         jump_rate = float(diag.get("jump_rate", 0.0))
+        max_jump_ratio = float(diag.get("max_jump_ratio", 0.0))
+        extreme_jump_frac = float(diag.get("extreme_jump_frac", 0.0))
         mono_mass = float(diag.get("monotone_violation_mass", 0.0))
         overlap_conf = float(diag.get("overlap_conflict_frac", 0.0))
 
@@ -111,11 +123,18 @@ def _gate_confidence(
         if mono_mass > 0.08:
             hard_fail = True
             warnings.append(f"E_HARD_FAIL_MONOTONE_MASS:{name}:{mono_mass:.3f}")
+        if extreme_jump_frac > 0.003 or max_jump_ratio > 0.12:
+            hard_fail = True
+            warnings.append(
+                f"E_HARD_FAIL_EXTREME_JUMP:{name}:{extreme_jump_frac:.4f}:{max_jump_ratio:.3f}"
+            )
 
         diag_penalty += (
             0.60 * axis_cap
             + 0.35 * low_margin
             + 0.25 * jump_rate
+            + 0.65 * extreme_jump_frac
+            + 0.35 * max_jump_ratio
             + 0.55 * mono_mass
             + 0.25 * overlap_conf
         )
@@ -162,6 +181,111 @@ def _normalize01(arr: np.ndarray) -> np.ndarray:
     return ((arr - lo) / (hi - lo)).astype(np.float32)
 
 
+def _load_hardpoint_constraints(state: PipelineState) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
+    """Load optional hardpoint constraints for digitization-stage anchoring."""
+    warnings: list[str] = []
+    enabled = _env_bool(DIGITIZER_HARDPOINT_ENABLE_ENV, default=False)
+
+    env_path = os.getenv(DIGITIZER_HARDPOINT_PATH_ENV)
+    hp_path = Path(env_path) if env_path else Path(state.image_path).with_name("hard_points.json")
+
+    if not enabled and not hp_path.exists():
+        return {}, warnings
+    if not hp_path.exists():
+        warnings.append(f"W_HARDPOINT_FILE_MISSING:{hp_path}")
+        return {}, warnings
+    if not enabled:
+        warnings.append(f"I_HARDPOINT_AUTO_ENABLED:{hp_path}")
+
+    try:
+        payload = json.loads(hp_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        warnings.append(f"W_HARDPOINT_LOAD_FAILED:{exc}")
+        return {}, warnings
+    if not isinstance(payload, dict):
+        warnings.append("W_HARDPOINT_INVALID_PAYLOAD")
+        return {}, warnings
+
+    constraints: dict[str, list[tuple[float, float]]] = {}
+    for group_name, group_payload in payload.items():
+        if not isinstance(group_name, str) or not isinstance(group_payload, dict):
+            continue
+        landmarks = group_payload.get("landmarks", [])
+        if not isinstance(landmarks, list):
+            continue
+        pts: list[tuple[float, float]] = []
+        for lm in landmarks:
+            if not isinstance(lm, dict):
+                continue
+            t = lm.get("time")
+            s = lm.get("survival")
+            if not isinstance(t, (int, float)) or not isinstance(s, (int, float)):
+                continue
+            pts.append((float(t), float(np.clip(float(s), 0.0, 1.0))))
+        if pts:
+            pts.sort(key=lambda p: p[0])
+            constraints[group_name] = pts
+    warnings.append(f"I_HARDPOINT_LOADED_GROUPS:{len(constraints)}")
+    return constraints, warnings
+
+
+def _survival_to_plot_y(
+    survival: float,
+    curve_direction: str,
+    y_start: float,
+    y_end: float,
+) -> float:
+    s = float(np.clip(float(survival), 0.0, 1.0))
+    y_abs_max = float(max(abs(y_start), abs(y_end)))
+    use_percent = y_abs_max > 1.5
+    if curve_direction == "upward":
+        incidence = 1.0 - s
+        if use_percent:
+            return float(y_start + incidence * (y_end - y_start))
+        return float(np.clip(incidence, min(y_start, y_end), max(y_start, y_end)))
+    if use_percent:
+        return float(y_start + s * (y_end - y_start))
+    return float(np.clip(s, min(y_start, y_end), max(y_start, y_end)))
+
+
+def _build_hardpoint_guides(
+    plot_model,
+    hardpoints: dict[str, list[tuple[float, float]]],
+) -> tuple[dict[str, tuple[tuple[int, int], ...]], list[str]]:
+    warnings: list[str] = []
+    guides: dict[str, tuple[tuple[int, int], ...]] = {}
+    if not hardpoints:
+        return guides, warnings
+
+    x0, y0, x1, y1 = plot_model.plot_region
+    w = max(1, x1 - x0)
+    h = max(1, y1 - y0)
+    y_start = float(plot_model.mapping.y_axis.start)
+    y_end = float(plot_model.mapping.y_axis.end)
+    direction = plot_model.curve_direction
+
+    for name, pts in hardpoints.items():
+        if not pts:
+            continue
+        by_col: dict[int, list[int]] = {}
+        for t, s in pts:
+            y_plot = _survival_to_plot_y(s, direction, y_start, y_end)
+            px, py = plot_model.real_to_px(float(t), float(y_plot))
+            cx = int(np.clip(px - x0, 0, w - 1))
+            cy = int(np.clip(py - y0, 0, h - 1))
+            by_col.setdefault(cx, []).append(cy)
+        if not by_col:
+            continue
+        anchors = tuple(
+            (int(col), int(round(float(np.median(np.asarray(rows, dtype=np.float32))))))
+            for col, rows in sorted(by_col.items())
+        )
+        guides[name] = anchors
+        warnings.append(f"I_HARDPOINT_GUIDE:{name}:{len(anchors)}")
+
+    return guides, warnings
+
+
 def digitize_v3(state: PipelineState) -> PipelineState:
     """Run the new digitization_3 pipeline."""
     if state.plot_metadata is None:
@@ -195,6 +319,14 @@ def digitize_v3(state: PipelineState) -> PipelineState:
     evidence = build_evidence_cube(image, plot_model, color_models)
     all_warnings.extend(evidence.warning_codes)
 
+    hardpoint_constraints, hardpoint_warnings = _load_hardpoint_constraints(state)
+    all_warnings.extend(hardpoint_warnings)
+    hardpoint_guides, guide_warnings = _build_hardpoint_guides(
+        plot_model=plot_model,
+        hardpoints=hardpoint_constraints,
+    )
+    all_warnings.extend(guide_warnings)
+
     x0, y0, _, _ = plot_model.plot_region
     trace = trace_curves(
         arm_score_maps=evidence.arm_score_maps,
@@ -204,6 +336,8 @@ def digitize_v3(state: PipelineState) -> PipelineState:
         x0=x0,
         y0=y0,
         candidate_mask=evidence.candidate_mask,
+        arm_candidate_masks=evidence.arm_candidate_masks,
+        hardpoint_guides=hardpoint_guides,
     )
     all_warnings.extend(trace.warning_codes)
 
@@ -245,6 +379,8 @@ def digitize_v3(state: PipelineState) -> PipelineState:
                 swap_multiplier=0.7,
             ),
             candidate_mask=evidence.candidate_mask,
+            arm_candidate_masks=evidence.arm_candidate_masks,
+            hardpoint_guides=hardpoint_guides,
         )
         all_warnings.extend(retrace.warning_codes)
         retrace_curves, retrace_post_warnings = convert_pixel_curves_to_survival(
