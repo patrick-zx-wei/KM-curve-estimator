@@ -18,6 +18,8 @@ AXIS_PENALTY_WEIGHT = 0.85
 AXIS_PENALTY_WEIGHT_UPWARD = 0.45
 AXIS_PENALTY_WEIGHT_UNKNOWN = 0.65
 TEXT_PENALTY_WEIGHT = 0.58
+TEXT_REGION_PENALTY_WEIGHT = 0.42
+LINE_PENALTY_WEIGHT = 0.68
 FRAME_PENALTY_WEIGHT = 0.70
 HORIZONTAL_SUPPORT_WEIGHT = 0.42
 HORIZONTAL_SUPPORT_MIN = 0.14
@@ -25,23 +27,35 @@ HORIZONTAL_SUPPORT_KERNEL_RATIO = 0.012
 FRAME_LINE_DENSITY_MIN = 0.11
 FRAME_BAND_RATIO = 0.012
 FRAME_TOP_X_EXEMPT_RATIO = 0.06
-COLOR_GOOD_DISTANCE = 30.0
-COLOR_ANTI_WEIGHT = 0.50
-COLOR_STRICT_RELIABILITY = 0.35
-COLOR_STRICT_MIN_LIKELIHOOD = 0.38
-COLOR_STRICT_QUANTILE = 70.0
-COLOR_STRICT_OFF_PENALTY = 0.55
-COLOR_STRICT_MIN_DENSITY = 0.001
+COLOR_GOOD_DISTANCE = 22.0
+COLOR_ANTI_WEIGHT = 2.50
+COLOR_STRICT_RELIABILITY = 0.30
+COLOR_STRICT_MIN_LIKELIHOOD = 0.70
+COLOR_STRICT_QUANTILE = 90.0
+COLOR_STRICT_OFF_PENALTY = 1.40
+COLOR_STRICT_MIN_DENSITY = 0.0004
+COLOR_HARD_LOCK_RELIABILITY = 0.45
+COLOR_HARD_LOCK_MIN_LIKELIHOOD = 0.58
+GRAY_DYNAMIC_MIN_DIFF = 5.0
+GRAY_DYNAMIC_MAX_DIFF = 12.0
+GRAY_DYNAMIC_MAX_DIFF_LOW_RELIABILITY = 14.0
+GRAY_DYNAMIC_SEED_MIN = 18
+GRAY_DYNAMIC_SEED_QUANTILE = 90.0
+GRAY_DYNAMIC_SEED_MIN_SCORE = 0.72
+GRAY_DYNAMIC_MIN_DENSITY = 0.0002
 CANDIDATE_AXIS_THRESH = 0.25
 CANDIDATE_AXIS_THRESH_UPWARD = 0.55
 CANDIDATE_AXIS_THRESH_UNKNOWN = 0.40
 CANDIDATE_TEXT_THRESH = 0.35
+CANDIDATE_TEXT_REGION_THRESH = 0.42
+CANDIDATE_LINE_THRESH = 0.55
 CANDIDATE_RIDGE_THRESH = 0.24
 COMPONENT_MIN_AREA_RATIO = 0.00003
 COMPONENT_START_STRIP_RATIO = 0.14
 COMPONENT_START_BAND_RATIO = 0.22
 COMPONENT_XSPAN_KEEP_RATIO = 0.28
 COMPONENT_XMIN_KEEP_RATIO = 0.22
+PRIMARY_COMPONENT_MIN_XSPAN_RATIO = 0.05
 HSL_KMEDOIDS_MAX_POINTS = 2600
 HSL_KMEDOIDS_MAX_ITERS = 6
 HSL_KMEDOIDS_KNN_K = 12
@@ -49,6 +63,8 @@ HSL_BG_LIGHTNESS_MAX = 0.96
 HSL_BG_SATURATION_MIN = 0.05
 HSL_CLUSTER_WEIGHT = np.asarray([1.0, 1.6, 1.6], dtype=np.float32)
 CONSENSUS_BLEND_WEIGHT = 0.30
+LINE_HOUGH_MIN_RATIO = 0.70
+LINE_HOUGH_ANGLE_DEG = 8.0
 
 
 def _normalize01(arr: NDArray[np.float32]) -> NDArray[np.float32]:
@@ -177,9 +193,69 @@ def _prune_curve_components(
     return keep.astype(bool), kept, dropped
 
 
+def _select_primary_component(
+    mask: NDArray[np.bool_],
+    direction: str,
+) -> tuple[NDArray[np.bool_], bool, float]:
+    """
+    Keep a single most plausible component to avoid arm hopping.
+    Returns: selected_mask, used_primary_selector, x_span_ratio_of_selected
+    """
+    h, w = mask.shape
+    if h <= 0 or w <= 0:
+        return mask, False, 0.0
+
+    src = (mask.astype(np.uint8) * 255)
+    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(src, connectivity=8)
+    if n_labels <= 1:
+        return mask, False, 0.0
+
+    x_start_max = max(1, int(round(w * COMPONENT_START_STRIP_RATIO)))
+    y_band = max(2, int(round(h * COMPONENT_START_BAND_RATIO)))
+    best_idx = -1
+    best_score = -1e9
+    best_xspan = 0.0
+    for idx in range(1, n_labels):
+        x = int(stats[idx, cv2.CC_STAT_LEFT])
+        y = int(stats[idx, cv2.CC_STAT_TOP])
+        cw = int(stats[idx, cv2.CC_STAT_WIDTH])
+        ch = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        area = int(stats[idx, cv2.CC_STAT_AREA])
+        if area <= 0 or cw <= 0 or ch <= 0:
+            continue
+        x_span = float(cw) / float(max(1, w))
+        if x_span < PRIMARY_COMPONENT_MIN_XSPAN_RATIO:
+            continue
+        y_min = y
+        y_max = y + ch - 1
+        starts_left = x <= x_start_max
+        if direction == "upward":
+            start_band = y_max >= (h - y_band)
+        else:
+            start_band = y_min <= y_band
+        area_ratio = float(area) / float(max(1, h * w))
+        score = (
+            2.2 * x_span
+            + 0.8 * min(1.0, area_ratio * 180.0)
+            + (0.7 if starts_left else 0.0)
+            + (0.7 if start_band else 0.0)
+        )
+        if score > best_score:
+            best_score = score
+            best_idx = idx
+            best_xspan = x_span
+
+    if best_idx < 0:
+        return mask, False, 0.0
+
+    out = np.zeros_like(src, dtype=np.uint8)
+    out[labels == best_idx] = 255
+    return out.astype(bool), True, float(best_xspan)
+
+
 def _text_penalty(gray: NDArray[np.uint8]) -> NDArray[np.float32]:
     """Approximate text-like regions as a soft penalty map."""
-    inv = cv2.adaptiveThreshold(
+    adaptive = cv2.adaptiveThreshold(
         gray,
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -187,7 +263,18 @@ def _text_penalty(gray: NDArray[np.uint8]) -> NDArray[np.float32]:
         25,
         6,
     )
-    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(inv, connectivity=8)
+    _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    k_w = max(7, int(round(gray.shape[1] * 0.018)))
+    k_h = max(5, int(round(gray.shape[0] * 0.014)))
+    blackhat_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k_w, k_h))
+    blackhat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, blackhat_kernel)
+    _, bh_bin = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    merged = cv2.bitwise_or(adaptive, otsu)
+    merged = cv2.bitwise_or(merged, bh_bin)
+
+    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(merged, connectivity=8)
     out = np.zeros_like(gray, dtype=np.uint8)
     h, w = gray.shape
     area_floor = max(8, int((h * w) * 0.00002))
@@ -201,12 +288,113 @@ def _text_penalty(gray: NDArray[np.uint8]) -> NDArray[np.float32]:
         if bw <= 0 or bh <= 0:
             continue
         aspect = float(max(bw, bh)) / float(max(1, min(bw, bh)))
+        fill = float(area) / float(max(1, bw * bh))
         # Text glyph-ish blobs: compact-ish and not large bars.
-        if aspect > 7.5:
+        if aspect > 10.0:
+            continue
+        if fill < 0.12 or fill > 0.92:
             continue
         out[labels == idx] = 255
     out = cv2.dilate(out, np.ones((2, 2), dtype=np.uint8), iterations=1)
-    return (out.astype(np.float32) / 255.0).astype(np.float32)
+    out = cv2.GaussianBlur((out.astype(np.float32) / 255.0).astype(np.float32), (5, 5), 0)
+    return _normalize01(out.astype(np.float32))
+
+
+def _text_region_penalty(text_penalty: NDArray[np.float32]) -> NDArray[np.float32]:
+    """
+    Expand local text detections into UI regions (legend/annotation blocks)
+    so tracing does not jump to labels and boxed callouts.
+    """
+    h, w = text_penalty.shape
+    if h <= 0 or w <= 0:
+        return np.zeros_like(text_penalty, dtype=np.float32)
+
+    bin_mask = (text_penalty > 0.25).astype(np.uint8) * 255
+    if not np.any(bin_mask):
+        return np.zeros_like(text_penalty, dtype=np.float32)
+
+    k_w = max(9, int(round(w * 0.030)))
+    k_h = max(7, int(round(h * 0.025)))
+    dil = cv2.dilate(bin_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (k_w, k_h)), iterations=1)
+
+    out = np.zeros_like(bin_mask, dtype=np.uint8)
+    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(dil, connectivity=8)
+    area_floor = max(30, int((h * w) * 0.00025))
+    area_ceil = max(area_floor + 1, int((h * w) * 0.09))
+    pad_x = max(2, int(round(w * 0.012)))
+    pad_y = max(2, int(round(h * 0.012)))
+    for idx in range(1, n_labels):
+        area = int(stats[idx, cv2.CC_STAT_AREA])
+        if area < area_floor or area > area_ceil:
+            continue
+        x = int(stats[idx, cv2.CC_STAT_LEFT])
+        y = int(stats[idx, cv2.CC_STAT_TOP])
+        bw = int(stats[idx, cv2.CC_STAT_WIDTH])
+        bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        if bw <= 0 or bh <= 0:
+            continue
+        x0 = max(0, x - pad_x)
+        y0 = max(0, y - pad_y)
+        x1 = min(w - 1, x + bw - 1 + pad_x)
+        y1 = min(h - 1, y + bh - 1 + pad_y)
+        cv2.rectangle(out, (x0, y0), (x1, y1), color=255, thickness=-1)
+
+    out = cv2.GaussianBlur((out.astype(np.float32) / 255.0).astype(np.float32), (5, 5), 0)
+    return _normalize01(out.astype(np.float32))
+
+
+def _straight_line_penalty(
+    gray: NDArray[np.uint8],
+    axis_mask: NDArray[np.uint8],
+) -> tuple[NDArray[np.float32], int]:
+    """
+    Penalize long straight horizontal/vertical lines (grid/frame/boxed UI)
+    without suppressing short KM step segments.
+    """
+    h, w = gray.shape
+    if h <= 0 or w <= 0:
+        return np.zeros_like(gray, dtype=np.float32), 0
+
+    edges = cv2.Canny(gray, 40, 130)
+    min_len = max(10, int(round(min(h, w) * 0.42)))
+    raw_lines = cv2.HoughLinesP(
+        edges,
+        rho=1,
+        theta=np.pi / 180.0,
+        threshold=max(18, int(round(0.07 * max(h, w)))),
+        minLineLength=min_len,
+        maxLineGap=max(3, int(round(min(h, w) * 0.018))),
+    )
+
+    horiz_min = float(max(12, int(round(w * LINE_HOUGH_MIN_RATIO))))
+    vert_min = float(max(12, int(round(h * LINE_HOUGH_MIN_RATIO))))
+    out = np.zeros_like(gray, dtype=np.uint8)
+    kept = 0
+    if raw_lines is not None:
+        for line in raw_lines:
+            x1, y1, x2, y2 = [int(v) for v in line[0]]
+            dx = float(x2 - x1)
+            dy = float(y2 - y1)
+            length = float(np.hypot(dx, dy))
+            if length <= 1.0:
+                continue
+            angle = abs(float(np.degrees(np.arctan2(dy, dx))))
+            is_horizontal = angle <= LINE_HOUGH_ANGLE_DEG or angle >= (180.0 - LINE_HOUGH_ANGLE_DEG)
+            is_vertical = abs(angle - 90.0) <= LINE_HOUGH_ANGLE_DEG
+            if is_horizontal and length >= horiz_min:
+                cv2.line(out, (x1, y1), (x2, y2), color=255, thickness=2, lineType=cv2.LINE_AA)
+                kept += 1
+            elif is_vertical and length >= vert_min:
+                cv2.line(out, (x1, y1), (x2, y2), color=255, thickness=2, lineType=cv2.LINE_AA)
+                kept += 1
+
+    if np.any(axis_mask):
+        axis_dil = cv2.dilate(axis_mask, np.ones((5, 5), dtype=np.uint8), iterations=1)
+        out[axis_dil > 0] = 0
+
+    out_f = cv2.GaussianBlur((out.astype(np.float32) / 255.0).astype(np.float32), (5, 5), 0)
+    out_f = _normalize01(out_f.astype(np.float32))
+    return out_f, int(kept)
 
 
 def _color_likelihood(
@@ -222,6 +410,67 @@ def _color_likelihood(
     # Saturating positive-only color contribution.
     likelihood = np.clip((COLOR_GOOD_DISTANCE - dist) / COLOR_GOOD_DISTANCE, 0.0, 1.0)
     return likelihood.astype(np.float32)
+
+
+def _reference_gray_from_lab(reference_lab: tuple[float, float, float] | None) -> float | None:
+    if reference_lab is None:
+        return None
+    lab = np.asarray(
+        [[[
+            int(np.clip(round(reference_lab[0]), 0, 255)),
+            int(np.clip(round(reference_lab[1]), 0, 255)),
+            int(np.clip(round(reference_lab[2]), 0, 255)),
+        ]]],
+        dtype=np.uint8,
+    )
+    bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    return float(gray[0, 0])
+
+
+def _dynamic_gray_gate(
+    gray_f: NDArray[np.float32],
+    candidate_mask: NDArray[np.bool_],
+    color_mix: NDArray[np.float32],
+    ref_gray: float | None,
+    reliability: float,
+) -> tuple[float | None, float, int, float, float]:
+    """
+    Compute dynamic grayscale center/threshold from high-confidence arm seeds.
+
+    Returns:
+      center_gray, threshold, seed_count, seed_mad, seed_threshold
+    """
+    if gray_f.shape != candidate_mask.shape or gray_f.shape != color_mix.shape:
+        return ref_gray, GRAY_DYNAMIC_MIN_DIFF, 0, 0.0, GRAY_DYNAMIC_SEED_MIN_SCORE
+
+    cand_vals = color_mix[candidate_mask]
+    if cand_vals.size <= 0:
+        return ref_gray, GRAY_DYNAMIC_MIN_DIFF, 0, 0.0, GRAY_DYNAMIC_SEED_MIN_SCORE
+
+    seed_q = float(np.percentile(cand_vals, GRAY_DYNAMIC_SEED_QUANTILE))
+    seed_thr = max(GRAY_DYNAMIC_SEED_MIN_SCORE, seed_q)
+    seed_mask = candidate_mask & (color_mix >= seed_thr)
+    seed_gray = gray_f[seed_mask]
+
+    if seed_gray.size < GRAY_DYNAMIC_SEED_MIN:
+        seed_thr2 = max(0.62, float(np.percentile(cand_vals, 82.0)))
+        seed_mask2 = candidate_mask & (color_mix >= seed_thr2)
+        seed_gray2 = gray_f[seed_mask2]
+        if seed_gray2.size > seed_gray.size:
+            seed_mask = seed_mask2
+            seed_gray = seed_gray2
+            seed_thr = seed_thr2
+
+    seed_count = int(seed_gray.size)
+    if seed_count < GRAY_DYNAMIC_SEED_MIN:
+        return ref_gray, GRAY_DYNAMIC_MIN_DIFF, seed_count, 0.0, seed_thr
+
+    center = float(np.median(seed_gray))
+    mad = float(np.median(np.abs(seed_gray - center)))
+    cap = GRAY_DYNAMIC_MAX_DIFF if reliability >= COLOR_STRICT_RELIABILITY else GRAY_DYNAMIC_MAX_DIFF_LOW_RELIABILITY
+    thr = float(np.clip((2.5 * mad) + 2.0, GRAY_DYNAMIC_MIN_DIFF, cap))
+    return center, thr, seed_count, mad, seed_thr
 
 
 def _pairwise_sqdist(a: NDArray[np.float32], b: NDArray[np.float32]) -> NDArray[np.float32]:
@@ -425,6 +674,8 @@ class EvidenceCube:
     ridge_map: NDArray[np.float32]
     edge_map: NDArray[np.float32]
     text_penalty_map: NDArray[np.float32]
+    text_region_penalty_map: NDArray[np.float32]
+    line_penalty_map: NDArray[np.float32]
     axis_penalty_map: NDArray[np.float32]
     structure_map: NDArray[np.float32]
     overlap_consensus_map: NDArray[np.float32]
@@ -445,15 +696,19 @@ def build_evidence_cube(
     x0, y0, x1, y1 = plot_model.plot_region
     roi = image[y0:y1, x0:x1]
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    gray_f = gray.astype(np.float32)
     roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
 
     ridge = _ridge_response(gray)
     edge = _edge_response(gray)
-    text_pen = _text_penalty(gray)
+    text_pen_raw = _text_penalty(gray)
+    text_region_pen = _text_region_penalty(text_pen_raw)
+    text_pen = np.maximum(text_pen_raw, 0.75 * text_region_pen).astype(np.float32)
     frame_pen, has_top_frame, has_right_frame = _frame_penalty(gray)
     prelim_mask = (
         (ridge > max(0.10, CANDIDATE_RIDGE_THRESH * 0.7))
         & (text_pen < min(0.65, CANDIDATE_TEXT_THRESH + 0.20))
+        & (text_region_pen < min(0.70, CANDIDATE_TEXT_REGION_THRESH + 0.20))
         & (frame_pen < 0.65)
     )
     h_support = _horizontal_support(prelim_mask.astype(np.bool_))
@@ -462,6 +717,7 @@ def build_evidence_cube(
     axis_pen_f = (axis_pen.astype(np.float32) / 255.0).astype(np.float32)
     axis_pen_f = cv2.GaussianBlur(axis_pen_f, (5, 5), 0)
     axis_pen_f = _normalize01(axis_pen_f)
+    line_pen, line_count = _straight_line_penalty(gray, axis_mask=axis_pen)
 
     direction = plot_model.curve_direction
     axis_weight = AXIS_PENALTY_WEIGHT
@@ -487,6 +743,8 @@ def build_evidence_cube(
         + HORIZONTAL_SUPPORT_WEIGHT * h_support
         - axis_weight * axis_pen_for_structure
         - TEXT_PENALTY_WEIGHT * text_pen
+        - TEXT_REGION_PENALTY_WEIGHT * text_region_pen
+        - LINE_PENALTY_WEIGHT * line_pen
         - FRAME_PENALTY_WEIGHT * frame_pen
     ).astype(np.float32)
     structure_map = _normalize01(structure_base)
@@ -495,13 +753,37 @@ def build_evidence_cube(
         (ridge > CANDIDATE_RIDGE_THRESH)
         & (axis_pen_f < candidate_axis_thresh)
         & (text_pen < CANDIDATE_TEXT_THRESH)
+        & (text_region_pen < CANDIDATE_TEXT_REGION_THRESH)
+        & (line_pen < CANDIDATE_LINE_THRESH)
         & (frame_pen < 0.40)
         & (h_support > HORIZONTAL_SUPPORT_MIN)
     )
     cand_density = float(np.mean(candidate_mask))
     if cand_density < 0.003:
         warnings.append(f"W_RIDGE_CANDIDATES_SPARSE:{cand_density:.4f}")
-        candidate_mask = np.ones_like(candidate_mask, dtype=np.bool_)
+        relaxed = (
+            (ridge > max(0.08, CANDIDATE_RIDGE_THRESH * 0.60))
+            & (axis_pen_f < min(0.85, candidate_axis_thresh + 0.25))
+            & (text_pen < min(0.90, CANDIDATE_TEXT_THRESH + 0.30))
+            & (text_region_pen < min(0.92, CANDIDATE_TEXT_REGION_THRESH + 0.30))
+            & (line_pen < min(0.92, CANDIDATE_LINE_THRESH + 0.30))
+            & (frame_pen < 0.75)
+        )
+        relaxed_density = float(np.mean(relaxed))
+        warnings.append(f"I_RIDGE_CANDIDATES_RELAXED:{relaxed_density:.4f}")
+        if relaxed_density >= 0.001:
+            candidate_mask = relaxed.astype(np.bool_)
+        else:
+            # Last fallback: highest-ridge dark pixels only, still respecting axis/tick suppression.
+            ridge_thr = float(np.quantile(ridge, 0.92))
+            fallback = (
+                (ridge >= ridge_thr)
+                & (axis_pen_f < min(0.92, candidate_axis_thresh + 0.35))
+                & (text_pen < 0.95)
+                & (frame_pen < 0.85)
+            )
+            candidate_mask = fallback.astype(np.bool_)
+            warnings.append(f"W_RIDGE_CANDIDATES_FALLBACK:{float(np.mean(candidate_mask)):.4f}")
 
     arm_names = sorted(color_models)
     cluster_like_maps, overlap_consensus_map, cluster_lab, cluster_warnings = _build_hsl_partition(
@@ -516,6 +798,9 @@ def build_evidence_cube(
         warnings.append(
             f"I_FRAME_PENALTY_APPLIED:{int(has_top_frame)}:{int(has_right_frame)}"
         )
+    line_density = float(np.mean(line_pen > 0.35))
+    if line_count > 0:
+        warnings.append(f"I_STRAIGHT_LINE_PENALTY:{line_count}:{line_density:.4f}")
     cluster_assignment = _assign_clusters_to_arms(arm_names, color_models, cluster_lab)
 
     arm_maps: dict[str, NDArray[np.float32]] = {}
@@ -547,6 +832,28 @@ def build_evidence_cube(
         # Strong color-lock mode when color model is reliable and dense enough:
         # keep candidates near the arm's color signature and demote off-color pixels.
         arm_mask = candidate_mask.copy()
+
+        ref_gray = _reference_gray_from_lab(model.reference_lab())
+        gray_center, gray_thr, gray_seed_n, gray_mad, gray_seed_thr = _dynamic_gray_gate(
+            gray_f=gray_f,
+            candidate_mask=candidate_mask,
+            color_mix=color_mix,
+            ref_gray=ref_gray,
+            reliability=float(model.reliability),
+        )
+        if gray_center is not None:
+            gray_mask = np.abs(gray_f - float(gray_center)) <= float(gray_thr)
+            gray_density = float(np.mean(gray_mask & candidate_mask))
+            warnings.append(
+                f"I_GRAY_DYNAMIC_LOCK:{arm_name}:{gray_density:.4f}:{gray_center:.1f}:{gray_thr:.2f}:{gray_seed_n}:{gray_mad:.2f}:{gray_seed_thr:.3f}"
+            )
+            arm_mask = np.logical_and(arm_mask, gray_mask)
+            base = np.where(gray_mask, base, base - 2.20).astype(np.float32)
+            if gray_density < GRAY_DYNAMIC_MIN_DENSITY:
+                warnings.append(
+                    f"W_GRAY_DYNAMIC_SPARSE:{arm_name}:{gray_density:.4f}:{gray_thr:.2f}"
+                )
+
         if model.reliability >= COLOR_STRICT_RELIABILITY:
             candidate_vals = color_mix[candidate_mask]
             if candidate_vals.size > 0:
@@ -567,6 +874,18 @@ def build_evidence_cube(
                     f"W_COLOR_STRICT_SPARSE_SKIP:{arm_name}:{strict_density:.4f}:{strict_thr:.3f}"
                 )
 
+        # Hard lock for reliable color arms: do not allow off-color pixels.
+        if model.reliability >= COLOR_HARD_LOCK_RELIABILITY:
+            hard_thr = max(COLOR_HARD_LOCK_MIN_LIKELIHOOD, COLOR_STRICT_MIN_LIKELIHOOD - 0.05)
+            hard_mask = candidate_mask & (color_mix >= hard_thr)
+            hard_density = float(np.mean(hard_mask))
+            if hard_density >= max(0.0002, COLOR_STRICT_MIN_DENSITY * 0.6):
+                arm_mask = hard_mask
+                base = np.where(arm_mask, base, base - 1.80).astype(np.float32)
+                warnings.append(f"I_COLOR_HARD_LOCK:{arm_name}:{hard_density:.4f}:{hard_thr:.3f}")
+            else:
+                warnings.append(f"W_COLOR_HARD_LOCK_SPARSE:{arm_name}:{hard_density:.4f}:{hard_thr:.3f}")
+
         # Connectivity prune: drop disconnected UI/text components that are not
         # plausible curve fragments.
         pruned_mask, kept_components, dropped_components = _prune_curve_components(
@@ -580,6 +899,18 @@ def build_evidence_cube(
             )
         elif dropped_components > 0:
             warnings.append(f"W_CURVE_COMPONENT_PRUNE_EMPTY:{arm_name}:{dropped_components}")
+
+        # Enforce one component per arm to prevent curve hopping.
+        if model.reliability >= COLOR_STRICT_RELIABILITY:
+            primary_mask, selected, xspan = _select_primary_component(
+                arm_mask.astype(np.bool_),
+                direction=direction,
+            )
+            if selected:
+                arm_mask = primary_mask
+                warnings.append(f"I_PRIMARY_COMPONENT_LOCK:{arm_name}:{xspan:.3f}")
+            else:
+                warnings.append(f"W_PRIMARY_COMPONENT_LOCK_SKIPPED:{arm_name}")
 
         # Ridge-first candidates: attenuate non-candidates when dense enough.
         if cand_density >= 0.01:
@@ -614,6 +945,8 @@ def build_evidence_cube(
         ridge_map=ridge,
         edge_map=edge,
         text_penalty_map=text_pen,
+        text_region_penalty_map=text_region_pen,
+        line_penalty_map=line_pen,
         axis_penalty_map=axis_pen_f,
         structure_map=structure_map,
         overlap_consensus_map=overlap_consensus_map,

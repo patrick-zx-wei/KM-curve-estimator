@@ -163,9 +163,12 @@ def _gate_confidence(
     if low_arms:
         warnings.append("W_LOW_ARM_CONFIDENCE_SET:" + ",".join(sorted(low_arms)))
 
-    should_fail = (adjusted < EXTREME_FAIL_THRESHOLD) or (
-        hard_fail and adjusted < HARD_FAIL_MIN_CONFIDENCE
-    ) or (adjusted < LOW_CONFIDENCE_FAIL_THRESHOLD)
+    # Do not block downstream evaluation for most low-confidence traces.
+    # Reserve hard failure for critically unreliable traces with poor coverage.
+    should_fail = bool(
+        adjusted < EXTREME_FAIL_THRESHOLD
+        and (span_mean < 0.35 or low_frac >= 0.95)
+    )
     if hard_fail and not should_fail:
         warnings.append("W_HARD_FAIL_REVIEW_ONLY")
     if adjusted < LOW_CONFIDENCE_REVIEW_THRESHOLD:
