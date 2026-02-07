@@ -1,33 +1,29 @@
 {
   "case_name": "case_033",
-  "difficulty": 2,
-  "n_curves": 2,
+  "difficulty": 1,
+  "n_curves": 1,
   "pipeline_errors": [],
   "mmpu": {
     "x_axis_start_error": 0.0,
     "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
-    "n_curves_detected": 2,
-    "n_curves_expected": 2,
+    "n_curves_detected": 1,
+    "n_curves_expected": 1,
     "curves_match": true,
-    "risk_table_detected": false,
+    "curve_direction_detected": "upward",
+    "curve_direction_expected": "upward",
+    "curve_direction_match": true,
+    "risk_table_detected": true,
     "risk_table_expected": true
   },
   "digitize": {
     "Control": {
-      "mae": 0.019460780604358664,
-      "rmse": 0.022954503071097664,
-      "dtw": 0.0023296695940297004,
-      "frechet": 0.018915174196773965,
-      "max_error": 0.08188672257782287
-    },
-    "Treatment": {
-      "mae": 0.07557134745947447,
-      "rmse": 0.08544837399775206,
-      "dtw": 0.025158678550154457,
-      "frechet": 0.1882138632851274,
-      "max_error": 0.1447928106535485
+      "mae": 0.12163911276010324,
+      "rmse": 0.13877931301627675,
+      "dtw": 0.0037658334720319783,
+      "frechet": 0.08816560343728524,
+      "max_error": 0.23877729062247277
     }
   },
   "hard_points": {
@@ -35,49 +31,30 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.8147,
-          "actual": 0.8206,
-          "error": 0.0059,
+          "expected": 0.8745,
+          "actual": 0.8978,
+          "error": 0.0233,
           "pass": true
         },
         {
           "time": 12,
-          "expected": 0.6779,
-          "actual": 0.6947,
-          "error": 0.0168,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.4863,
-          "actual": 0.5076,
-          "error": 0.0213,
-          "pass": true
-        }
-      ],
-      "all_pass": true
-    },
-    "Treatment": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.8948,
-          "actual": 0.8176,
-          "error": 0.0772,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.8169,
-          "actual": 0.6924,
-          "error": 0.1245,
+          "expected": 0.7567,
+          "actual": 0.8132,
+          "error": 0.0565,
           "pass": false
         },
         {
           "time": 24,
-          "expected": 0.616,
-          "actual": 0.503,
-          "error": 0.113,
+          "expected": 0.5068,
+          "actual": 0.7179,
+          "error": 0.2111,
+          "pass": false
+        },
+        {
+          "time": 36,
+          "expected": 0.3904,
+          "actual": 0.5349,
+          "error": 0.1445,
           "pass": false
         }
       ],
@@ -86,30 +63,243 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.020928613885072122,
-      "rmse": 0.024112581575705054,
-      "dtw": 0.0026855833686889874,
-      "frechet": 0.017662664275930717,
-      "max_error": 0.08235400537279314
-    },
-    "Treatment": {
-      "mae": 0.07512950993119137,
-      "rmse": 0.08517112957731159,
-      "dtw": 0.012158871311364368,
-      "frechet": 0.18749130542202697,
-      "max_error": 0.144779867870783
+      "mae": 0.10403122930129877,
+      "rmse": 0.1337153647010884,
+      "dtw": 0.015412752587023244,
+      "frechet": 0.14445586295500912,
+      "max_error": 0.2598595874027363
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.0013154871797018699,
+      "mae": 0.03633497573179495,
       "dtw": null,
       "rmse": null
+    }
+  },
+  "reconstruction_meta": {
+    "mode": "full",
+    "patient_counts": {
+      "Control": 187
     },
-    "Treatment": {
-      "mae": 0.0007825139605963737,
-      "dtw": null,
-      "rmse": null
+    "warnings": [
+      "OCR fast phase failed (ServerError); escalating",
+      "Low GPT metadata confidence (0.70), verifying with Gemini",
+      "W_DIRECTION_AMBIGUOUS_TEXT",
+      "I_DIRECTION_FALLBACK_METADATA:upward",
+      "I_TICK_CAL_X:7:0.190:36.0",
+      "I_TICK_CAL_Y:6:0.271:29.0",
+      "W_COLOR_PRIOR_REJECTED:Control:111.8",
+      "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:1",
+      "W_DIRECTION_AMBIGUOUS_PENALTY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.769",
+      "W_DIRECTION_AMBIGUOUS_TEXT",
+      "I_DIRECTION_FALLBACK_METADATA:upward",
+      "I_TICK_CAL_X:7:0.190:36.0",
+      "I_TICK_CAL_Y:6:0.271:29.0",
+      "W_COLOR_PRIOR_REJECTED:Control:111.8",
+      "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:2",
+      "W_DIRECTION_AMBIGUOUS_PENALTY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.719",
+      "W_DIRECTION_AMBIGUOUS_TEXT",
+      "I_DIRECTION_FALLBACK_METADATA:upward",
+      "I_TICK_CAL_X:7:0.190:36.0",
+      "I_TICK_CAL_Y:6:0.271:29.0",
+      "W_COLOR_PRIOR_REJECTED:Control:111.8",
+      "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:3",
+      "W_DIRECTION_AMBIGUOUS_PENALTY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.669",
+      "Added 32 terminal right-censored survivors at t=36.0",
+      "Control: used censoring-mark hints in 6 intervals",
+      "Control: adjusted event/censor split from censoring hints in 4 intervals",
+      "Control: full-mode objective 0.0587 (fit=0.0363, interval=0.0000, landmark=0.0408)"
+    ]
+  },
+  "benchmark_track": "full_track",
+  "diagnostics": {
+    "per_arm": {
+      "Control": {
+        "digitize_mae": 0.12163911276010324,
+        "reconstruction_mae": 0.10403122930129877,
+        "delta_reconstruction_minus_digitize": -0.01760788345880447,
+        "hard_fail_count": 3,
+        "stage_attribution": "digitization_limited",
+        "failed_landmarks": [
+          {
+            "time": 12,
+            "expected": 0.7567,
+            "actual": 0.8132,
+            "error": 0.0565,
+            "bias": 0.0565
+          },
+          {
+            "time": 24,
+            "expected": 0.5068,
+            "actual": 0.7179,
+            "error": 0.2111,
+            "bias": 0.2111
+          },
+          {
+            "time": 36,
+            "expected": 0.3904,
+            "actual": 0.5349,
+            "error": 0.1445,
+            "bias": 0.1445
+          }
+        ]
+      }
+    },
+    "stage_attribution_counts": {
+      "digitization_limited": 1
+    },
+    "hard_fail_times": {
+      "12": 1,
+      "24": 1,
+      "36": 1
+    }
+  },
+  "interval_debug": {
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.10403122930129877,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 6.0,
+            "n_start": 187,
+            "n_end": 142,
+            "risk_table_loss": 45,
+            "events_reconstructed": 18,
+            "censors_reconstructed": 27,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9928,
+            "digitized_s_end": 0.9474,
+            "reconstructed_s_end": 0.8978,
+            "expected_s_end": 0.8745
+          },
+          {
+            "t_start": 6.0,
+            "t_end": 12.0,
+            "n_start": 142,
+            "n_end": 108,
+            "risk_table_loss": 34,
+            "events_reconstructed": 12,
+            "censors_reconstructed": 22,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9474,
+            "digitized_s_end": 0.8577,
+            "reconstructed_s_end": 0.8132,
+            "expected_s_end": 0.7567
+          },
+          {
+            "t_start": 12.0,
+            "t_end": 18.0,
+            "n_start": 108,
+            "n_end": 74,
+            "risk_table_loss": 34,
+            "events_reconstructed": 3,
+            "censors_reconstructed": 31,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.8577,
+            "digitized_s_end": 0.8124,
+            "reconstructed_s_end": 0.7874,
+            "expected_s_end": 0.5815
+          },
+          {
+            "t_start": 18.0,
+            "t_end": 24.0,
+            "n_start": 74,
+            "n_end": 58,
+            "risk_table_loss": 16,
+            "events_reconstructed": 6,
+            "censors_reconstructed": 10,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.8124,
+            "digitized_s_end": 0.7253,
+            "reconstructed_s_end": 0.7179,
+            "expected_s_end": 0.5068
+          },
+          {
+            "t_start": 24.0,
+            "t_end": 30.0,
+            "n_start": 58,
+            "n_end": 46,
+            "risk_table_loss": 12,
+            "events_reconstructed": 1,
+            "censors_reconstructed": 11,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.7253,
+            "digitized_s_end": 0.5783,
+            "reconstructed_s_end": 0.7041,
+            "expected_s_end": 0.4443
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 36.0,
+            "n_start": 46,
+            "n_end": 32,
+            "risk_table_loss": 14,
+            "events_reconstructed": 11,
+            "censors_reconstructed": 3,
+            "terminal_carryover_censors": 32,
+            "digitized_s_start": 0.5783,
+            "digitized_s_end": 0.5277,
+            "reconstructed_s_end": 0.5349,
+            "expected_s_end": 0.3904
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.8745,
+            "actual": 0.8978,
+            "error": 0.0233,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.7567,
+            "actual": 0.8132,
+            "error": 0.0565,
+            "pass": false
+          },
+          {
+            "time": 24,
+            "expected": 0.5068,
+            "actual": 0.7179,
+            "error": 0.2111,
+            "pass": false
+          },
+          {
+            "time": 36,
+            "expected": 0.3904,
+            "actual": 0.5349,
+            "error": 0.1445,
+            "pass": false
+          }
+        ]
+      }
     }
   },
   "passed": false

@@ -3,7 +3,10 @@
 import cv2
 import numpy as np
 from numpy.typing import NDArray
-from scipy.spatial import cKDTree
+try:
+    from scipy.spatial import cKDTree
+except Exception:  # pragma: no cover - optional dependency fallback
+    cKDTree = None  # type: ignore[assignment]
 
 from .axis_calibration import AxisMapping
 
@@ -154,20 +157,31 @@ def detect_censoring(
     max_dist = max(9, int(roi_width * 0.018))
 
     curve_trees: dict[str, cKDTree | None] = {}
+    curve_arrays: dict[str, NDArray[np.float32] | None] = {}
     for name, pixels in curves.items():
-        if pixels:
+        if pixels and cKDTree is not None:
             curve_trees[name] = cKDTree(pixels)
+            curve_arrays[name] = None
+        elif pixels:
+            curve_trees[name] = None
+            curve_arrays[name] = np.asarray(pixels, dtype=np.float32)
         else:
             curve_trees[name] = None
+            curve_arrays[name] = None
 
     for mx, my, score in merged:
         best_curve: str | None = None
         best_dist = float(max_dist)
 
         for name, tree in curve_trees.items():
-            if tree is None:
-                continue
-            dist, _ = tree.query([mx, my], k=1)
+            if tree is not None:
+                dist, _ = tree.query([mx, my], k=1)
+            else:
+                pts = curve_arrays.get(name)
+                if pts is None or pts.size == 0:
+                    continue
+                diff = pts - np.asarray([mx, my], dtype=np.float32)
+                dist = float(np.sqrt(np.min(np.sum(diff * diff, axis=1))))
             score_adjusted_dist = float(dist) / max(0.35, score)
             if score_adjusted_dist < best_dist:
                 best_dist = score_adjusted_dist

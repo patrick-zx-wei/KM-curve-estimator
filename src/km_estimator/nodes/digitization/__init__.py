@@ -2,6 +2,7 @@
 
 from bisect import bisect_right
 from itertools import permutations
+import os
 
 import numpy as np
 
@@ -1276,6 +1277,11 @@ def digitize(state: PipelineState) -> PipelineState:
                 ]
             }
         )
+
+    if os.getenv("KM_DIGITIZER", "").strip().lower() in {"v2", "2", "digitization_2"}:
+        from km_estimator.nodes.digitization_2 import digitize_v2
+
+        return digitize_v2(state)
 
     image_path = state.preprocessed_image_path or state.image_path
     image = cv_utils.load_image(image_path, stage=ProcessingStage.DIGITIZE)

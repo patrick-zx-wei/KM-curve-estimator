@@ -2,7 +2,16 @@
   "case_name": "case_100",
   "difficulty": 4,
   "n_curves": 3,
-  "pipeline_errors": [],
+  "pipeline_errors": [
+    {
+      "stage": "digitize",
+      "message": "digitization_v2 confidence too low (0.418)"
+    },
+    {
+      "stage": "digitize",
+      "message": "digitization_v2 confidence too low (0.418)"
+    }
+  ],
   "mmpu": {
     "x_axis_start_error": 0.0,
     "x_axis_end_error": 0.0,
@@ -19,25 +28,25 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.14586016047964165,
-      "rmse": 0.18401928476059204,
-      "dtw": 0.1428359011411252,
-      "frechet": 0.4088420076664407,
-      "max_error": 0.3087741919514816
+      "mae": 0.17524452807960253,
+      "rmse": 0.30202352714502045,
+      "dtw": 0.02116526101257707,
+      "frechet": 0.7991266250610352,
+      "max_error": 0.9502183198928833
     },
     "Treatment A": {
-      "mae": 0.7684610649361093,
-      "rmse": 0.7968153352692896,
-      "dtw": 0.3373887171334428,
-      "frechet": 0.8558951965065502,
-      "max_error": 0.9610472541507025
+      "mae": 0.21959851512811493,
+      "rmse": 0.304525988309289,
+      "dtw": 0.0753458709466227,
+      "frechet": 0.45327508449554443,
+      "max_error": 0.5394094754157368
     },
     "Treatment B": {
-      "mae": 0.1767907670960533,
-      "rmse": 0.23085688295410922,
-      "dtw": 0.6144065458352596,
-      "frechet": 0.72109409436268,
-      "max_error": 0.349551257779643
+      "mae": 0.036028707895343404,
+      "rmse": 0.04493137547031282,
+      "dtw": 0.06216853565980165,
+      "frechet": 0.2964901968743845,
+      "max_error": 0.08691590578293362
     }
   },
   "hard_points": {
@@ -46,15 +55,15 @@
         {
           "time": 6,
           "expected": 0.8533,
-          "actual": 0.4818,
-          "error": 0.3715,
+          "actual": 0.928,
+          "error": 0.0747,
           "pass": false
         },
         {
           "time": 12,
           "expected": 0.8249,
-          "actual": 0.1004,
-          "error": 0.7245,
+          "actual": 0.928,
+          "error": 0.1031,
           "pass": false
         }
       ],
@@ -65,22 +74,22 @@
         {
           "time": 6,
           "expected": 0.961,
-          "actual": 0.1181,
-          "error": 0.8429,
-          "pass": false
+          "actual": 0.9286,
+          "error": 0.0324,
+          "pass": true
         },
         {
           "time": 12,
           "expected": 0.9045,
-          "actual": 0.1181,
-          "error": 0.7864,
-          "pass": false
+          "actual": 0.9286,
+          "error": 0.0241,
+          "pass": true
         },
         {
           "time": 24,
           "expected": 0.3392,
-          "actual": 0.1181,
-          "error": 0.2211,
+          "actual": 0.9286,
+          "error": 0.5894,
           "pass": false
         }
       ],
@@ -91,8 +100,8 @@
         {
           "time": 6,
           "expected": 0.9101,
-          "actual": 0.5045,
-          "error": 0.4056,
+          "actual": 0.8016,
+          "error": 0.1085,
           "pass": false
         }
       ],
@@ -101,40 +110,40 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.13582878134954599,
-      "rmse": 0.18757387140104217,
-      "dtw": 0.16245755049498845,
-      "frechet": 0.4094988878438958,
-      "max_error": 0.3430425054091666
+      "mae": 0.10778662468070947,
+      "rmse": 0.27136546219792335,
+      "dtw": 0.10232711067800915,
+      "frechet": 0.9279999999999999,
+      "max_error": 0.9279999999999999
     },
     "Treatment A": {
-      "mae": 0.427426815900886,
-      "rmse": 0.5347016628230721,
-      "dtw": 0.08475535483169926,
-      "frechet": 0.2210829123033049,
-      "max_error": 0.84293701793023
+      "mae": 0.1593383202578605,
+      "rmse": 0.26305413497122204,
+      "dtw": 0.14597397068661436,
+      "frechet": 0.5893782800476512,
+      "max_error": 0.5893782800476512
     },
     "Treatment B": {
-      "mae": 0.17615574176780344,
-      "rmse": 0.24304188878048505,
-      "dtw": 0.3255136742134186,
-      "frechet": 0.7516441817524431,
-      "max_error": 0.39393278494747563
+      "mae": 0.12149555936758312,
+      "rmse": 0.13591554455444782,
+      "dtw": 0.04310087085384705,
+      "frechet": 0.08991683991683996,
+      "max_error": 0.1887973137973138
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.031754912754746276,
+      "mae": 0.16187993885972163,
       "dtw": null,
       "rmse": null
     },
     "Treatment A": {
-      "mae": 0.13560860676507866,
+      "mae": 0.3917189471993743,
       "dtw": null,
       "rmse": null
     },
     "Treatment B": {
-      "mae": 0.032850397490324035,
+      "mae": 0.034116656237454426,
       "dtw": null,
       "rmse": null
     }
@@ -147,242 +156,250 @@
       "Treatment B": 127
     },
     "warnings": [
-      "OCR fast phase failed (ServerError); escalating",
-      "GPT metadata extraction failed: Request timed out.",
+      "GPT extraction failed: Request timed out.",
       "Using Gemini fallback",
-      "Skipped artifact-robust isolation retry: no meaningful composite gain (35.85 -> 107.07)",
-      "Control: anchor constraints adjusted 9/534 points",
-      "Treatment A: skipped anchor projection (low confidence; viol=1.00, q90_gap=0.423)",
-      "Treatment A: anchor-checkpoint refinement adjusted 88/580 points across 1 intervals",
-      "Treatment A: skipped anchor projection (low confidence; viol=1.00, q90_gap=0.617)",
-      "Control: early plateau guard adjusted 103/552 points (interval-aware)",
-      "Treatment B: early plateau guard adjusted 83/612 points (interval-aware)",
-      "Control: restored KM origin from 0.978 to 1.000 at study start",
-      "Treatment A: restored KM origin from 0.144 to 1.000 at study start",
-      "Treatment A: lifted terminal tail floor to anchor-compatible 0.098",
-      "Control: flagged for rescue (collapsed_tail)",
-      "Treatment A: flagged for rescue (collapsed_tail, low_start, anchor_violation, anchor_interval_drop_mismatch)",
-      "Treatment B: flagged for rescue (collapsed_tail)",
-      "Treatment A at t=0.0: digitized survival 0.144 below anchor 1.000",
-      "Treatment A at t=10.0: digitized survival 0.000 below anchor 0.118",
-      "Converted upward cumulative-incidence curves into survival space before reconstruction",
-      "Skipped artifact-robust isolation retry: no meaningful composite gain (35.85 -> 107.07)",
-      "Control: anchor constraints adjusted 9/534 points",
-      "Treatment A: skipped anchor projection (low confidence; viol=1.00, q90_gap=0.423)",
-      "Treatment A: anchor-checkpoint refinement adjusted 88/580 points across 1 intervals",
-      "Treatment A: skipped anchor projection (low confidence; viol=1.00, q90_gap=0.617)",
-      "Control: early plateau guard adjusted 103/552 points (interval-aware)",
-      "Treatment B: early plateau guard adjusted 83/612 points (interval-aware)",
-      "Control: restored KM origin from 0.978 to 1.000 at study start",
-      "Treatment A: restored KM origin from 0.144 to 1.000 at study start",
-      "Treatment A: lifted terminal tail floor to anchor-compatible 0.098",
-      "Control: flagged for rescue (collapsed_tail)",
-      "Treatment A: flagged for rescue (collapsed_tail, low_start, anchor_violation, anchor_interval_drop_mismatch)",
-      "Treatment B: flagged for rescue (collapsed_tail)",
-      "Treatment A at t=0.0: digitized survival 0.144 below anchor 1.000",
-      "Treatment A at t=10.0: digitized survival 0.000 below anchor 0.118",
-      "Converted upward cumulative-incidence curves into survival space before reconstruction",
-      "Skipped artifact-robust isolation retry: no meaningful composite gain (35.85 -> 107.07)",
-      "Control: anchor constraints adjusted 9/534 points",
-      "Treatment A: skipped anchor projection (low confidence; viol=1.00, q90_gap=0.423)",
-      "Treatment A: anchor-checkpoint refinement adjusted 88/580 points across 1 intervals",
-      "Treatment A: skipped anchor projection (low confidence; viol=1.00, q90_gap=0.617)",
-      "Control: early plateau guard adjusted 103/552 points (interval-aware)",
-      "Treatment B: early plateau guard adjusted 83/612 points (interval-aware)",
-      "Control: restored KM origin from 0.978 to 1.000 at study start",
-      "Treatment A: restored KM origin from 0.144 to 1.000 at study start",
-      "Treatment A: lifted terminal tail floor to anchor-compatible 0.098",
-      "Control: flagged for rescue (collapsed_tail)",
-      "Treatment A: flagged for rescue (collapsed_tail, low_start, anchor_violation, anchor_interval_drop_mismatch)",
-      "Treatment B: flagged for rescue (collapsed_tail)",
-      "Treatment A at t=0.0: digitized survival 0.144 below anchor 1.000",
-      "Treatment A at t=10.0: digitized survival 0.000 below anchor 0.118",
-      "Converted upward cumulative-incidence curves into survival space before reconstruction",
-      "Added 10 terminal right-censored survivors at t=10.0",
+      "Metadata fast phase failed (ServerError); escalating",
+      "Low GPT metadata confidence (0.70), verifying with Gemini",
+      "W_DIRECTION_AMBIGUOUS_TEXT",
+      "I_DIRECTION_FALLBACK_METADATA:upward",
+      "W_COLOR_PRIOR_REJECTED:Control:120.6",
+      "W_COLOR_PRIOR_MISMATCH:Treatment A:34.0",
+      "W_COLOR_PRIOR_REJECTED:Treatment B:77.2",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:2",
+      "W_DIRECTION_AMBIGUOUS_PENALTY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.650",
+      "W_DIRECTION_AMBIGUOUS_TEXT",
+      "I_DIRECTION_FALLBACK_METADATA:upward",
+      "W_COLOR_PRIOR_REJECTED:Control:180.9",
+      "W_COLOR_PRIOR_MISMATCH:Treatment A:53.0",
+      "W_COLOR_PRIOR_REJECTED:Treatment B:93.7",
+      "W_LOW_MARGIN_HIGH:Control:0.399",
+      "W_LOW_MARGIN_HIGH:Treatment A:0.394",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_LOW_MARGIN_HIGH:Control:0.450",
+      "W_LOW_MARGIN_HIGH:Treatment A:0.441",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "E_HARD_FAIL_LOW_MARGIN:Control:0.399",
+      "E_HARD_FAIL_LOW_MARGIN:Treatment A:0.394",
+      "W_COLOR_REJECT_PENALTY:4",
+      "W_DIRECTION_AMBIGUOUS_PENALTY",
+      "W_NEEDS_MANUAL_REVIEW:0.418",
+      "W_DIRECTION_AMBIGUOUS_TEXT",
+      "I_DIRECTION_FALLBACK_METADATA:upward",
+      "W_COLOR_PRIOR_REJECTED:Control:180.9",
+      "W_COLOR_PRIOR_MISMATCH:Treatment A:53.0",
+      "W_COLOR_PRIOR_REJECTED:Treatment B:93.7",
+      "W_LOW_MARGIN_HIGH:Control:0.399",
+      "W_LOW_MARGIN_HIGH:Treatment A:0.394",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_LOW_MARGIN_HIGH:Control:0.450",
+      "W_LOW_MARGIN_HIGH:Treatment A:0.441",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "E_HARD_FAIL_LOW_MARGIN:Control:0.399",
+      "E_HARD_FAIL_LOW_MARGIN:Treatment A:0.394",
+      "W_COLOR_REJECT_PENALTY:6",
+      "W_DIRECTION_AMBIGUOUS_PENALTY",
+      "W_NEEDS_MANUAL_REVIEW:0.418",
+      "Added 10 terminal right-censored survivors at t=20.0",
       "Control: used censoring-mark hints in 1 intervals",
-      "Control: full-mode objective 0.0603 (fit=0.0318, interval=0.0000, landmark=0.0520)",
-      "Added 15 terminal right-censored survivors at t=10.0",
-      "Treatment A: full-mode objective 0.2006 (fit=0.1356, interval=0.0000, landmark=0.1181)",
-      "Added 14 terminal right-censored survivors at t=10.0",
-      "Treatment B: full-mode objective 0.0620 (fit=0.0329, interval=0.0000, landmark=0.0531)"
+      "Control: full-mode objective 0.2486 (fit=0.1619, interval=0.0000, landmark=0.1577)",
+      "Added 15 terminal right-censored survivors at t=20.0",
+      "Treatment A: used censoring-mark hints in 1 intervals",
+      "Treatment A: full-mode objective 0.6070 (fit=0.3917, interval=0.0000, landmark=0.3915)",
+      "Added 14 terminal right-censored survivors at t=20.0",
+      "Treatment B: used censoring-mark hints in 1 intervals",
+      "Treatment B: full-mode objective 0.0513 (fit=0.0341, interval=0.0000, landmark=0.0313)"
     ]
   },
   "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.14586016047964165,
-        "reconstruction_mae": 0.13582878134954599,
-        "delta_reconstruction_minus_digitize": -0.010031379130095663,
+        "digitize_mae": 0.17524452807960253,
+        "reconstruction_mae": 0.10778662468070947,
+        "delta_reconstruction_minus_digitize": -0.06745790339889306,
         "hard_fail_count": 2,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 6,
             "expected": 0.8533,
-            "actual": 0.4818,
-            "error": 0.3715,
-            "bias": -0.3715
+            "actual": 0.928,
+            "error": 0.0747,
+            "bias": 0.0747
           },
           {
             "time": 12,
             "expected": 0.8249,
-            "actual": 0.1004,
-            "error": 0.7245,
-            "bias": -0.7245
+            "actual": 0.928,
+            "error": 0.1031,
+            "bias": 0.1031
           }
         ]
       },
       "Treatment A": {
-        "digitize_mae": 0.7684610649361093,
-        "reconstruction_mae": 0.427426815900886,
-        "delta_reconstruction_minus_digitize": -0.34103424903522334,
-        "hard_fail_count": 3,
-        "stage_attribution": "digitization_limited",
-        "failed_landmarks": [
-          {
-            "time": 6,
-            "expected": 0.961,
-            "actual": 0.1181,
-            "error": 0.8429,
-            "bias": -0.8429
-          },
-          {
-            "time": 12,
-            "expected": 0.9045,
-            "actual": 0.1181,
-            "error": 0.7864,
-            "bias": -0.7864
-          },
-          {
-            "time": 24,
-            "expected": 0.3392,
-            "actual": 0.1181,
-            "error": 0.2211,
-            "bias": -0.2211
-          }
-        ]
-      },
-      "Treatment B": {
-        "digitize_mae": 0.1767907670960533,
-        "reconstruction_mae": 0.17615574176780344,
-        "delta_reconstruction_minus_digitize": -0.0006350253282498552,
+        "digitize_mae": 0.21959851512811493,
+        "reconstruction_mae": 0.1593383202578605,
+        "delta_reconstruction_minus_digitize": -0.06026019487025444,
         "hard_fail_count": 1,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
+            "time": 24,
+            "expected": 0.3392,
+            "actual": 0.9286,
+            "error": 0.5894,
+            "bias": 0.5894
+          }
+        ]
+      },
+      "Treatment B": {
+        "digitize_mae": 0.036028707895343404,
+        "reconstruction_mae": 0.12149555936758312,
+        "delta_reconstruction_minus_digitize": 0.08546685147223972,
+        "hard_fail_count": 1,
+        "stage_attribution": "reconstruction_limited",
+        "failed_landmarks": [
+          {
             "time": 6,
             "expected": 0.9101,
-            "actual": 0.5045,
-            "error": 0.4056,
-            "bias": -0.4056
+            "actual": 0.8016,
+            "error": 0.1085,
+            "bias": -0.1085
           }
         ]
       }
     },
     "stage_attribution_counts": {
-      "digitization_limited": 3
+      "digitization_limited": 2,
+      "reconstruction_limited": 1
     },
     "hard_fail_times": {
-      "6": 3,
-      "12": 2,
+      "6": 2,
+      "12": 1,
       "24": 1
     }
   },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.13582878134954599,
+        "reconstruction_mae": 0.10778662468070947,
         "intervals": [
           {
             "t_start": 0.0,
-            "t_end": 10.0,
+            "t_end": 20.0,
             "n_start": 127,
             "n_end": 10,
             "risk_table_loss": 117,
-            "events_reconstructed": 108,
-            "censors_reconstructed": 9,
+            "events_reconstructed": 9,
+            "censors_reconstructed": 108,
             "terminal_carryover_censors": 10,
-            "digitized_s_start": 1.0,
-            "digitized_s_end": 0.1524,
-            "reconstructed_s_end": 0.1004,
-            "expected_s_end": 0.8249
+            "digitized_s_start": 0.7747,
+            "digitized_s_end": 0.8821,
+            "reconstructed_s_end": 0.928,
+            "expected_s_end": 0.0
           }
         ],
         "hardpoint_deltas": [
           {
             "time": 6,
             "expected": 0.8533,
-            "actual": 0.4818,
-            "error": 0.3715,
+            "actual": 0.928,
+            "error": 0.0747,
             "pass": false
           },
           {
             "time": 12,
             "expected": 0.8249,
-            "actual": 0.1004,
-            "error": 0.7245,
+            "actual": 0.928,
+            "error": 0.1031,
             "pass": false
           }
         ]
       },
       "Treatment A": {
-        "reconstruction_mae": 0.427426815900886,
+        "reconstruction_mae": 0.1593383202578605,
         "intervals": [
           {
             "t_start": 0.0,
-            "t_end": 10.0,
+            "t_end": 20.0,
             "n_start": 127,
             "n_end": 15,
             "risk_table_loss": 112,
-            "events_reconstructed": 112,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 9,
+            "censors_reconstructed": 103,
             "terminal_carryover_censors": 15,
-            "digitized_s_start": 0.1441,
-            "digitized_s_end": 0.0,
-            "reconstructed_s_end": 0.1181,
-            "expected_s_end": 0.9045
+            "digitized_s_start": 0.5467,
+            "digitized_s_end": 0.8996,
+            "reconstructed_s_end": 0.9286,
+            "expected_s_end": 0.6784
           }
         ],
         "hardpoint_deltas": [
           {
             "time": 6,
             "expected": 0.961,
-            "actual": 0.1181,
-            "error": 0.8429,
-            "pass": false
+            "actual": 0.9286,
+            "error": 0.0324,
+            "pass": true
           },
           {
             "time": 12,
             "expected": 0.9045,
-            "actual": 0.1181,
-            "error": 0.7864,
-            "pass": false
+            "actual": 0.9286,
+            "error": 0.0241,
+            "pass": true
           },
           {
             "time": 24,
             "expected": 0.3392,
-            "actual": 0.1181,
-            "error": 0.2211,
+            "actual": 0.9286,
+            "error": 0.5894,
             "pass": false
           }
         ]
       },
       "Treatment B": {
-        "reconstruction_mae": 0.17615574176780344,
+        "reconstruction_mae": 0.12149555936758312,
         "intervals": [
           {
             "t_start": 0.0,
-            "t_end": 10.0,
+            "t_end": 20.0,
             "n_start": 127,
             "n_end": 14,
             "risk_table_loss": 113,
-            "events_reconstructed": 104,
-            "censors_reconstructed": 9,
+            "events_reconstructed": 25,
+            "censors_reconstructed": 88,
             "terminal_carryover_censors": 14,
-            "digitized_s_start": 0.9983,
-            "digitized_s_end": 0.1831,
-            "reconstructed_s_end": 0.13,
+            "digitized_s_start": 0.9646,
+            "digitized_s_end": 0.9004,
+            "reconstructed_s_end": 0.8016,
             "expected_s_end": 0.8816
           }
         ],
@@ -390,8 +407,8 @@
           {
             "time": 6,
             "expected": 0.9101,
-            "actual": 0.5045,
-            "error": 0.4056,
+            "actual": 0.8016,
+            "error": 0.1085,
             "pass": false
           }
         ]

@@ -1,154 +1,50 @@
 {
   "case_name": "case_083",
   "difficulty": 2,
-  "n_curves": 3,
-  "pipeline_errors": [],
+  "n_curves": 2,
+  "pipeline_errors": [
+    {
+      "stage": "digitize",
+      "message": "digitization_v2 confidence too low (0.393)"
+    }
+  ],
   "mmpu": {
     "x_axis_start_error": 0.0,
     "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
-    "n_curves_detected": 3,
-    "n_curves_expected": 3,
+    "n_curves_detected": 2,
+    "n_curves_expected": 2,
     "curves_match": true,
+    "curve_direction_detected": "downward",
+    "curve_direction_expected": "downward",
+    "curve_direction_match": true,
     "risk_table_detected": true,
     "risk_table_expected": true
   },
   "digitize": {
-    "Control": {
-      "mae": 0.0254940319093859,
-      "rmse": 0.028245482029795176,
-      "dtw": 0.0012073420281605823,
-      "frechet": 0.013761526147958711,
-      "max_error": 0.06212327348552488
-    },
-    "Treatment A": {
-      "mae": 0.04480598381659716,
-      "rmse": 0.06352458878508524,
-      "dtw": 0.0028900927103540602,
-      "frechet": 0.09075946785411876,
-      "max_error": 0.21342151270048385
-    },
-    "Treatment B": {
-      "mae": 0.028486746778460536,
-      "rmse": 0.03319280201627783,
-      "dtw": 0.0011984004128046469,
-      "frechet": 0.012234730054300286,
-      "max_error": 0.07221301973727451
-    }
+    "error": "no digitized_curves produced"
   },
   "hard_points": {
-    "Control": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.8712,
-          "actual": 0.8715,
-          "error": 0.0003,
-          "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.5377,
-          "actual": 0.5232,
-          "error": 0.0145,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.0673,
-          "actual": 0.0671,
-          "error": 0.0002,
-          "pass": true
-        }
-      ],
-      "all_pass": true
-    },
-    "Treatment A": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.8876,
-          "actual": 0.8793,
-          "error": 0.0083,
-          "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.6015,
-          "actual": 0.5371,
-          "error": 0.0644,
-          "pass": false
-        }
-      ],
-      "all_pass": false
-    },
-    "Treatment B": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.8813,
-          "actual": 0.888,
-          "error": 0.0067,
-          "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.5234,
-          "actual": 0.5307,
-          "error": 0.0073,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.0454,
-          "actual": 0.0415,
-          "error": 0.0039,
-          "pass": true
-        }
-      ],
-      "all_pass": true
-    }
+    "error": "no pipeline output"
   },
   "reconstruction": {
-    "Control": {
-      "mae": 0.008374630395836066,
-      "rmse": 0.010764532564899893,
-      "dtw": 0.0014182510334950652,
-      "frechet": 0.005700566656247921,
-      "max_error": 0.03221938328122084
-    },
-    "Treatment A": {
-      "mae": 0.047220388487258375,
-      "rmse": 0.06016290057794275,
-      "dtw": 0.009955104407717462,
-      "frechet": 0.06992034492123672,
-      "max_error": 0.17539761971148896
-    },
-    "Treatment B": {
-      "mae": 0.023029998771779015,
-      "rmse": 0.031793074237073504,
-      "dtw": 0.002282909350263314,
-      "frechet": 0.010549931079736008,
-      "max_error": 0.08430840116154847
-    }
+    "error": "no pipeline output"
   },
   "validation": {
-    "Control": {
-      "mae": 0.024544478305399322,
-      "dtw": null,
-      "rmse": null
-    },
-    "Treatment A": {
-      "mae": 0.01825314967939851,
-      "dtw": null,
-      "rmse": null
-    },
-    "Treatment B": {
-      "mae": 0.01882766004057114,
-      "dtw": null,
-      "rmse": null
-    }
+    "error": "no pipeline output"
+  },
+  "reconstruction_meta": {
+    "error": "no pipeline output"
+  },
+  "benchmark_track": "cv_only_track",
+  "diagnostics": {
+    "per_arm": {},
+    "stage_attribution_counts": {},
+    "hard_fail_times": {}
+  },
+  "interval_debug": {
+    "error": "no pipeline output"
   },
   "passed": false
 }
