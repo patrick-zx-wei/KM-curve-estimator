@@ -63,6 +63,11 @@ COLLAPSE_EARLY_WINDOW_RATIO = 0.35
 COLLAPSE_EARLY_MIN_SPAN = 0.04
 COLLAPSE_EARLY_MAX_DROP_RATIO = 0.35
 COLLAPSE_ANCHOR_INTERVAL_DROP_RATIO = 0.42
+ANCHOR_CHECKPOINT_MAX_INTERVALS = 6
+ANCHOR_CHECKPOINT_MIN_EXPECTED_DROP = 0.025
+ANCHOR_CHECKPOINT_TARGET_DROP_RATIO = 0.88
+ANCHOR_CHECKPOINT_MAX_DELTA = 0.12
+ANCHOR_CHECKPOINT_RAMP_POWER = 0.82
 
 
 def _resolved_curve_direction(raw_direction: str | None) -> str:
@@ -443,6 +448,88 @@ def _apply_anchor_constraints(
             if adaptive_tolerance > tolerance + 1e-9:
                 warning += f" (adaptive tolerance {adaptive_tolerance:.3f})"
             warnings.append(warning)
+
+    return adjusted_curves, warnings
+
+
+def _apply_anchor_checkpoint_refinement(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    y_start: float,
+    y_max: float,
+) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
+    """
+    Coarse-to-fine refinement using anchor checkpoints as hard-point proxies.
+
+    For intervals where observed drop under-shoots anchor-implied drop, nudge the
+    interval downward with a smooth ramp, then preserve KM monotonicity via step
+    enforcement in the caller.
+    """
+    adjusted_curves: dict[str, list[tuple[float, float]]] = {}
+    warnings: list[str] = []
+
+    for curve_name, points in digitized_curves.items():
+        anchor_points = anchors.get(curve_name)
+        if not points or not anchor_points or len(anchor_points) < 2:
+            adjusted_curves[curve_name] = points
+            continue
+
+        working = [list(p) for p in sorted((float(t), float(s)) for t, s in points)]
+        anchors_sorted = sorted((float(t), float(s)) for t, s in anchor_points)
+        max_intervals = min(ANCHOR_CHECKPOINT_MAX_INTERVALS, len(anchors_sorted) - 1)
+
+        changed = 0
+        interval_updates = 0
+        for idx in range(max_intervals):
+            t0, a0 = anchors_sorted[idx]
+            t1, a1 = anchors_sorted[idx + 1]
+            if t1 <= t0:
+                continue
+
+            expected_drop = max(0.0, a0 - a1)
+            if expected_drop < ANCHOR_CHECKPOINT_MIN_EXPECTED_DROP:
+                continue
+
+            observed_start = _step_survival_at(
+                [(float(t), float(s)) for t, s in working],
+                t0,
+            )
+            observed_end = _step_survival_at(
+                [(float(t), float(s)) for t, s in working],
+                t1,
+            )
+            observed_drop = max(0.0, observed_start - observed_end)
+            target_drop = max(observed_drop, expected_drop * ANCHOR_CHECKPOINT_TARGET_DROP_RATIO)
+            needed_drop = target_drop - observed_drop
+            if needed_drop <= 1e-6:
+                continue
+
+            needed_drop = float(min(needed_drop, ANCHOR_CHECKPOINT_MAX_DELTA))
+            interval_span = max(1e-6, t1 - t0)
+            updated_this_interval = 0
+
+            for point in working:
+                t, s = float(point[0]), float(point[1])
+                if t <= t0 + 1e-9 or t > t1 + 1e-9:
+                    continue
+                frac = float(np.clip((t - t0) / interval_span, 0.0, 1.0))
+                ramp = frac**ANCHOR_CHECKPOINT_RAMP_POWER
+                new_s = float(np.clip(s - needed_drop * ramp, y_start, y_max))
+                if abs(new_s - s) > 1e-6:
+                    point[1] = new_s
+                    updated_this_interval += 1
+
+            if updated_this_interval > 0:
+                changed += updated_this_interval
+                interval_updates += 1
+
+        curve_adjusted = [(float(t), float(s)) for t, s in working]
+        adjusted_curves[curve_name] = enforce_step_function(curve_adjusted)
+        if interval_updates > 0:
+            warnings.append(
+                f"{curve_name}: anchor-checkpoint refinement adjusted "
+                f"{changed}/{len(working)} points across {interval_updates} intervals"
+            )
 
     return adjusted_curves, warnings
 
@@ -1101,6 +1188,19 @@ def _postprocess_digitized_curves(
         curves, anchor_constraint_warnings = _apply_anchor_constraints(curves, anchors)
         for curve_name, curve_points in curves.items():
             curves[curve_name] = enforce_step_function(curve_points)
+        checkpoint_curves, checkpoint_warnings = _apply_anchor_checkpoint_refinement(
+            curves,
+            anchors=anchors,
+            y_start=y_start,
+            y_max=y_max,
+        )
+        if checkpoint_warnings:
+            curves = checkpoint_curves
+            curves, post_refine_anchor_warnings = _apply_anchor_constraints(curves, anchors)
+            anchor_constraint_warnings.extend(checkpoint_warnings)
+            anchor_constraint_warnings.extend(post_refine_anchor_warnings)
+            for curve_name, curve_points in curves.items():
+                curves[curve_name] = enforce_step_function(curve_points)
 
     origin_warnings: list[str] = []
     curves, origin_warnings = _restore_km_origin(
