@@ -16,8 +16,12 @@ from .data_gen import SyntheticTestCase, generate_test_case
 from .ground_truth import save_manifest, save_test_case
 from .modifiers import (
     Annotations,
+    BackgroundStyle,
     CensoringMarks,
     CompressedTimeAxis,
+    CurveDirection,
+    FontTypography,
+    FrameLayout,
     GaussianBlur,
     GridLines,
     JPEGArtifacts,
@@ -143,17 +147,65 @@ def _pick_line_styles(
     return ["solid"] + ["dashed"] * (n_curves - 1)
 
 
+def _sample_literature_style_modifiers(case_rng: np.random.Generator) -> list[Modifier]:
+    """Sample style features using literature-informed prevalence.
+
+    Distributions:
+    - Background: 75% white, 20% SAS gray, 5% ggplot gray
+    - Direction: 85% downward (survival), 15% upward (incidence)
+    - Frame: 60% L-axis, 40% full box
+    - Font: 80% sans, 20% serif
+    """
+    background = case_rng.choice(
+        ["white", "sas_gray", "ggplot_gray"],
+        p=[0.75, 0.20, 0.05],
+    )
+    direction = case_rng.choice(
+        ["downward", "upward"],
+        p=[0.85, 0.15],
+    )
+    frame_layout = case_rng.choice(
+        ["l_axis", "full_box"],
+        p=[0.60, 0.40],
+    )
+    font_family = case_rng.choice(
+        ["sans", "serif"],
+        p=[0.80, 0.20],
+    )
+    return [
+        BackgroundStyle(style=str(background)),
+        CurveDirection(direction=str(direction)),
+        FrameLayout(layout=str(frame_layout)),
+        FontTypography(family=str(font_family)),
+    ]
+
+
+def _apply_literature_style_profile(style_profile: dict[str, str]) -> list[Modifier]:
+    """Build style modifiers from a precomputed profile."""
+    return [
+        BackgroundStyle(style=style_profile["background_style"]),
+        CurveDirection(direction=style_profile["curve_direction"]),
+        FrameLayout(layout=style_profile["frame_layout"]),
+        FontTypography(family=style_profile["font_typography"]),
+    ]
+
+
 def _apply_tier_modifiers(
     case_rng: np.random.Generator,
     tier: TierConfig,
     lhs_censoring_sample: float,
     n_curves: int,
+    style_profile: dict[str, str] | None = None,
 ) -> tuple[list[Modifier], float, float, list[str]]:
     """Build modifier list and censoring_rate for a case in the given tier.
 
     Returns (modifiers, censoring_rate, y_start, line_styles).
     """
-    modifiers: list[Modifier] = [CensoringMarks()]
+    if style_profile is None:
+        modifiers = _sample_literature_style_modifiers(case_rng)
+    else:
+        modifiers = _apply_literature_style_profile(style_profile)
+    modifiers.append(CensoringMarks())
 
     # Figure-stage modifiers (probabilistic)
     if case_rng.random() < tier.risk_table_prob:
@@ -388,6 +440,30 @@ def _latin_hypercube(n: int, n_dims: int, rng: np.random.Generator) -> np.ndarra
             high = (perm[i] + 1) / n
             result[i, dim] = rng.uniform(low, high)
     return result
+
+
+def _build_weighted_schedule(
+    n: int,
+    labels: list[str],
+    probs: list[float],
+    rng: np.random.Generator,
+) -> list[str]:
+    """Build a length-n categorical schedule with exact rounded prevalence."""
+    if n <= 0:
+        return []
+    expected = np.asarray(probs, dtype=np.float64) * float(n)
+    counts = np.floor(expected).astype(np.int64)
+    remainder = int(n - int(np.sum(counts)))
+    if remainder > 0:
+        frac = expected - counts
+        order = np.argsort(-frac, kind="mergesort")
+        for idx in order[:remainder]:
+            counts[idx] += 1
+    schedule: list[str] = []
+    for label, count in zip(labels, counts):
+        schedule.extend([label] * int(count))
+    rng.shuffle(schedule)
+    return schedule
 
 
 def _sample_weibull_ks(
@@ -684,9 +760,34 @@ def generate_standard(
 
     n_total = 100
     rng = np.random.default_rng(base_seed)
+    style_rng = np.random.default_rng(base_seed + 7919)
 
     # LHS over 5 dimensions: [log_k, scale_factor, censoring_rate, n_per_arm, max_time_idx]
     lhs = _latin_hypercube(n_total, 5, rng)
+    background_schedule = _build_weighted_schedule(
+        n_total,
+        labels=["white", "sas_gray", "ggplot_gray"],
+        probs=[0.75, 0.20, 0.05],
+        rng=style_rng,
+    )
+    direction_schedule = _build_weighted_schedule(
+        n_total,
+        labels=["downward", "upward"],
+        probs=[0.85, 0.15],
+        rng=style_rng,
+    )
+    frame_schedule = _build_weighted_schedule(
+        n_total,
+        labels=["l_axis", "full_box"],
+        probs=[0.60, 0.40],
+        rng=style_rng,
+    )
+    font_schedule = _build_weighted_schedule(
+        n_total,
+        labels=["sans", "serif"],
+        probs=[0.80, 0.20],
+        rng=style_rng,
+    )
 
     max_time_choices = [12.0, 24.0, 36.0, 48.0, 60.0, 72.0, 96.0, 120.0]
 
@@ -714,9 +815,16 @@ def generate_standard(
         scale_factor = 0.35 + sample[1] * 0.75
         base_scale = scale_factor * max_time
 
+        style_profile = {
+            "background_style": background_schedule[i],
+            "curve_direction": direction_schedule[i],
+            "frame_layout": frame_schedule[i],
+            "font_typography": font_schedule[i],
+        }
+
         # Tier-specific modifiers, censoring, y_start, line styles
         modifiers, censoring_rate, y_start, line_styles = _apply_tier_modifiers(
-            case_rng, tier, sample[2], n_curves
+            case_rng, tier, sample[2], n_curves, style_profile=style_profile
         )
 
         gap_pattern = _choose_gap_pattern(case_rng, tier.name, n_curves)
