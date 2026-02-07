@@ -1,6 +1,7 @@
 """IPD reconstruction and validation nodes."""
 
 from bisect import bisect_right
+import os
 
 import cv2
 import numpy as np
@@ -1240,11 +1241,17 @@ def _refine_full_reconstruction(
                 f"{curve_name}: residual-map correction improved objective to {best_obj:.4f}"
             )
 
+    force_rerender = str(os.environ.get("KM_RECON_FORCE_RERENDER", "0")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     if (
         rerender_mapping is not None
         and rerender_ref_pixels
         and rerender_image_shape is not None
-        and best_rerender >= FULL_RECON_RERENDER_TRIGGER
+        and (force_rerender or best_rerender >= FULL_RECON_RERENDER_TRIGGER)
     ):
         rerender_target = _blend_step_curves(
             observed=survival_coords,
@@ -1288,6 +1295,11 @@ def _refine_full_reconstruction(
             best_warnings.append(
                 f"{curve_name}: rerender correction improved objective to {best_obj:.4f} "
                 f"(rerender {best_rerender:.3f})"
+            )
+        elif force_rerender:
+            best_warnings.append(
+                f"{curve_name}: rerender pass forced but objective did not improve "
+                f"(fit={rerender_fit:.4f}, interval={rerender_interval:.4f}, rerender={rerender_error:.4f})"
             )
 
     return best_patients, best_warnings, best_fit, best_interval, best_landmark

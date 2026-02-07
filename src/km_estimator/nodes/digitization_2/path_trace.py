@@ -29,6 +29,7 @@ JUMP_THRESHOLD_RATIO = 0.035
 MONOTONE_TOLERANCE_RATIO = 0.006
 START_PRIOR_WEIGHT = 0.55
 START_PRIOR_WINDOW_RATIO = 0.12
+OVERLAP_AMBIG_PENALTY = 0.30
 
 # Crossing detection caps and locality constraints
 MAX_CROSSING_WINDOWS = 10
@@ -152,6 +153,7 @@ def _extract_arm_diagnostics(
     score_map: NDArray[np.float32],
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
+    overlap_consensus_map: NDArray[np.float32] | None,
     direction: DirectionMode,
 ) -> dict[str, float]:
     if not ys:
@@ -184,6 +186,16 @@ def _extract_arm_diagnostics(
     low_margin_frac = float(
         np.mean(np.asarray([ambiguity_map[ys[x], x] for x in range(w)], dtype=np.float32) < LOW_AMBIGUITY_THRESHOLD)
     )
+    low_consensus_frac = 0.0
+    if overlap_consensus_map is not None:
+        low_consensus_frac = float(
+            np.mean(
+                np.asarray(
+                    [overlap_consensus_map[ys[x], x] for x in range(w)],
+                    dtype=np.float32,
+                ) < 0.33
+            )
+        )
 
     jump_thr = max(2, int(round(h * JUMP_THRESHOLD_RATIO)))
     jump_rate = 0.0
@@ -210,6 +222,7 @@ def _extract_arm_diagnostics(
         "monotone_violation_mass": monotone_mass,
         "low_conf_frac": low_conf_frac,
         "overlap_conflict_frac": 0.0,
+        "low_consensus_frac": low_consensus_frac,
     }
 
 
@@ -220,6 +233,7 @@ def _confidence_from_diagnostics(diag: dict[str, float], direction_confidence: f
     conf -= 0.30 * float(diag.get("jump_rate", 0.0))
     conf -= 0.90 * float(diag.get("monotone_violation_mass", 0.0))
     conf -= 0.35 * float(diag.get("overlap_conflict_frac", 0.0))
+    conf -= 0.22 * float(diag.get("low_consensus_frac", 0.0))
     conf -= 0.20 * float(diag.get("low_conf_frac", 0.0))
     conf += 0.25 * float(diag.get("mean_score", 0.0))
     conf *= 0.85 + 0.15 * float(direction_confidence)
@@ -375,6 +389,7 @@ def _trace_single(
     score_map: NDArray[np.float32],
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
+    overlap_consensus_map: NDArray[np.float32] | None,
     direction: DirectionMode,
     occupied_penalty: NDArray[np.float32] | None,
     candidate_mask: NDArray[np.bool_] | None,
@@ -403,6 +418,12 @@ def _trace_single(
                 axis_penalty_map, y, 0, direction, h
             )
             + _start_anchor_penalty(y, 0, w, h, direction, cfg)
+            + (
+                OVERLAP_AMBIG_PENALTY
+                * (1.0 - float(overlap_consensus_map[y, 0]))
+                if overlap_consensus_map is not None
+                else 0.0
+            )
             + (float(occupied_penalty[y, 0]) if occupied_penalty is not None else 0.0)
             for y, score in first
         ],
@@ -424,6 +445,12 @@ def _trace_single(
                     axis_penalty_map, y_cur, x, direction, h
                 )
                 + _start_anchor_penalty(y_cur, x, w, h, direction, cfg)
+                + (
+                    OVERLAP_AMBIG_PENALTY
+                    * (1.0 - float(overlap_consensus_map[y_cur, x]))
+                    if overlap_consensus_map is not None
+                    else 0.0
+                )
                 + (float(occupied_penalty[y_cur, x]) if occupied_penalty is not None else 0.0)
             )
             best_value = np.inf
@@ -455,7 +482,14 @@ def _trace_single(
             if idx < 0:
                 idx = 0
 
-    return ys, _extract_arm_diagnostics(ys, score_map, axis_penalty_map, ambiguity_map, direction)
+    return ys, _extract_arm_diagnostics(
+        ys,
+        score_map,
+        axis_penalty_map,
+        ambiguity_map,
+        overlap_consensus_map,
+        direction,
+    )
 
 
 def _trace_joint_two(
@@ -465,6 +499,7 @@ def _trace_joint_two(
     map_b: NDArray[np.float32],
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
+    overlap_consensus_map: NDArray[np.float32] | None,
     direction: DirectionMode,
     candidate_mask: NDArray[np.bool_] | None,
     cfg: TraceConfig,
@@ -539,6 +574,12 @@ def _trace_joint_two(
                 )
                 + _start_anchor_penalty(ya, x, w, h, direction, cfg)
                 + _start_anchor_penalty(yb, x, w, h, direction, cfg)
+                + (
+                    OVERLAP_AMBIG_PENALTY
+                    * (2.0 - float(overlap_consensus_map[ya, x]) - float(overlap_consensus_map[yb, x]))
+                    if overlap_consensus_map is not None
+                    else 0.0
+                )
                 + 0.25 * collision_penalty
             )
             raw_states.append((ya, yb, unary))
@@ -598,8 +639,22 @@ def _trace_joint_two(
             if idx < 0:
                 idx = 0
 
-    diag_a = _extract_arm_diagnostics(ys_a, map_a, axis_penalty_map, ambiguity_map, direction)
-    diag_b = _extract_arm_diagnostics(ys_b, map_b, axis_penalty_map, ambiguity_map, direction)
+    diag_a = _extract_arm_diagnostics(
+        ys_a,
+        map_a,
+        axis_penalty_map,
+        ambiguity_map,
+        overlap_consensus_map,
+        direction,
+    )
+    diag_b = _extract_arm_diagnostics(
+        ys_b,
+        map_b,
+        axis_penalty_map,
+        ambiguity_map,
+        overlap_consensus_map,
+        direction,
+    )
 
     # Overlap conflict diagnostic.
     coll_px = max(2, int(round(h * COLLISION_DISTANCE_RATIO)))
@@ -649,6 +704,7 @@ def trace_curves(
     h, w = first_map.shape
     axis_pen = evidence.axis_penalty_map
     ambiguity = evidence.ambiguity_map
+    overlap_consensus = evidence.overlap_consensus_map
 
     y_paths: dict[str, list[int]] = {}
     diagnostics: dict[str, dict[str, float]] = {}
@@ -662,6 +718,7 @@ def trace_curves(
             arm_score_maps[names[1]],
             axis_pen,
             ambiguity,
+            overlap_consensus,
             direction,
             candidate_mask=candidate_mask,
             cfg=cfg,
@@ -690,6 +747,7 @@ def trace_curves(
                 arm_score_maps[name],
                 axis_pen,
                 ambiguity,
+                overlap_consensus,
                 direction,
                 occupied_penalty=occupied,
                 candidate_mask=candidate_mask,

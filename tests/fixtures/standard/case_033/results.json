@@ -19,11 +19,11 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.12163911276010324,
-      "rmse": 0.13877931301627675,
-      "dtw": 0.0037658334720319783,
-      "frechet": 0.08816560343728524,
-      "max_error": 0.23877729062247277
+      "mae": 0.12110242075623212,
+      "rmse": 0.13835432833936925,
+      "dtw": 0.004266732926516275,
+      "frechet": 0.091056814508853,
+      "max_error": 0.23774636868643761
     }
   },
   "hard_points": {
@@ -32,29 +32,29 @@
         {
           "time": 6,
           "expected": 0.8745,
-          "actual": 0.8978,
-          "error": 0.0233,
+          "actual": 0.8971,
+          "error": 0.0226,
           "pass": true
         },
         {
           "time": 12,
           "expected": 0.7567,
-          "actual": 0.8132,
-          "error": 0.0565,
+          "actual": 0.8125,
+          "error": 0.0558,
           "pass": false
         },
         {
           "time": 24,
           "expected": 0.5068,
-          "actual": 0.7179,
-          "error": 0.2111,
+          "actual": 0.7174,
+          "error": 0.2106,
           "pass": false
         },
         {
           "time": 36,
           "expected": 0.3904,
-          "actual": 0.5349,
-          "error": 0.1445,
+          "actual": 0.5345,
+          "error": 0.1441,
           "pass": false
         }
       ],
@@ -63,16 +63,16 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.10403122930129877,
-      "rmse": 0.1337153647010884,
-      "dtw": 0.015412752587023244,
-      "frechet": 0.14445586295500912,
-      "max_error": 0.2598595874027363
+      "mae": 0.10382676737883015,
+      "rmse": 0.1332712217441847,
+      "dtw": 0.015643846817332063,
+      "frechet": 0.14406220429299543,
+      "max_error": 0.2593413849032967
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.03633497573179495,
+      "mae": 0.0344059887037488,
       "dtw": null,
       "rmse": null
     }
@@ -83,7 +83,9 @@
       "Control": 187
     },
     "warnings": [
-      "OCR fast phase failed (ServerError); escalating",
+      "GPT extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "Metadata fast phase failed (ServerError); escalating",
       "Low GPT metadata confidence (0.70), verifying with Gemini",
       "W_DIRECTION_AMBIGUOUS_TEXT",
       "I_DIRECTION_FALLBACK_METADATA:upward",
@@ -91,81 +93,84 @@
       "I_TICK_CAL_Y:6:0.271:29.0",
       "W_COLOR_PRIOR_REJECTED:Control:111.8",
       "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "I_HSL_KMEDOIDS_USED:1:2094",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
       "W_COLOR_REJECT_PENALTY:1",
       "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V2_CONFIDENCE:0.769",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.706",
       "W_DIRECTION_AMBIGUOUS_TEXT",
       "I_DIRECTION_FALLBACK_METADATA:upward",
       "I_TICK_CAL_X:7:0.190:36.0",
       "I_TICK_CAL_Y:6:0.271:29.0",
       "W_COLOR_PRIOR_REJECTED:Control:111.8",
       "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "I_HSL_KMEDOIDS_USED:1:2094",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
       "W_COLOR_REJECT_PENALTY:2",
       "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V2_CONFIDENCE:0.719",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.656",
       "W_DIRECTION_AMBIGUOUS_TEXT",
       "I_DIRECTION_FALLBACK_METADATA:upward",
       "I_TICK_CAL_X:7:0.190:36.0",
       "I_TICK_CAL_Y:6:0.271:29.0",
       "W_COLOR_PRIOR_REJECTED:Control:111.8",
       "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "I_HSL_KMEDOIDS_USED:1:2094",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
       "W_COLOR_REJECT_PENALTY:3",
       "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V2_CONFIDENCE:0.669",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.606",
       "Added 32 terminal right-censored survivors at t=36.0",
       "Control: used censoring-mark hints in 6 intervals",
       "Control: adjusted event/censor split from censoring hints in 4 intervals",
-      "Control: full-mode objective 0.0587 (fit=0.0363, interval=0.0000, landmark=0.0408)"
+      "Control: full-mode objective 0.0565 (fit=0.0344, interval=0.0000, landmark=0.0402)"
     ]
   },
   "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.12163911276010324,
-        "reconstruction_mae": 0.10403122930129877,
-        "delta_reconstruction_minus_digitize": -0.01760788345880447,
+        "digitize_mae": 0.12110242075623212,
+        "reconstruction_mae": 0.10382676737883015,
+        "delta_reconstruction_minus_digitize": -0.017275653377401973,
         "hard_fail_count": 3,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 12,
             "expected": 0.7567,
-            "actual": 0.8132,
-            "error": 0.0565,
-            "bias": 0.0565
+            "actual": 0.8125,
+            "error": 0.0558,
+            "bias": 0.0558
           },
           {
             "time": 24,
             "expected": 0.5068,
-            "actual": 0.7179,
-            "error": 0.2111,
-            "bias": 0.2111
+            "actual": 0.7174,
+            "error": 0.2106,
+            "bias": 0.2106
           },
           {
             "time": 36,
             "expected": 0.3904,
-            "actual": 0.5349,
-            "error": 0.1445,
-            "bias": 0.1445
+            "actual": 0.5345,
+            "error": 0.1441,
+            "bias": 0.1441
           }
         ]
       }
@@ -179,10 +184,23 @@
       "36": 1
     }
   },
+  "stage_mae": {
+    "arms": {
+      "Control": {
+        "digitize_mae": 0.12110242075623212,
+        "reconstruction_mae": 0.10382676737883015,
+        "delta_reconstruction_minus_digitize": -0.017275653377401973,
+        "stage_attribution": "digitization_limited"
+      }
+    },
+    "mean_digitize_mae": 0.12110242075623212,
+    "mean_reconstruction_mae": 0.10382676737883015,
+    "mean_delta_reconstruction_minus_digitize": -0.017275653377401973
+  },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.10403122930129877,
+        "reconstruction_mae": 0.10382676737883015,
         "intervals": [
           {
             "t_start": 0.0,
@@ -195,7 +213,7 @@
             "terminal_carryover_censors": 0,
             "digitized_s_start": 0.9928,
             "digitized_s_end": 0.9474,
-            "reconstructed_s_end": 0.8978,
+            "reconstructed_s_end": 0.8971,
             "expected_s_end": 0.8745
           },
           {
@@ -209,7 +227,7 @@
             "terminal_carryover_censors": 0,
             "digitized_s_start": 0.9474,
             "digitized_s_end": 0.8577,
-            "reconstructed_s_end": 0.8132,
+            "reconstructed_s_end": 0.8125,
             "expected_s_end": 0.7567
           },
           {
@@ -223,7 +241,7 @@
             "terminal_carryover_censors": 0,
             "digitized_s_start": 0.8577,
             "digitized_s_end": 0.8124,
-            "reconstructed_s_end": 0.7874,
+            "reconstructed_s_end": 0.7868,
             "expected_s_end": 0.5815
           },
           {
@@ -236,8 +254,8 @@
             "censors_reconstructed": 10,
             "terminal_carryover_censors": 0,
             "digitized_s_start": 0.8124,
-            "digitized_s_end": 0.7253,
-            "reconstructed_s_end": 0.7179,
+            "digitized_s_end": 0.7241,
+            "reconstructed_s_end": 0.7174,
             "expected_s_end": 0.5068
           },
           {
@@ -249,9 +267,9 @@
             "events_reconstructed": 1,
             "censors_reconstructed": 11,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.7253,
-            "digitized_s_end": 0.5783,
-            "reconstructed_s_end": 0.7041,
+            "digitized_s_start": 0.7241,
+            "digitized_s_end": 0.5964,
+            "reconstructed_s_end": 0.7036,
             "expected_s_end": 0.4443
           },
           {
@@ -263,9 +281,9 @@
             "events_reconstructed": 11,
             "censors_reconstructed": 3,
             "terminal_carryover_censors": 32,
-            "digitized_s_start": 0.5783,
-            "digitized_s_end": 0.5277,
-            "reconstructed_s_end": 0.5349,
+            "digitized_s_start": 0.5964,
+            "digitized_s_end": 0.5337,
+            "reconstructed_s_end": 0.5345,
             "expected_s_end": 0.3904
           }
         ],
@@ -273,29 +291,29 @@
           {
             "time": 6,
             "expected": 0.8745,
-            "actual": 0.8978,
-            "error": 0.0233,
+            "actual": 0.8971,
+            "error": 0.0226,
             "pass": true
           },
           {
             "time": 12,
             "expected": 0.7567,
-            "actual": 0.8132,
-            "error": 0.0565,
+            "actual": 0.8125,
+            "error": 0.0558,
             "pass": false
           },
           {
             "time": 24,
             "expected": 0.5068,
-            "actual": 0.7179,
-            "error": 0.2111,
+            "actual": 0.7174,
+            "error": 0.2106,
             "pass": false
           },
           {
             "time": 36,
             "expected": 0.3904,
-            "actual": 0.5349,
-            "error": 0.1445,
+            "actual": 0.5345,
+            "error": 0.1441,
             "pass": false
           }
         ]

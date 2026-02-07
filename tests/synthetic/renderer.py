@@ -5,7 +5,6 @@ Produces graph_draft.png (clean) and graph.png (after post-render modifiers).
 
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
 
@@ -128,138 +127,6 @@ def _apply_frame_layout(ax, layout: str) -> None:
         for side in ("top", "right", "left", "bottom"):
             ax.spines[side].set_visible(True)
         ax.tick_params(top=False, right=False)
-
-
-def _clip_int(v: float, lo: int, hi: int) -> int:
-    return int(np.clip(int(round(v)), lo, hi))
-
-
-def _build_oracle_axes_payload(
-    fig,
-    ax,
-    test_case: SyntheticTestCase,
-    dpi: int,
-) -> dict:
-    """
-    Build exact pixel anchors for the saved draft image (bbox_inches='tight').
-
-    Coordinates are stored in graph_draft.png pixel space (top-left origin).
-    """
-    fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
-    tight_bbox_in = fig.get_tightbbox(renderer)
-
-    import matplotlib
-
-    pad_inches = float(matplotlib.rcParams.get("savefig.pad_inches", 0.1))
-    out_w = int(round((float(tight_bbox_in.width) + 2.0 * pad_inches) * dpi))
-    out_h = int(round((float(tight_bbox_in.height) + 2.0 * pad_inches) * dpi))
-
-    x_offset_px = (float(tight_bbox_in.x0) - pad_inches) * dpi
-    y_offset_px = (float(tight_bbox_in.y0) - pad_inches) * dpi
-
-    def disp_to_saved(x_disp: float, y_disp: float) -> tuple[int, int]:
-        x_px = x_disp - x_offset_px
-        y_from_bottom = y_disp - y_offset_px
-        y_px = out_h - y_from_bottom
-        x_i = _clip_int(x_px, 0, max(0, out_w - 1))
-        y_i = _clip_int(y_px, 0, max(0, out_h - 1))
-        return x_i, y_i
-
-    x_start = float(test_case.x_axis.start)
-    x_end = float(test_case.x_axis.end)
-    y_start = float(test_case.y_axis.start)
-    y_end = float(test_case.y_axis.end)
-
-    left_bottom = ax.transData.transform((x_start, y_start))
-    right_bottom = ax.transData.transform((x_end, y_start))
-    left_top = ax.transData.transform((x_start, y_end))
-    x0, y1 = disp_to_saved(float(left_bottom[0]), float(left_bottom[1]))
-    x1, _ = disp_to_saved(float(right_bottom[0]), float(right_bottom[1]))
-    _, y0 = disp_to_saved(float(left_top[0]), float(left_top[1]))
-
-    plot_region = [
-        int(min(x0, x1)),
-        int(min(y0, y1)),
-        int(max(x0, x1)),
-        int(max(y0, y1)),
-    ]
-
-    x_tick_anchors: list[dict] = []
-    for xv in test_case.x_axis.tick_values:
-        xp, yp = ax.transData.transform((float(xv), y_start))
-        px, _ = disp_to_saved(float(xp), float(yp))
-        x_tick_anchors.append({"px": int(px), "value": float(xv)})
-
-    y_tick_anchors: list[dict] = []
-    for yv in test_case.y_axis.tick_values:
-        xp, yp = ax.transData.transform((x_start, float(yv)))
-        _, py = disp_to_saved(float(xp), float(yp))
-        y_tick_anchors.append({"py": int(py), "value": float(yv)})
-
-    return {
-        "version": 1,
-        "source_image": "graph.png",
-        "image_width": int(out_w),
-        "image_height": int(out_h),
-        "plot_region": plot_region,
-        "x_tick_anchors": x_tick_anchors,
-        "y_tick_anchors": y_tick_anchors,
-        "x_axis": {
-            "start": x_start,
-            "end": x_end,
-            "scale": test_case.x_axis.scale,
-        },
-        "y_axis": {
-            "start": y_start,
-            "end": y_end,
-            "scale": test_case.y_axis.scale,
-        },
-    }
-
-
-def _transform_oracle_for_post_modifiers(payload: dict, modifiers: list[Modifier]) -> dict:
-    """Apply geometric post-render transforms to oracle anchors."""
-    out = json.loads(json.dumps(payload))
-    width = int(out.get("image_width", 0))
-    height = int(out.get("image_height", 0))
-    if width <= 0 or height <= 0:
-        return out
-
-    for mod in modifiers:
-        if isinstance(mod, LowResolution):
-            scale = float(mod.target_width) / float(max(1, width))
-            new_w = int(mod.target_width)
-            new_h = int(height * scale)
-
-            def sx(v: int) -> int:
-                return int(round(float(v) * scale))
-
-            pr = out.get("plot_region", [0, 0, width - 1, height - 1])
-            if isinstance(pr, list) and len(pr) == 4:
-                out["plot_region"] = [
-                    _clip_int(sx(int(pr[0])), 0, max(0, new_w - 1)),
-                    _clip_int(sx(int(pr[1])), 0, max(0, new_h - 1)),
-                    _clip_int(sx(int(pr[2])), 0, max(0, new_w - 1)),
-                    _clip_int(sx(int(pr[3])), 0, max(0, new_h - 1)),
-                ]
-
-            xt = out.get("x_tick_anchors", [])
-            if isinstance(xt, list):
-                for item in xt:
-                    if isinstance(item, dict) and "px" in item:
-                        item["px"] = _clip_int(sx(int(item["px"])), 0, max(0, new_w - 1))
-            yt = out.get("y_tick_anchors", [])
-            if isinstance(yt, list):
-                for item in yt:
-                    if isinstance(item, dict) and "py" in item:
-                        item["py"] = _clip_int(sx(int(item["py"])), 0, max(0, new_h - 1))
-
-            width, height = new_w, new_h
-            out["image_width"] = int(width)
-            out["image_height"] = int(height)
-
-    return out
 
 
 def render_test_case(
@@ -451,8 +318,6 @@ def render_test_case(
                 )
 
     fig.tight_layout()
-    oracle_payload = _build_oracle_axes_payload(fig, ax, test_case, dpi=dpi)
-
     # Save draft
     draft_path = output_dir / "graph_draft.png"
     fig.savefig(str(draft_path), dpi=dpi, bbox_inches="tight")
@@ -464,12 +329,6 @@ def render_test_case(
 
     if post_mods:
         _apply_post_render_modifiers(graph_path, post_mods)
-        oracle_payload = _transform_oracle_for_post_modifiers(oracle_payload, post_mods)
-
-    # Persist exact calibration anchors for benchmark-oracle mode.
-    oracle_path = output_dir / "oracle_axes.json"
-    with open(oracle_path, "w") as f:
-        json.dump(oracle_payload, f, indent=2)
 
     test_case.draft_image_path = str(draft_path)
     test_case.image_path = str(graph_path)
