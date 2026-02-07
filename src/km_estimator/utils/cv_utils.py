@@ -385,6 +385,50 @@ def downsample_to_limit(image: Image, max_pixels: int = MAX_PIXELS_BEFORE_TILING
     return cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
 
+# --- Background normalization ---
+
+
+def normalize_plot_background(
+    image: Image,
+    saturation_threshold: int = 35,
+    min_value: int = 110,
+) -> Image:
+    """
+    Whiten low-chroma bright backgrounds (e.g., SAS/ggplot gray panels).
+
+    Preserves colored curves and dark text/axes while reducing background/grid bleed
+    into digitization masks.
+    """
+    if image.size == 0:
+        return image
+
+    bgr = ensure_bgr(image)
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    sat = hsv[:, :, 1].astype(np.float32)
+    val = hsv[:, :, 2].astype(np.float32)
+
+    low_chroma = sat <= float(saturation_threshold)
+    bright_enough = val >= float(min_value)
+    candidate = low_chroma & bright_enough
+    candidate_ratio = float(np.count_nonzero(candidate)) / float(candidate.size)
+    if candidate_ratio < 0.12:
+        return image
+
+    score_sat = np.clip((float(saturation_threshold) - sat) / max(1.0, float(saturation_threshold)), 0.0, 1.0)
+    score_val = np.clip((val - float(min_value)) / max(1.0, 255.0 - float(min_value)), 0.0, 1.0)
+    alpha = 0.85 * score_sat * score_val
+
+    lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
+    lab[:, :, 0] = lab[:, :, 0] + alpha * (245.0 - lab[:, :, 0])
+    lab[:, :, 1] = lab[:, :, 1] + alpha * (128.0 - lab[:, :, 1])
+    lab[:, :, 2] = lab[:, :, 2] + alpha * (128.0 - lab[:, :, 2])
+
+    normalized = cv2.cvtColor(np.clip(lab, 0.0, 255.0).astype(np.uint8), cv2.COLOR_LAB2BGR)
+    if image.dtype != normalized.dtype:
+        return normalized.astype(image.dtype)
+    return normalized
+
+
 # --- Denoising ---
 
 

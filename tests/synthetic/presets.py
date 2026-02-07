@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 
@@ -120,6 +120,10 @@ TIER_LEGACY = TierConfig(
 
 TIERS = [TIER_PRISTINE, TIER_STANDARD, TIER_LEGACY]
 GapPattern = Literal["diverging", "parallel", "converging", "crossover"]
+BackgroundStyleLabel = Literal["white", "sas_gray", "ggplot_gray"]
+CurveDirectionLabel = Literal["downward", "upward"]
+FrameLayoutLabel = Literal["l_axis", "full_box"]
+FontFamilyLabel = Literal["sans", "serif"]
 
 
 # ---------------------------------------------------------------------------
@@ -156,38 +160,57 @@ def _sample_literature_style_modifiers(case_rng: np.random.Generator) -> list[Mo
     - Frame: 60% L-axis, 40% full box
     - Font: 80% sans, 20% serif
     """
-    background = case_rng.choice(
-        ["white", "sas_gray", "ggplot_gray"],
-        p=[0.75, 0.20, 0.05],
+    background = cast(
+        BackgroundStyleLabel,
+        str(
+            case_rng.choice(
+                ["white", "sas_gray", "ggplot_gray"],
+                p=[0.75, 0.20, 0.05],
+            )
+        ),
     )
-    direction = case_rng.choice(
-        ["downward", "upward"],
-        p=[0.85, 0.15],
+    direction = cast(
+        CurveDirectionLabel,
+        str(case_rng.choice(["downward", "upward"], p=[0.85, 0.15])),
     )
-    frame_layout = case_rng.choice(
-        ["l_axis", "full_box"],
-        p=[0.60, 0.40],
+    frame_layout = cast(
+        FrameLayoutLabel,
+        str(case_rng.choice(["l_axis", "full_box"], p=[0.60, 0.40])),
     )
-    font_family = case_rng.choice(
-        ["sans", "serif"],
-        p=[0.80, 0.20],
+    font_family = cast(
+        FontFamilyLabel,
+        str(case_rng.choice(["sans", "serif"], p=[0.80, 0.20])),
     )
-    return [
-        BackgroundStyle(style=str(background)),
-        CurveDirection(direction=str(direction)),
-        FrameLayout(layout=str(frame_layout)),
-        FontTypography(family=str(font_family)),
-    ]
+    return cast(
+        list[Modifier],
+        [
+            BackgroundStyle(style=background),
+            CurveDirection(direction=direction),
+            FrameLayout(layout=frame_layout),
+            FontTypography(family=font_family),
+        ],
+    )
 
 
 def _apply_literature_style_profile(style_profile: dict[str, str]) -> list[Modifier]:
     """Build style modifiers from a precomputed profile."""
-    return [
-        BackgroundStyle(style=style_profile["background_style"]),
-        CurveDirection(direction=style_profile["curve_direction"]),
-        FrameLayout(layout=style_profile["frame_layout"]),
-        FontTypography(family=style_profile["font_typography"]),
-    ]
+    return cast(
+        list[Modifier],
+        [
+            BackgroundStyle(
+                style=cast(BackgroundStyleLabel, style_profile["background_style"])
+            ),
+            CurveDirection(
+                direction=cast(CurveDirectionLabel, style_profile["curve_direction"])
+            ),
+            FrameLayout(
+                layout=cast(FrameLayoutLabel, style_profile["frame_layout"])
+            ),
+            FontTypography(
+                family=cast(FontFamilyLabel, style_profile["font_typography"])
+            ),
+        ],
+    )
 
 
 def _apply_tier_modifiers(

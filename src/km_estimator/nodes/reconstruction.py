@@ -167,6 +167,46 @@ def _normalize_step_coords(coords: list[tuple[float, float]]) -> list[tuple[floa
     return merged
 
 
+def _looks_upward_trend(coords: list[tuple[float, float]]) -> bool:
+    """Detect whether coords are likely incidence-space (increasing over time)."""
+    if len(coords) < 3:
+        return False
+    ordered = sorted((float(t), float(s)) for t, s in coords)
+    ys = [s for _, s in ordered]
+    rises = sum(1 for i in range(len(ys) - 1) if ys[i + 1] > ys[i] + 1e-4)
+    falls = sum(1 for i in range(len(ys) - 1) if ys[i + 1] < ys[i] - 1e-4)
+    net_change = ys[-1] - ys[0]
+    return net_change > 0.03 and rises > max(1, falls)
+
+
+def _ensure_survival_space(
+    coords: list[tuple[float, float]],
+    curve_direction: str,
+    y_start: float,
+    y_end: float,
+) -> tuple[list[tuple[float, float]], bool]:
+    """
+    Ensure coordinates are in decreasing survival space.
+
+    Returns: (normalized_coords, converted_from_upward)
+    """
+    if not coords:
+        return [], False
+    if curve_direction != "upward" or not _looks_upward_trend(coords):
+        return _normalize_step_coords(coords), False
+
+    y_abs_max = float(max(abs(y_start), abs(y_end)))
+    percent_scale = 100.0 if (1.5 < y_abs_max <= 100.5) else 1.0
+    reflected = [
+        (
+            float(t),
+            float(np.clip(1.0 - (float(s) / percent_scale), 0.0, 1.0)),
+        )
+        for t, s in coords
+    ]
+    return _normalize_step_coords(reflected), True
+
+
 def _extract_drop_points_in_interval(
     normalized_coords: list[tuple[float, float]],
     t_start: float,
@@ -698,14 +738,32 @@ def reconstruct(state: PipelineState) -> PipelineState:
 
     curves = []
     all_warnings: list[str] = []
+    curve_direction = (
+        state.plot_metadata.curve_direction
+        if state.plot_metadata.curve_direction in ("downward", "upward")
+        else "downward"
+    )
+    y_start = state.plot_metadata.y_axis.start
+    y_end = state.plot_metadata.y_axis.end
 
     for name, coords in state.digitized_curves.items():
+        survival_coords, converted_from_upward = _ensure_survival_space(
+            coords,
+            curve_direction=curve_direction,
+            y_start=y_start,
+            y_end=y_end,
+        )
+        if converted_from_upward:
+            all_warnings.append(
+                f"{name}: reflected upward curve into survival space during reconstruction"
+            )
+
         censoring = state.censoring_marks.get(name, []) if state.censoring_marks else []
 
         if mode == ReconstructionMode.FULL and risk_table:
-            patients_full, warnings_full = _guyot_ikm(coords, risk_table, name)
+            patients_full, warnings_full = _guyot_ikm(survival_coords, risk_table, name)
             full_curve = _km_from_ipd(patients_full)
-            full_fit_mae = _calculate_mae(coords, full_curve)
+            full_fit_mae = _calculate_mae(survival_coords, full_curve)
 
             risk_group = _find_matching_risk_group(risk_table, name)
             fallback_n = state.config.estimated_cohort_size
@@ -722,13 +780,13 @@ def reconstruct(state: PipelineState) -> PipelineState:
                     ),
                 )
             patients_alt, warnings_alt = _estimate_ipd(
-                coords,
+                survival_coords,
                 censoring,
                 initial_n=fallback_n,
                 max_cohort_size=fallback_cap,
             )
             alt_curve = _km_from_ipd(patients_alt)
-            alt_fit_mae = _calculate_mae(coords, alt_curve)
+            alt_fit_mae = _calculate_mae(survival_coords, alt_curve)
             alt_interval_mismatch = _interval_loss_mismatch_fraction(
                 patients_alt,
                 risk_group,
@@ -737,8 +795,12 @@ def reconstruct(state: PipelineState) -> PipelineState:
             landmark_times = sorted(
                 set(float(t) for t in risk_table.time_points if float(t) > 0)
             )
-            full_landmark_error = _landmark_proxy_error(coords, full_curve, landmark_times)
-            alt_landmark_error = _landmark_proxy_error(coords, alt_curve, landmark_times)
+            full_landmark_error = _landmark_proxy_error(
+                survival_coords, full_curve, landmark_times
+            )
+            alt_landmark_error = _landmark_proxy_error(
+                survival_coords, alt_curve, landmark_times
+            )
 
             alt_size_plausible = True
             if target_n is not None:
@@ -800,7 +862,7 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 warnings = warnings_full
         else:
             patients, warnings = _estimate_ipd(
-                coords, censoring, initial_n=state.config.estimated_cohort_size
+                survival_coords, censoring, initial_n=state.config.estimated_cohort_size
             )
 
         all_warnings.extend(warnings)
@@ -839,9 +901,22 @@ def validate(state: PipelineState) -> PipelineState:
     validated_curves = []
 
     compute_full_metrics = state.config.compute_full_validation_metrics
+    curve_direction = (
+        state.plot_metadata.curve_direction
+        if state.plot_metadata and state.plot_metadata.curve_direction in ("downward", "upward")
+        else "downward"
+    )
+    y_start = state.plot_metadata.y_axis.start if state.plot_metadata else 0.0
+    y_end = state.plot_metadata.y_axis.end if state.plot_metadata else 1.0
 
     for curve in state.output.curves:
-        original = state.digitized_curves.get(curve.group_name, [])
+        raw_original = state.digitized_curves.get(curve.group_name, [])
+        original, _ = _ensure_survival_space(
+            raw_original,
+            curve_direction=curve_direction,
+            y_start=y_start,
+            y_end=y_end,
+        )
         reconstructed = _km_from_ipd(curve.patients)
 
         mae = _calculate_mae(original, reconstructed)

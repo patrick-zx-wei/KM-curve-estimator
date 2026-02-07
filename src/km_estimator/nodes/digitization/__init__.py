@@ -38,6 +38,99 @@ DUAL_PATH_SELECTION_MARGIN = 0.12
 OVERLAP_COLLAPSE_PX = 2
 
 
+def _resolved_curve_direction(raw_direction: str | None) -> str:
+    """Normalize direction metadata to supported values."""
+    if raw_direction in ("downward", "upward"):
+        return raw_direction
+    return "downward"
+
+
+def _curve_pixel_trend(points: list[tuple[int, int]]) -> float:
+    """Estimate y-trend over x for one pixel curve (positive means down in image)."""
+    if len(points) < 5:
+        return 0.0
+    ordered = sorted((int(x), int(y)) for x, y in points)
+    x_to_y: dict[int, list[int]] = {}
+    for x, y in ordered:
+        x_to_y.setdefault(x, []).append(y)
+    xs = sorted(x_to_y.keys())
+    if len(xs) < 4:
+        return 0.0
+    start_x = xs[max(0, len(xs) // 8)]
+    end_x = xs[min(len(xs) - 1, len(xs) - 1 - len(xs) // 8)]
+    if end_x <= start_x:
+        return 0.0
+    start_y = float(np.median(x_to_y[start_x]))
+    end_y = float(np.median(x_to_y[end_x]))
+    return end_y - start_y
+
+
+def _resolve_runtime_curve_direction(
+    metadata_direction: str,
+    raw_curves: dict[str, list[tuple[int, int]]],
+) -> str:
+    """
+    Resolve curve direction from metadata + observed pixel trend.
+
+    In image coordinates: downward survival trends to larger y over time.
+    """
+    deltas = [
+        _curve_pixel_trend(points)
+        for points in raw_curves.values()
+        if len(points) >= 5
+    ]
+    if not deltas:
+        return metadata_direction
+    arr = np.asarray(deltas, dtype=np.float32)
+    median_delta = float(np.median(arr))
+    observed = "downward" if median_delta >= 0.0 else "upward"
+    if metadata_direction == observed:
+        return metadata_direction
+
+    magnitudes = np.abs(arr)
+    noise_floor = max(0.35, float(np.percentile(magnitudes, 30)) * 0.8)
+    if arr.size == 1:
+        return observed if float(magnitudes[0]) >= noise_floor else metadata_direction
+
+    observed_sign = 1.0 if observed == "downward" else -1.0
+    strong_observed = np.count_nonzero((arr * observed_sign) >= noise_floor)
+    strong_opposed = np.count_nonzero((arr * observed_sign) <= -noise_floor)
+    support_ratio = strong_observed / float(arr.size)
+    oppose_ratio = strong_opposed / float(arr.size)
+
+    if support_ratio >= 0.67 and support_ratio >= oppose_ratio + 0.25:
+        return observed
+    if abs(median_delta) >= max(0.7, noise_floor * 1.4):
+        return observed
+    return metadata_direction
+
+
+def _to_survival_space(
+    coords: list[tuple[float, float]],
+    y_start: float,
+    y_end: float,
+    curve_direction: str,
+) -> list[tuple[float, float]]:
+    """
+    Convert plotted curve coordinates to survival space.
+
+    The downstream reconstruction stack assumes survival probabilities in [0, 1].
+    For upward cumulative-incidence plots, convert using survival = 1 - incidence.
+    """
+    if curve_direction != "upward" or not coords:
+        return coords
+
+    y_abs_max = float(max(abs(y_start), abs(y_end)))
+    percent_scale = 100.0 if (1.5 < y_abs_max <= 100.5) else 1.0
+
+    reflected: list[tuple[float, float]] = []
+    for t, y in coords:
+        incidence = float(y) / percent_scale
+        y_surv = float(np.clip(1.0 - incidence, 0.0, 1.0))
+        reflected.append((float(t), y_surv))
+    return reflected
+
+
 def _validate_curves_not_empty(
     raw_curves: dict[str, list[tuple[int, int]]],
     min_points: int = 5,
@@ -631,6 +724,10 @@ def digitize(state: PipelineState) -> PipelineState:
     if isinstance(mapping, ProcessingError):
         return state.model_copy(update={"errors": state.errors + [mapping]})
 
+    curve_direction = _resolved_curve_direction(
+        getattr(state.plot_metadata, "curve_direction", "downward")
+    )
+
     # Step 1b: Validate axis configurations
     axis_config_warnings = validate_axis_config(state.plot_metadata.x_axis, "x_axis")
     axis_config_warnings.extend(validate_axis_config(state.plot_metadata.y_axis, "y_axis"))
@@ -668,6 +765,19 @@ def digitize(state: PipelineState) -> PipelineState:
                 }
             )
 
+    curve_direction_runtime = _resolve_runtime_curve_direction(curve_direction, raw_curves)
+    effective_y_start = state.plot_metadata.y_axis.start
+    effective_y_end = state.plot_metadata.y_axis.end
+    if curve_direction_runtime == "upward":
+        effective_y_start = 0.0
+        effective_y_end = 1.0
+    direction_warnings: list[str] = []
+    if curve_direction_runtime != curve_direction:
+        direction_warnings.append(
+            "Digitization direction overridden from "
+            f"{curve_direction} to {curve_direction_runtime} by pixel trend"
+        )
+
     dual_path_warnings: list[str] = []
     ambiguity_score = _curve_overlap_ambiguity(raw_curves, mapping)
 
@@ -678,6 +788,7 @@ def digitize(state: PipelineState) -> PipelineState:
         image=image,
         curve_color_priors=expected_colors,
         crossing_relaxed=False,
+        curve_direction=curve_direction_runtime,
     )
     has_color_priors = any(color is not None for color in expected_colors.values())
     if ambiguity_score >= DUAL_PATH_AMBIGUITY_THRESHOLD:
@@ -693,6 +804,7 @@ def digitize(state: PipelineState) -> PipelineState:
                 image=image,
                 curve_color_priors=None,
                 crossing_relaxed=False,
+                curve_direction=curve_direction_runtime,
             )
             neutral_score = _pixel_curve_set_score(neutral_clean_curves, mapping)
             candidate_paths.append(("neutral", neutral_clean_curves, neutral_score))
@@ -703,6 +815,7 @@ def digitize(state: PipelineState) -> PipelineState:
             image=image,
             curve_color_priors=expected_colors if has_color_priors else None,
             crossing_relaxed=True,
+            curve_direction=curve_direction_runtime,
         )
         crossing_score = _pixel_curve_set_score(crossing_clean_curves, mapping)
         candidate_paths.append(("crossing-relaxed", crossing_clean_curves, crossing_score))
@@ -729,8 +842,15 @@ def digitize(state: PipelineState) -> PipelineState:
     digitized: dict[str, list[tuple[float, float]]] = {}
     for name, pixels in clean_curves.items():
         real_coords = [mapping.px_to_real(px, py) for px, py in pixels]
-        # Step 4b: Enforce proper step function format
-        digitized[name] = enforce_step_function(real_coords)
+        directed_coords = enforce_step_function(real_coords, direction=curve_direction_runtime)
+        survival_coords = _to_survival_space(
+            directed_coords,
+            y_start=state.plot_metadata.y_axis.start,
+            y_end=state.plot_metadata.y_axis.end,
+            curve_direction=curve_direction_runtime,
+        )
+        # Reconstruction expects survival-style (decreasing) curves.
+        digitized[name] = enforce_step_function(survival_coords, direction="downward")
 
     digitized, clean_curves, identity_warnings = _optimize_curve_identity_assignment(
         digitized_curves=digitized,
@@ -739,7 +859,7 @@ def digitize(state: PipelineState) -> PipelineState:
         curve_order=curve_names,
         expected_colors=expected_colors,
         anchors=anchors,
-        y_max=state.plot_metadata.y_axis.end,
+        y_max=effective_y_end,
     )
 
     # Step 5: Censoring detection
@@ -751,16 +871,16 @@ def digitize(state: PipelineState) -> PipelineState:
         anchors=anchors,
         x_start=state.plot_metadata.x_axis.start,
         x_end=state.plot_metadata.x_axis.end,
-        y_start=state.plot_metadata.y_axis.start,
-        y_max=state.plot_metadata.y_axis.end,
+        y_start=effective_y_start,
+        y_max=effective_y_end,
     )
 
     rescue_warnings: list[str] = []
     rescue_candidates = _identify_rescue_candidates(
         digitized,
         anchors,
-        y_min=state.plot_metadata.y_axis.start,
-        y_max=state.plot_metadata.y_axis.end,
+        y_min=effective_y_start,
+        y_max=effective_y_end,
     )
 
     # Per-curve rescue: only replace flagged curves when color-guided path is better.
@@ -780,11 +900,24 @@ def digitize(state: PipelineState) -> PipelineState:
                 mapping,
                 image=image,
                 curve_color_priors=expected_colors,
+                curve_direction=curve_direction_runtime,
             )
             color_digitized: dict[str, list[tuple[float, float]]] = {}
             for name, pixels in color_clean.items():
+                real_coords = [mapping.px_to_real(px, py) for px, py in pixels]
+                directed_coords = enforce_step_function(
+                    real_coords,
+                    direction=curve_direction_runtime,
+                )
+                survival_coords = _to_survival_space(
+                    directed_coords,
+                    y_start=state.plot_metadata.y_axis.start,
+                    y_end=state.plot_metadata.y_axis.end,
+                    curve_direction=curve_direction_runtime,
+                )
                 color_digitized[name] = enforce_step_function(
-                    [mapping.px_to_real(px, py) for px, py in pixels]
+                    survival_coords,
+                    direction="downward",
                 )
             color_digitized, _, _ = _optimize_curve_identity_assignment(
                 digitized_curves=color_digitized,
@@ -793,15 +926,15 @@ def digitize(state: PipelineState) -> PipelineState:
                 curve_order=curve_names,
                 expected_colors=expected_colors,
                 anchors=anchors,
-                y_max=state.plot_metadata.y_axis.end,
+                y_max=effective_y_end,
             )
             color_digitized, _, _ = _postprocess_digitized_curves(
                 color_digitized,
                 anchors=anchors,
                 x_start=state.plot_metadata.x_axis.start,
                 x_end=state.plot_metadata.x_axis.end,
-                y_start=state.plot_metadata.y_axis.start,
-                y_max=state.plot_metadata.y_axis.end,
+                y_start=effective_y_start,
+                y_max=effective_y_end,
             )
 
             proposed_digitized = dict(digitized)
@@ -813,12 +946,12 @@ def digitize(state: PipelineState) -> PipelineState:
                     continue
                 base_score = _curve_rescue_score(
                     base_points,
-                    y_max=state.plot_metadata.y_axis.end,
+                    y_max=effective_y_end,
                     anchor_points=anchors.get(curve_name),
                 )
                 alt_score = _curve_rescue_score(
                     alt_points,
-                    y_max=state.plot_metadata.y_axis.end,
+                    y_max=effective_y_end,
                     anchor_points=anchors.get(curve_name),
                 )
                 if alt_score + RESCUE_LOCAL_MARGIN < base_score:
@@ -827,12 +960,12 @@ def digitize(state: PipelineState) -> PipelineState:
 
             if proposed_swaps:
                 base_global_score = _global_curve_set_score(
-                    digitized, anchors, y_max=state.plot_metadata.y_axis.end
+                    digitized, anchors, y_max=effective_y_end
                 )
                 proposed_global_score = _global_curve_set_score(
                     proposed_digitized,
                     anchors,
-                    y_max=state.plot_metadata.y_axis.end,
+                    y_max=effective_y_end,
                 )
                 catastrophic_recovery = any(
                     base_score >= CATASTROPHIC_CURVE_SCORE
@@ -871,6 +1004,7 @@ def digitize(state: PipelineState) -> PipelineState:
     validation_warnings: list[str] = (
         list(axis_config_warnings)
         + list(empty_warnings)
+        + list(direction_warnings)
         + list(dual_path_warnings)
         + list(identity_warnings)
         + list(anchor_constraint_warnings)
@@ -886,8 +1020,15 @@ def digitize(state: PipelineState) -> PipelineState:
         validation_warnings.extend(anchor_warnings)
 
     # Step 9: Validate against axis bounds
-    bounds_warnings = validate_axis_bounds(digitized, state.plot_metadata.y_axis)
+    bounds_axis = state.plot_metadata.y_axis
+    if curve_direction_runtime == "upward":
+        bounds_axis = bounds_axis.model_copy(update={"start": 0.0, "end": 1.0})
+    bounds_warnings = validate_axis_bounds(digitized, bounds_axis)
     validation_warnings.extend(bounds_warnings)
+    if curve_direction_runtime == "upward":
+        validation_warnings.append(
+            "Converted upward cumulative-incidence curves into survival space before reconstruction"
+        )
 
     # Combine with existing warnings
     all_warnings = list(state.mmpu_warnings) + validation_warnings

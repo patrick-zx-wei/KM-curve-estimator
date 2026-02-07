@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-06T06:37:35.799031",
+  "generated_at": "2026-02-06T20:12:44.052811",
   "n_cases": 5,
   "cases": [
     {
@@ -7,6 +7,11 @@
       "seed": 42,
       "difficulty": 4,
       "tier": "legacy",
+      "gap_pattern": null,
+      "background_style": "white",
+      "curve_direction": "downward",
+      "frame_layout": "full_box",
+      "font_typography": "sans",
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
@@ -23,6 +28,11 @@
       "seed": 43,
       "difficulty": 4,
       "tier": "legacy",
+      "gap_pattern": null,
+      "background_style": "white",
+      "curve_direction": "downward",
+      "frame_layout": "full_box",
+      "font_typography": "sans",
       "modifiers": [
         "TruncatedYAxis",
         "CensoringMarks",
@@ -39,6 +49,11 @@
       "seed": 44,
       "difficulty": 4,
       "tier": "legacy",
+      "gap_pattern": null,
+      "background_style": "white",
+      "curve_direction": "downward",
+      "frame_layout": "full_box",
+      "font_typography": "sans",
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
@@ -56,6 +71,11 @@
       "seed": 45,
       "difficulty": 4,
       "tier": "legacy",
+      "gap_pattern": null,
+      "background_style": "white",
+      "curve_direction": "downward",
+      "frame_layout": "full_box",
+      "font_typography": "sans",
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
@@ -72,6 +92,11 @@
       "seed": 46,
       "difficulty": 5,
       "tier": "legacy",
+      "gap_pattern": null,
+      "background_style": "white",
+      "curve_direction": "downward",
+      "frame_layout": "full_box",
+      "font_typography": "sans",
       "modifiers": [
         "CensoringMarks",
         "RiskTableDisplay",
