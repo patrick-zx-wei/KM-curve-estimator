@@ -42,7 +42,7 @@ from .modifiers import (
 )
 from .presets import generate_difficult, generate_standard
 from .renderer import render_test_case
-from .runner import run_all, run_case, run_filtered
+from .runner import run_all, run_case, run_filtered, run_fixed_suite
 
 __all__ = [
     # Generation
@@ -63,6 +63,7 @@ __all__ = [
     "run_case",
     "run_all",
     "run_filtered",
+    "run_fixed_suite",
     # Modifiers
     "Modifier",
     "TruncatedYAxis",

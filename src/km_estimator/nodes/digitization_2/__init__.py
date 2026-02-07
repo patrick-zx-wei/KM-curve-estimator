@@ -155,7 +155,6 @@ def digitize_v2(state: PipelineState) -> PipelineState:
         image,
         state.plot_metadata,
         state.ocr_tokens,
-        source_image_path=state.image_path,
     )
     if isinstance(plot_model, ProcessingError):
         return state.model_copy(update={"errors": state.errors + [plot_model]})

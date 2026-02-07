@@ -23,6 +23,14 @@ from .ground_truth import (
     load_test_case,
 )
 
+DEFAULT_FIXED_CASES = [
+    "case_016",
+    "case_033",
+    "case_050",
+    "case_066",
+    "case_083",
+    "case_100",
+]
 
 def run_case(
     case_name: str,
@@ -181,6 +189,7 @@ def run_case(
     # Stage diagnostics: attribute failures to digitization vs reconstruction per arm.
     results["benchmark_track"] = _classify_benchmark_track(results)
     results["diagnostics"] = _build_case_diagnostics(results)
+    results["stage_mae"] = _build_stage_mae_decomposition(results)
     results["interval_debug"] = _build_interval_debug_artifacts(state, test_case, results)
 
     # Overall pass/fail
@@ -240,6 +249,28 @@ def run_filtered(
     )
 
     return _build_summary(all_results, fixtures_dir, write_results)
+
+
+def run_fixed_suite(
+    fixtures_dir: str | Path = "tests/fixtures/standard",
+    case_names: list[str] | None = None,
+    write_results: bool = True,
+    max_workers: int = 1,
+) -> dict:
+    """
+    Run a fixed-case regression suite for deterministic tuning.
+    """
+    names = list(case_names) if case_names else list(DEFAULT_FIXED_CASES)
+    summary = run_filtered(
+        fixtures_dir=fixtures_dir,
+        names=names,
+        write_results=write_results,
+        max_workers=max_workers,
+    )
+    summary["fixed_suite"] = {
+        "case_names": names,
+    }
+    return summary
 
 
 def _run_manifest_cases(
@@ -518,6 +549,45 @@ def _build_case_diagnostics(results: dict) -> dict:
     }
 
 
+def _build_stage_mae_decomposition(results: dict) -> dict:
+    """Per-case MAE decomposition by stage and arm."""
+    diagnostics = results.get("diagnostics", {})
+    per_arm = diagnostics.get("per_arm", {}) if isinstance(diagnostics, dict) else {}
+    stage_by_arm: dict[str, dict] = {}
+    dig_values: list[float] = []
+    rec_values: list[float] = []
+    delta_values: list[float] = []
+
+    if isinstance(per_arm, dict):
+        for arm, payload in per_arm.items():
+            if not isinstance(payload, dict):
+                continue
+            dig = payload.get("digitize_mae")
+            rec = payload.get("reconstruction_mae")
+            delta = payload.get("delta_reconstruction_minus_digitize")
+            stage_by_arm[arm] = {
+                "digitize_mae": dig,
+                "reconstruction_mae": rec,
+                "delta_reconstruction_minus_digitize": delta,
+                "stage_attribution": payload.get("stage_attribution"),
+            }
+            if isinstance(dig, (int, float)):
+                dig_values.append(float(dig))
+            if isinstance(rec, (int, float)):
+                rec_values.append(float(rec))
+            if isinstance(delta, (int, float)):
+                delta_values.append(float(delta))
+
+    return {
+        "arms": stage_by_arm,
+        "mean_digitize_mae": (float(np.mean(dig_values)) if dig_values else None),
+        "mean_reconstruction_mae": (float(np.mean(rec_values)) if rec_values else None),
+        "mean_delta_reconstruction_minus_digitize": (
+            float(np.mean(delta_values)) if delta_values else None
+        ),
+    }
+
+
 def _build_track_summary(all_results: list[dict]) -> dict[str, dict]:
     """Aggregate pass-rate/MAE by benchmark track."""
     buckets: dict[str, dict[str, object]] = {
@@ -657,6 +727,38 @@ def _build_interval_bias_dashboard(all_results: list[dict]) -> dict:
     }
 
 
+def _build_stage_mae_dashboard(all_results: list[dict]) -> dict:
+    """Aggregate per-stage MAE decomposition across run set."""
+    dig: list[float] = []
+    rec: list[float] = []
+    delta: list[float] = []
+
+    for result in all_results:
+        stage = result.get("stage_mae", {})
+        if not isinstance(stage, dict):
+            continue
+        d = stage.get("mean_digitize_mae")
+        r = stage.get("mean_reconstruction_mae")
+        q = stage.get("mean_delta_reconstruction_minus_digitize")
+        if isinstance(d, (int, float)):
+            dig.append(float(d))
+        if isinstance(r, (int, float)):
+            rec.append(float(r))
+        if isinstance(q, (int, float)):
+            delta.append(float(q))
+
+    return {
+        "n_cases_with_metrics": len(rec),
+        "mean_digitize_mae": round(float(np.mean(dig)), 4) if dig else None,
+        "median_digitize_mae": round(float(np.median(dig)), 4) if dig else None,
+        "mean_reconstruction_mae": round(float(np.mean(rec)), 4) if rec else None,
+        "median_reconstruction_mae": round(float(np.median(rec)), 4) if rec else None,
+        "mean_delta_reconstruction_minus_digitize": (
+            round(float(np.mean(delta)), 4) if delta else None
+        ),
+    }
+
+
 def _build_summary(
     all_results: list[dict],
     output_dir: Path,
@@ -748,6 +850,7 @@ def _build_summary(
         "worst_cases": failed_cases[:10],
         "failure_breakdown": failure_breakdown,
         "stage_attribution": stage_attribution,
+        "stage_mae_dashboard": _build_stage_mae_dashboard(all_results),
         "benchmark_tracks": _build_track_summary(all_results),
         "metrics_dashboard": _build_interval_bias_dashboard(all_results),
         "by_difficulty": {
