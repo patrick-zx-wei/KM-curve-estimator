@@ -6,6 +6,9 @@ import uuid
 from pathlib import Path
 from tempfile import gettempdir
 
+import cv2
+import numpy as np
+
 from km_estimator import config
 from km_estimator.models import (
     PipelineState,
@@ -169,7 +172,10 @@ def _risk_table_quality(rt: RiskTable | None) -> float:
         return -1.0
     times = rt.time_points
     monotone = 1.0 if all(times[i] <= times[i + 1] for i in range(len(times) - 1)) else 0.0
-    return len(rt.groups) * 100.0 + len(times) * 2.0 + monotone
+    group_quality = 0.0
+    for group in rt.groups:
+        group_quality += _counts_monotone_score(group.counts)
+    return len(rt.groups) * 100.0 + len(times) * 2.0 + monotone + group_quality
 
 
 def _parse_risk_table_from_ocr(
@@ -203,14 +209,14 @@ def _parse_risk_table_from_ocr(
             row_text = " ".join(row)
             if norm_name and _name_matches_curve(row_text, curve_name):
                 counts = _select_count_sequence(_row_numbers(row), len(time_points))
-                if counts is not None:
+                if counts is not None and _is_plausible_risk_counts(counts):
                     match_idx = i
                     break
         if match_idx is None:
             continue
         used_row_idxs.add(match_idx)
         counts = _select_count_sequence(_row_numbers(rows[match_idx]), len(time_points))
-        if counts is not None:
+        if counts is not None and _is_plausible_risk_counts(counts):
             groups.append(RiskGroup(name=curve_name, counts=counts))
 
     # Second pass: numeric fallback rows for missing groups.
@@ -221,12 +227,13 @@ def _parse_risk_table_from_ocr(
             if i in used_row_idxs:
                 continue
             nums = _row_numbers(row)
-            if _select_count_sequence(nums, len(time_points)) is not None:
+            seq = _select_count_sequence(nums, len(time_points))
+            if seq is not None and _is_plausible_risk_counts(seq):
                 candidate_rows.append(i)
         for curve_name, row_idx in zip(missing, candidate_rows):
             used_row_idxs.add(row_idx)
             counts = _select_count_sequence(_row_numbers(rows[row_idx]), len(time_points))
-            if counts is not None:
+            if counts is not None and _is_plausible_risk_counts(counts):
                 groups.append(RiskGroup(name=curve_name, counts=counts))
 
     if not groups:
@@ -251,42 +258,258 @@ def _ocr_y_tick_values(ocr_tokens: RawOCRTokens | None) -> list[float]:
     """Parse numeric y-axis tick labels from OCR output."""
     if ocr_tokens is None:
         return []
-    values: list[float] = []
+    raw_values: list[float] = []
     for label in ocr_tokens.y_tick_labels:
         for value in _extract_numeric_tokens(str(label)):
-            if -0.1 <= value <= 1.5:
-                values.append(float(value))
-    return sorted(set(values))
+            raw_values.append(float(value))
+    return _normalize_y_tick_scale(raw_values)
+
+
+def _counts_monotone_score(counts: list[int]) -> float:
+    """Score monotone non-increasing behavior in a risk-table count sequence."""
+    if len(counts) < 2:
+        return 0.0
+    non_increasing = 0
+    for i in range(len(counts) - 1):
+        if counts[i] >= counts[i + 1]:
+            non_increasing += 1
+    return non_increasing / max(1, len(counts) - 1)
+
+
+def _is_plausible_risk_counts(counts: list[int]) -> bool:
+    """Basic sanity filter for OCR-derived risk-table counts."""
+    if len(counts) < 2:
+        return False
+    if any(c < 0 for c in counts):
+        return False
+    if counts[0] <= 0:
+        return False
+    if counts[0] < counts[-1]:
+        return False
+    return _counts_monotone_score(counts) >= 0.65
+
+
+def _score_y_tick_candidate(values: list[float]) -> float:
+    """Score y-axis tick candidate list quality in survival-probability space."""
+    if len(values) < 2:
+        return -1e9
+    ordered = sorted(set(float(v) for v in values))
+    span = ordered[-1] - ordered[0]
+    if span <= 0:
+        return -1e9
+
+    diffs = [ordered[i + 1] - ordered[i] for i in range(len(ordered) - 1)]
+    median_step = sorted(diffs)[len(diffs) // 2] if diffs else 0.0
+
+    score = float(len(ordered))
+    if 0.0 <= ordered[0] <= 0.5:
+        score += 1.0
+    if 0.75 <= ordered[-1] <= 1.05:
+        score += 1.5
+    if 0.2 <= span <= 1.1:
+        score += 1.0
+    if 0.02 <= median_step <= 0.35:
+        score += 0.5
+    if ordered[-1] > 1.2:
+        score -= 1.0
+    return score
+
+
+def _normalize_y_tick_scale(raw_values: list[float]) -> list[float]:
+    """
+    Normalize OCR y-axis ticks into probability scale.
+
+    Handles both 0-1 and 0-100 style labels while keeping only plausible values.
+    """
+    if not raw_values:
+        return []
+
+    direct = [v for v in raw_values if -0.1 <= v <= 1.5]
+    percent_like = [v / 100.0 for v in raw_values if 0.0 <= v <= 100.0]
+    direct = sorted(set(float(v) for v in direct))
+    percent_like = sorted(set(float(v) for v in percent_like if -0.1 <= v <= 1.5))
+
+    direct_score = _score_y_tick_candidate(direct)
+    percent_score = _score_y_tick_candidate(percent_like)
+
+    if percent_score > direct_score + 0.4:
+        return percent_like
+    return direct
+
+
+def _cluster_axis_positions(values: list[float], tolerance: float = 3.0) -> list[float]:
+    """Cluster nearby line positions and return cluster medians."""
+    if not values:
+        return []
+    ordered = sorted(float(v) for v in values)
+    clusters: list[list[float]] = [[ordered[0]]]
+    for value in ordered[1:]:
+        if abs(value - clusters[-1][-1]) <= tolerance:
+            clusters[-1].append(value)
+        else:
+            clusters.append([value])
+    return [float(np.median(np.asarray(cluster, dtype=np.float64))) for cluster in clusters]
+
+
+def _infer_y_axis_start_from_geometry(
+    image_path: str,
+    y_axis_end: float,
+    y_tick_interval: float | None,
+) -> tuple[float, float] | None:
+    """
+    Estimate y-axis floor from horizontal line geometry.
+
+    Returns (estimated_start, confidence) when geometry is coherent.
+    """
+    if y_tick_interval is None or y_tick_interval <= 0:
+        return None
+
+    image = cv_utils.load_image(image_path, stage=ProcessingStage.MMPU)
+    if isinstance(image, ProcessingError):
+        return None
+
+    h, w = image.shape[:2]
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blur, 50, 150)
+    lines = cv2.HoughLinesP(
+        edges,
+        1,
+        np.pi / 180,
+        threshold=90,
+        minLineLength=max(30, int(w * 0.35)),
+        maxLineGap=10,
+    )
+    if lines is None:
+        return None
+
+    y_positions: list[float] = []
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        if abs(y2 - y1) > 2:
+            continue
+        span = abs(x2 - x1)
+        if span < int(w * 0.3):
+            continue
+        y_mid = 0.5 * (float(y1) + float(y2))
+        if y_mid < h * 0.04 or y_mid > h * 0.82:
+            continue
+        y_positions.append(y_mid)
+
+    clustered = _cluster_axis_positions(y_positions, tolerance=3.0)
+    if len(clustered) < 4:
+        return None
+
+    clustered = sorted(clustered)
+    diffs = np.diff(np.asarray(clustered, dtype=np.float64))
+    valid_diffs = diffs[(diffs >= 6.0) & (diffs <= h * 0.35)]
+    if len(valid_diffs) < 2:
+        return None
+
+    spacing = float(np.median(valid_diffs))
+    if spacing <= 0:
+        return None
+
+    top_y = float(clustered[0])
+    bottom_y = float(clustered[-1])
+    interval_span = (bottom_y - top_y) / spacing
+    if interval_span < 2.0 or interval_span > 10.0:
+        return None
+
+    estimated_start = float(y_axis_end - interval_span * float(y_tick_interval))
+    if not (-0.1 <= estimated_start <= y_axis_end):
+        return None
+
+    mad = float(np.median(np.abs(valid_diffs - spacing)))
+    rel_dispersion = mad / max(1.0, spacing)
+    confidence = float(np.clip(1.0 - rel_dispersion * 3.0, 0.0, 1.0))
+    return estimated_start, confidence
 
 
 def _maybe_correct_y_axis_start(
     plot_metadata: PlotMetadata,
     ocr_tokens: RawOCRTokens | None,
+    image_path: str,
     warnings: list[str],
 ) -> PlotMetadata:
-    """Correct y_axis.start when OCR/tick evidence suggests a nearby better value."""
+    """Conservatively correct y_axis.start when multiple evidence sources agree."""
     y_axis = plot_metadata.y_axis
-    candidates: list[float] = []
+    evidence: list[tuple[float, str, float]] = []
+    geometry_candidate: tuple[float, float] | None = None
 
     if y_axis.tick_values:
-        candidates.append(min(float(v) for v in y_axis.tick_values))
+        min_tick = min(float(v) for v in y_axis.tick_values)
+        evidence.append((min_tick, "metadata ticks", 1.0))
 
     ocr_y_ticks = _ocr_y_tick_values(ocr_tokens)
     if ocr_y_ticks:
-        candidates.append(min(ocr_y_ticks))
+        min_ocr_tick = min(ocr_y_ticks)
+        evidence.append((min_ocr_tick, "OCR y-ticks", 1.0))
 
-    if not candidates:
+    geometry_candidate = _infer_y_axis_start_from_geometry(
+        image_path=image_path,
+        y_axis_end=float(y_axis.end),
+        y_tick_interval=y_axis.tick_interval,
+    )
+    if geometry_candidate is not None:
+        geom_value, geom_conf = geometry_candidate
+        if 0.02 <= abs(geom_value - y_axis.start) <= 0.15:
+            evidence.append((geom_value, "geometry", 1.0 + 0.5 * geom_conf))
+
+    if not evidence:
         return plot_metadata
 
-    corrected_start = min(candidates)
-    if not (-0.1 <= corrected_start <= y_axis.end):
+    valid_evidence = [
+        (value, source, weight)
+        for value, source, weight in evidence
+        if -0.1 <= value <= y_axis.end
+    ]
+    if not valid_evidence:
         return plot_metadata
 
-    # Only apply conservative nearby corrections to avoid large accidental shifts.
-    if abs(corrected_start - y_axis.start) < 0.02 or abs(corrected_start - y_axis.start) > 0.12:
+    # Apply only nearby corrections to avoid large accidental shifts.
+    nearby_candidates = [
+        (value, source, weight)
+        for value, source, weight in valid_evidence
+        if 0.02 <= abs(value - y_axis.start) <= 0.12
+    ]
+    if not nearby_candidates:
         return plot_metadata
 
-    warnings.append(f"Corrected y_axis.start from {y_axis.start} to {corrected_start}")
+    consensus_tol = 0.03
+    candidate_values = sorted({round(value, 4) for value, _, _ in nearby_candidates})
+    scored_candidates: list[tuple[float, float]] = []
+    for candidate in candidate_values:
+        support = sum(
+            weight
+            for value, _, weight in valid_evidence
+            if abs(value - candidate) <= consensus_tol
+        )
+        scored_candidates.append((support, candidate))
+
+    best_support, corrected_start = max(
+        scored_candidates,
+        key=lambda item: (item[0], -abs(item[1] - y_axis.start)),
+    )
+    if best_support < 2.0:
+        if geometry_candidate is None:
+            return plot_metadata
+        geom_value, geom_conf = geometry_candidate
+        if not (geom_conf >= 0.88 and 0.02 <= abs(geom_value - y_axis.start) <= 0.12):
+            return plot_metadata
+        corrected_start = float(geom_value)
+        source = f"geometry (conf={geom_conf:.2f})"
+        warnings.append(
+            f"Corrected y_axis.start from {y_axis.start} to {corrected_start} ({source})"
+        )
+        return plot_metadata.model_copy(
+            update={"y_axis": y_axis.model_copy(update={"start": corrected_start})}
+        )
+
+    source = "consensus ticks/OCR"
+    warnings.append(
+        f"Corrected y_axis.start from {y_axis.start} to {corrected_start} ({source})"
+    )
     return plot_metadata.model_copy(
         update={"y_axis": y_axis.model_copy(update={"start": corrected_start})}
     )
@@ -571,7 +794,7 @@ def mmpu(state: PipelineState) -> PipelineState:
                 plot_metadata = plot_metadata.model_copy(update={"risk_table": crop_rt})
                 warnings.append("Recovered risk table from cropped lower-region OCR")
 
-    plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, warnings)
+    plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, image_path, warnings)
     plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
 
     # Validate: at least one curve must be detected
@@ -808,7 +1031,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                     plot_metadata = plot_metadata.model_copy(update={"risk_table": best_rt})
                     warnings.append("Recovered risk table from cropped lower-region OCR")
 
-    plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, warnings)
+    plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, image_path, warnings)
     plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
 
     # Validate: at least one curve must be detected

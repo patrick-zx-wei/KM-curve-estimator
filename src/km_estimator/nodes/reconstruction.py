@@ -25,6 +25,12 @@ from km_estimator.models import (
 MIN_ESTIMATED_COHORT_SIZE = 50
 MAX_ESTIMATED_COHORT_SIZE = 5000
 SIGNIFICANT_DROP_THRESHOLD = 0.003
+LANDMARK_TIMES = (6.0, 12.0, 24.0, 36.0, 48.0, 60.0)
+FULL_RECON_NON_REGRESSION_TRIGGER = 0.05
+FULL_RECON_ALT_SWITCH_MARGIN = 0.01
+FULL_RECON_ALT_MAX_RATIO = 1.35
+FULL_RECON_ALT_MAX_ABS_MARGIN = 12
+FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX = 0.35
 
 
 def _estimate_interval_end_survival(
@@ -47,6 +53,7 @@ def _choose_interval_event_count(
     s_start: float,
     s_end: float,
     target_events: float,
+    survival_weight: float = 1.0,
 ) -> int:
     """Choose integer event count minimizing survival mismatch and rounding drift."""
     if lost_total <= 0 or n_start <= 0:
@@ -69,7 +76,7 @@ def _choose_interval_event_count(
         predicted_s_end = _estimate_interval_end_survival(n_start, lost_total, events, s_start)
         survival_error = abs(predicted_s_end - s_end)
         rounding_error = abs(float(events) - bounded_target)
-        score = survival_error * 8.0 + rounding_error * 0.35
+        score = survival_error * (8.0 * max(0.7, survival_weight)) + rounding_error * 0.35
         if score < best_score:
             best_score = score
             best_events = int(events)
@@ -185,7 +192,64 @@ def _extract_drop_points_in_interval(
     return [t for t, _ in items], [w for _, w in items]
 
 
-def _weighted_event_times(total_events: int, times: list[float], weights: list[float]) -> list[float]:
+def _interval_survival_weight(t_start: float, t_end: float) -> float:
+    """Weight event-count fit near common hard-point horizons."""
+    center = 0.5 * (t_start + t_end)
+    nearest = min(abs(center - t_ref) for t_ref in LANDMARK_TIMES)
+    if nearest <= 2.0:
+        return 1.35
+    if nearest <= 5.0:
+        return 1.2
+    return 1.0
+
+
+def _event_timing_center_quantile(
+    s_start: float,
+    s_mid: float,
+    s_end: float,
+) -> float:
+    """
+    Estimate where interval events concentrate (0=early, 1=late).
+
+    Uses how much of the interval drop has already happened by midpoint.
+    """
+    total_drop = max(1e-9, s_start - s_end)
+    mid_drop = np.clip(s_start - s_mid, 0.0, total_drop)
+    early_ratio = float(mid_drop / total_drop)
+    # More midpoint drop => earlier events.
+    return float(np.clip(0.8 - 0.6 * early_ratio, 0.2, 0.8))
+
+
+def _biased_uniform_event_times(
+    total_events: int,
+    t_start: float,
+    t_end: float,
+    center_quantile: float,
+) -> list[float]:
+    """Fallback event-time placement with a controllable early/late bias."""
+    if total_events <= 0:
+        return []
+    span = max(1e-9, t_end - t_start)
+    if total_events == 1:
+        return [float(t_start + span * center_quantile)]
+
+    ranks = (np.arange(total_events, dtype=np.float64) + 0.5) / float(total_events)
+    blended = 0.65 * ranks + 0.35 * center_quantile
+    positions = np.clip(blended, 0.02, 0.98)
+    times = t_start + positions * span
+    return [float(t) for t in np.sort(times)]
+
+
+def _weighted_event_times(
+    total_events: int,
+    times: list[float],
+    weights: list[float],
+    t_start: float,
+    t_end: float,
+    s_start: float,
+    s_mid: float,
+    s_end: float,
+) -> list[float]:
     """Allocate integer events to candidate times proportionally to weights."""
     if total_events <= 0:
         return []
@@ -196,6 +260,14 @@ def _weighted_event_times(total_events: int, times: list[float], weights: list[f
     w = np.clip(w, 0.0, None)
     if float(np.sum(w)) <= 0.0:
         w = np.ones_like(w)
+
+    if t_end > t_start:
+        center_q = _event_timing_center_quantile(s_start, s_mid, s_end)
+        span = max(1e-9, t_end - t_start)
+        positions = np.clip((np.asarray(times, dtype=np.float64) - t_start) / span, 0.0, 1.0)
+        distance = np.abs(positions - center_q)
+        timing_gain = np.exp(-2.2 * distance)
+        w = w * (0.65 + 0.9 * timing_gain)
 
     raw = w / float(np.sum(w)) * total_events
     counts = np.floor(raw).astype(np.int32)
@@ -250,6 +322,7 @@ def _estimate_initial_n_from_curve(
     coords: list[tuple[float, float]],
     censoring_times: list[float],
     default_n: int,
+    max_cohort_size: int = MAX_ESTIMATED_COHORT_SIZE,
 ) -> int:
     """Estimate plausible cohort size from curve step profile when risk table is missing."""
     normalized = _normalize_step_coords(coords)
@@ -271,7 +344,8 @@ def _estimate_initial_n_from_curve(
     significant_drops = sum(1 for d in drops if d >= SIGNIFICANT_DROP_THRESHOLD)
     lower_bound = len(censoring_times) + significant_drops + 5
     estimated = max(default_n, implied_n, lower_bound)
-    return int(np.clip(estimated, MIN_ESTIMATED_COHORT_SIZE, MAX_ESTIMATED_COHORT_SIZE))
+    capped_max = max(MIN_ESTIMATED_COHORT_SIZE, int(max_cohort_size))
+    return int(np.clip(estimated, MIN_ESTIMATED_COHORT_SIZE, capped_max))
 
 
 def _guyot_ikm(
@@ -311,6 +385,7 @@ def _guyot_ikm(
     survival_lookup = _build_survival_lookup(coords)
     normalized_coords = _normalize_step_coords(coords)
     event_residual = 0.0
+    carried_survival_bias_events = 0.0
 
     for j in range(len(time_points) - 1):
         t_start = time_points[j]
@@ -346,16 +421,25 @@ def _guyot_ikm(
         # Estimate events from survival drop and reconcile with interval loss.
         survival_ratio = np.clip(s_end / max(s_start, 1e-9), 0.0, 1.0)
         expected_events = np.clip(n_start * (1.0 - survival_ratio), 0.0, float(n_start))
-        target_events = expected_events + event_residual
+        target_events = expected_events + event_residual + carried_survival_bias_events
+        interval_weight = _interval_survival_weight(t_start, t_end)
         d_j = _choose_interval_event_count(
             n_start=n_start,
             lost_total=lost_total,
             s_start=s_start,
             s_end=s_end,
             target_events=target_events,
+            survival_weight=interval_weight,
         )
         event_residual = target_events - d_j
         c_j = int(max(0, lost_total - d_j))
+        predicted_s_end = _estimate_interval_end_survival(n_start, lost_total, d_j, s_start)
+        survival_residual = float(s_end - predicted_s_end)
+        equivalent_events = -survival_residual * float(n_start) / max(1e-9, s_start)
+        equivalent_events = float(
+            np.clip(equivalent_events, -0.75 * max(1, lost_total), 0.75 * max(1, lost_total))
+        )
+        carried_survival_bias_events = 0.45 * carried_survival_bias_events + 0.55 * equivalent_events
 
         # Place events at observed drop times when possible.
         if d_j > 0:
@@ -364,9 +448,22 @@ def _guyot_ikm(
                 t_start,
                 t_end,
             )
-            event_times = _weighted_event_times(d_j, drop_times, drop_weights)
+            s_mid = _get_survival_at_time(survival_lookup, 0.5 * (t_start + t_end))
+            event_times = _weighted_event_times(
+                d_j,
+                drop_times,
+                drop_weights,
+                t_start=t_start,
+                t_end=t_end,
+                s_start=s_start,
+                s_mid=s_mid,
+                s_end=s_end,
+            )
             if not event_times:
-                event_times = np.linspace(t_start, t_end, d_j + 2)[1:-1].tolist()
+                center_q = _event_timing_center_quantile(s_start, s_mid, s_end)
+                event_times = _biased_uniform_event_times(
+                    d_j, t_start, t_end, center_quantile=center_q
+                )
             for et in event_times:
                 patients.append(PatientRecord(time=float(et), event=True))
 
@@ -398,6 +495,7 @@ def _estimate_ipd(
     coords: list[tuple[float, float]],
     censoring_times: list[float],
     initial_n: int = 100,
+    max_cohort_size: int | None = None,
 ) -> tuple[list[PatientRecord], list[str]]:
     """Estimate IPD when risk table is not available."""
     warnings: list[str] = []
@@ -407,7 +505,17 @@ def _estimate_ipd(
         warnings.append("No coordinates for estimation")
         return patients, warnings
 
-    estimated_n = _estimate_initial_n_from_curve(coords, censoring_times, initial_n)
+    cohort_cap = (
+        MAX_ESTIMATED_COHORT_SIZE
+        if max_cohort_size is None
+        else max(MIN_ESTIMATED_COHORT_SIZE, int(max_cohort_size))
+    )
+    estimated_n = _estimate_initial_n_from_curve(
+        coords,
+        censoring_times,
+        initial_n,
+        max_cohort_size=cohort_cap,
+    )
     warnings.append(
         "Using estimated mode without risk table "
         f"(configured N={initial_n}, derived N={estimated_n})."
@@ -456,6 +564,65 @@ def _estimate_ipd(
     patients.sort(key=lambda p: p.time)
 
     return patients, warnings
+
+
+def _interval_loss_mismatch_fraction(
+    patients: list[PatientRecord],
+    risk_group: RiskGroup | None,
+    risk_time_points: list[float],
+) -> float:
+    """Fractional mismatch between reconstructed interval losses and risk-table losses."""
+    if risk_group is None or len(risk_time_points) < 2:
+        # No comparable risk-table group; do not block fallback on mismatch gating.
+        return 0.0
+    counts = risk_group.counts
+    if len(counts) != len(risk_time_points):
+        # Incomplete table alignment; treat as non-comparable instead of hard mismatch.
+        return 0.0
+
+    total_expected = 0
+    total_mismatch = 0
+    last_interval_idx = len(risk_time_points) - 2
+    for j in range(len(risk_time_points) - 1):
+        t_start = float(risk_time_points[j])
+        t_end = float(risk_time_points[j + 1])
+        expected_loss = max(0, int(counts[j]) - int(counts[j + 1]))
+        actual_loss = 0
+        for p in patients:
+            pt = float(p.time)
+            if t_start < pt < t_end:
+                actual_loss += 1
+                continue
+            if abs(pt - t_end) > 1e-9:
+                continue
+            if bool(p.event):
+                actual_loss += 1
+                continue
+            # Final-time right-censored survivors are denominator carryover, not interval loss.
+            if j < last_interval_idx:
+                actual_loss += 1
+        total_expected += expected_loss
+        total_mismatch += abs(actual_loss - expected_loss)
+
+    denom = max(1, total_expected)
+    return float(total_mismatch / denom)
+
+
+def _landmark_proxy_error(
+    reference_curve: list[tuple[float, float]],
+    candidate_curve: list[tuple[float, float]],
+    landmarks: list[float],
+) -> float:
+    """Mean absolute deviation at selected landmark times."""
+    if not reference_curve or not candidate_curve or not landmarks:
+        return 0.0
+    ref_lookup = _build_survival_lookup(reference_curve)
+    cand_lookup = _build_survival_lookup(candidate_curve)
+    errors = [
+        abs(_get_survival_at_time(cand_lookup, t) - _get_survival_at_time(ref_lookup, t))
+        for t in landmarks
+    ]
+    return float(np.mean(np.asarray(errors, dtype=np.float64))) if errors else 0.0
 
 
 def _km_from_ipd(patients: list[PatientRecord]) -> list[tuple[float, float]]:
@@ -536,7 +703,101 @@ def reconstruct(state: PipelineState) -> PipelineState:
         censoring = state.censoring_marks.get(name, []) if state.censoring_marks else []
 
         if mode == ReconstructionMode.FULL and risk_table:
-            patients, warnings = _guyot_ikm(coords, risk_table, name)
+            patients_full, warnings_full = _guyot_ikm(coords, risk_table, name)
+            full_curve = _km_from_ipd(patients_full)
+            full_fit_mae = _calculate_mae(coords, full_curve)
+
+            risk_group = _find_matching_risk_group(risk_table, name)
+            fallback_n = state.config.estimated_cohort_size
+            fallback_cap: int | None = None
+            target_n: int | None = None
+            if risk_group and risk_group.counts:
+                target_n = max(1, int(risk_group.counts[0]))
+                fallback_n = target_n
+                fallback_cap = max(
+                    MIN_ESTIMATED_COHORT_SIZE,
+                    max(
+                        target_n + FULL_RECON_ALT_MAX_ABS_MARGIN,
+                        int(round(target_n * FULL_RECON_ALT_MAX_RATIO)),
+                    ),
+                )
+            patients_alt, warnings_alt = _estimate_ipd(
+                coords,
+                censoring,
+                initial_n=fallback_n,
+                max_cohort_size=fallback_cap,
+            )
+            alt_curve = _km_from_ipd(patients_alt)
+            alt_fit_mae = _calculate_mae(coords, alt_curve)
+            alt_interval_mismatch = _interval_loss_mismatch_fraction(
+                patients_alt,
+                risk_group,
+                risk_table.time_points,
+            )
+            landmark_times = sorted(
+                set(float(t) for t in risk_table.time_points if float(t) > 0)
+            )
+            full_landmark_error = _landmark_proxy_error(coords, full_curve, landmark_times)
+            alt_landmark_error = _landmark_proxy_error(coords, alt_curve, landmark_times)
+
+            alt_size_plausible = True
+            if target_n is not None:
+                max_allowed = max(
+                    target_n + FULL_RECON_ALT_MAX_ABS_MARGIN,
+                    int(round(target_n * FULL_RECON_ALT_MAX_RATIO)),
+                )
+                min_allowed = max(1, int(round(target_n * 0.5)))
+                alt_size_plausible = min_allowed <= len(patients_alt) <= max_allowed
+
+            choose_alt = False
+            if not patients_full and patients_alt:
+                choose_alt = (
+                    alt_size_plausible
+                    and alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
+                )
+            elif (
+                patients_alt
+                and alt_size_plausible
+                and alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
+                and alt_fit_mae + FULL_RECON_ALT_SWITCH_MARGIN < full_fit_mae
+                and (
+                    full_fit_mae >= FULL_RECON_NON_REGRESSION_TRIGGER
+                    or (full_fit_mae - alt_fit_mae) >= 0.02
+                )
+            ):
+                choose_alt = True
+
+            # Hard non-regression: keep safer strategy when full-mode clearly drifts
+            # away from digitized landmarks and alternate is plausibly better.
+            if (
+                not choose_alt
+                and patients_alt
+                and alt_size_plausible
+                and alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
+                and full_fit_mae > 0.06
+                and alt_fit_mae + 0.012 < full_fit_mae
+                and alt_landmark_error + 0.01 < full_landmark_error
+            ):
+                choose_alt = True
+
+            if choose_alt:
+                patients = patients_alt
+                warnings = list(warnings_alt)
+                warnings.append(
+                    f"{name}: switched to estimated reconstruction "
+                    f"(fit MAE {full_fit_mae:.4f} -> {alt_fit_mae:.4f})"
+                )
+                warnings.append(
+                    f"{name}: estimated fallback checks "
+                    f"(n={len(patients_alt)}, interval_mismatch={alt_interval_mismatch:.3f})"
+                )
+                warnings.append(
+                    f"{name}: landmark proxy improved "
+                    f"({full_landmark_error:.4f} -> {alt_landmark_error:.4f})"
+                )
+            else:
+                patients = patients_full
+                warnings = warnings_full
         else:
             patients, warnings = _estimate_ipd(
                 coords, censoring, initial_n=state.config.estimated_cohort_size

@@ -36,43 +36,43 @@
         {
           "time": 6,
           "expected": 0.9417,
-          "actual": 0.947,
-          "error": 0.0053,
+          "actual": 0.9462,
+          "error": 0.0045,
           "pass": true
         },
         {
           "time": 12,
           "expected": 0.8369,
-          "actual": 0.8186,
-          "error": 0.0183,
+          "actual": 0.8492,
+          "error": 0.0123,
           "pass": true
         },
         {
           "time": 24,
           "expected": 0.6749,
-          "actual": 0.6476,
-          "error": 0.0273,
+          "actual": 0.6648,
+          "error": 0.0101,
           "pass": true
         },
         {
           "time": 36,
           "expected": 0.5454,
-          "actual": 0.5106,
-          "error": 0.0348,
+          "actual": 0.5183,
+          "error": 0.0271,
           "pass": true
         },
         {
           "time": 48,
           "expected": 0.3702,
-          "actual": 0.3715,
-          "error": 0.0013,
+          "actual": 0.3751,
+          "error": 0.0049,
           "pass": true
         },
         {
           "time": 60,
           "expected": 0.2722,
-          "actual": 0.2451,
-          "error": 0.0271,
+          "actual": 0.2663,
+          "error": 0.0059,
           "pass": true
         }
       ],
@@ -90,36 +90,36 @@
         {
           "time": 12,
           "expected": 0.9166,
-          "actual": 0.8212,
-          "error": 0.0954,
+          "actual": 0.8494,
+          "error": 0.0672,
           "pass": false
         },
         {
           "time": 24,
           "expected": 0.6459,
-          "actual": 0.631,
-          "error": 0.0149,
+          "actual": 0.6682,
+          "error": 0.0223,
           "pass": true
         },
         {
           "time": 36,
           "expected": 0.4123,
-          "actual": 0.401,
-          "error": 0.0113,
+          "actual": 0.4151,
+          "error": 0.0028,
           "pass": true
         },
         {
           "time": 48,
           "expected": 0.2863,
-          "actual": 0.3514,
-          "error": 0.0651,
+          "actual": 0.382,
+          "error": 0.0957,
           "pass": false
         },
         {
           "time": 60,
           "expected": 0.1318,
-          "actual": 0.2135,
-          "error": 0.0817,
+          "actual": 0.232,
+          "error": 0.1002,
           "pass": false
         }
       ],
@@ -128,69 +128,84 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.010870924918520217,
-      "rmse": 0.01297730007874071,
-      "dtw": 0.001979989046622195,
-      "frechet": 0.027039080391392217,
-      "max_error": 0.0319481949944011
+      "mae": 0.013337812290428892,
+      "rmse": 0.01766278380462829,
+      "dtw": 0.0019529205945649608,
+      "frechet": 0.006648329425761379,
+      "max_error": 0.05975802652227119
     },
     "Treatment": {
-      "mae": 0.04317246741295914,
-      "rmse": 0.0559488986522638,
-      "dtw": 0.006514766132047893,
-      "frechet": 0.0816533980511942,
-      "max_error": 0.16705305850505242
+      "mae": 0.0495257687826192,
+      "rmse": 0.06397595401679029,
+      "dtw": 0.007909445629659522,
+      "frechet": 0.10022023860154305,
+      "max_error": 0.19448134568170417
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.026064159946434864,
+      "mae": 0.014513498719613018,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.030458478323664693,
+      "mae": 0.01778866065568654,
       "dtw": null,
       "rmse": null
     }
+  },
+  "reconstruction_meta": {
+    "mode": "full",
+    "patient_counts": {
+      "Control": 200,
+      "Treatment": 200
+    },
+    "warnings": [
+      "GPT extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "GPT metadata extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "Added 15 terminal right-censored survivors at t=60.0",
+      "Added 8 terminal right-censored survivors at t=60.0"
+    ]
   },
   "diagnostics": {
     "per_arm": {
       "Control": {
         "digitize_mae": 0.02204608693716724,
-        "reconstruction_mae": 0.010870924918520217,
-        "delta_reconstruction_minus_digitize": -0.011175162018647022,
+        "reconstruction_mae": 0.013337812290428892,
+        "delta_reconstruction_minus_digitize": -0.008708274646738347,
         "hard_fail_count": 0,
         "stage_attribution": "clean",
         "failed_landmarks": []
       },
       "Treatment": {
         "digitize_mae": 0.06217034830830268,
-        "reconstruction_mae": 0.04317246741295914,
-        "delta_reconstruction_minus_digitize": -0.018997880895343544,
+        "reconstruction_mae": 0.0495257687826192,
+        "delta_reconstruction_minus_digitize": -0.012644579525683479,
         "hard_fail_count": 3,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 12,
             "expected": 0.9166,
-            "actual": 0.8212,
-            "error": 0.0954,
-            "bias": -0.0954
+            "actual": 0.8494,
+            "error": 0.0672,
+            "bias": -0.0672
           },
           {
             "time": 48,
             "expected": 0.2863,
-            "actual": 0.3514,
-            "error": 0.0651,
-            "bias": 0.0651
+            "actual": 0.382,
+            "error": 0.0957,
+            "bias": 0.0957
           },
           {
             "time": 60,
             "expected": 0.1318,
-            "actual": 0.2135,
-            "error": 0.0817,
-            "bias": 0.0817
+            "actual": 0.232,
+            "error": 0.1002,
+            "bias": 0.1002
           }
         ]
       }
@@ -203,6 +218,264 @@
       "12": 1,
       "48": 1,
       "60": 1
+    }
+  },
+  "interval_debug": {
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.013337812290428892,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 200,
+            "n_end": 142,
+            "risk_table_loss": 58,
+            "events_reconstructed": 21,
+            "censors_reconstructed": 37,
+            "digitized_s_start": 1.0,
+            "digitized_s_end": 0.8958,
+            "reconstructed_s_end": 0.8809,
+            "expected_s_end": 0.8872
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 142,
+            "n_end": 100,
+            "risk_table_loss": 42,
+            "events_reconstructed": 22,
+            "censors_reconstructed": 20,
+            "digitized_s_start": 0.8958,
+            "digitized_s_end": 0.749,
+            "reconstructed_s_end": 0.7323,
+            "expected_s_end": 0.7273
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 100,
+            "n_end": 70,
+            "risk_table_loss": 30,
+            "events_reconstructed": 17,
+            "censors_reconstructed": 13,
+            "digitized_s_start": 0.749,
+            "digitized_s_end": 0.6175,
+            "reconstructed_s_end": 0.5999,
+            "expected_s_end": 0.6168
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 70,
+            "n_end": 46,
+            "risk_table_loss": 24,
+            "events_reconstructed": 13,
+            "censors_reconstructed": 11,
+            "digitized_s_start": 0.6175,
+            "digitized_s_end": 0.4963,
+            "reconstructed_s_end": 0.4774,
+            "expected_s_end": 0.483
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 46,
+            "n_end": 27,
+            "risk_table_loss": 19,
+            "events_reconstructed": 11,
+            "censors_reconstructed": 8,
+            "digitized_s_start": 0.4963,
+            "digitized_s_end": 0.3725,
+            "reconstructed_s_end": 0.3501,
+            "expected_s_end": 0.3702
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 27,
+            "n_end": 15,
+            "risk_table_loss": 12,
+            "events_reconstructed": 5,
+            "censors_reconstructed": 22,
+            "digitized_s_start": 0.3725,
+            "digitized_s_end": 0.2914,
+            "reconstructed_s_end": 0.2663,
+            "expected_s_end": 0.2722
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9417,
+            "actual": 0.9462,
+            "error": 0.0045,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.8369,
+            "actual": 0.8492,
+            "error": 0.0123,
+            "pass": true
+          },
+          {
+            "time": 24,
+            "expected": 0.6749,
+            "actual": 0.6648,
+            "error": 0.0101,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.5454,
+            "actual": 0.5183,
+            "error": 0.0271,
+            "pass": true
+          },
+          {
+            "time": 48,
+            "expected": 0.3702,
+            "actual": 0.3751,
+            "error": 0.0049,
+            "pass": true
+          },
+          {
+            "time": 60,
+            "expected": 0.2722,
+            "actual": 0.2663,
+            "error": 0.0059,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment": {
+        "reconstruction_mae": 0.0495257687826192,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 200,
+            "n_end": 163,
+            "risk_table_loss": 37,
+            "events_reconstructed": 20,
+            "censors_reconstructed": 17,
+            "digitized_s_start": 1.0,
+            "digitized_s_end": 0.8975,
+            "reconstructed_s_end": 0.8949,
+            "expected_s_end": 0.9403
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 163,
+            "n_end": 94,
+            "risk_table_loss": 69,
+            "events_reconstructed": 28,
+            "censors_reconstructed": 41,
+            "digitized_s_start": 0.8975,
+            "digitized_s_end": 0.7447,
+            "reconstructed_s_end": 0.7155,
+            "expected_s_end": 0.692
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 94,
+            "n_end": 59,
+            "risk_table_loss": 35,
+            "events_reconstructed": 18,
+            "censors_reconstructed": 17,
+            "digitized_s_start": 0.7447,
+            "digitized_s_end": 0.5799,
+            "reconstructed_s_end": 0.5604,
+            "expected_s_end": 0.5573
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 59,
+            "n_end": 32,
+            "risk_table_loss": 27,
+            "events_reconstructed": 17,
+            "censors_reconstructed": 10,
+            "digitized_s_start": 0.5799,
+            "digitized_s_end": 0.4143,
+            "reconstructed_s_end": 0.382,
+            "expected_s_end": 0.3721
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 32,
+            "n_end": 16,
+            "risk_table_loss": 16,
+            "events_reconstructed": 2,
+            "censors_reconstructed": 14,
+            "digitized_s_start": 0.4143,
+            "digitized_s_end": 0.3656,
+            "reconstructed_s_end": 0.3428,
+            "expected_s_end": 0.2433
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 16,
+            "n_end": 8,
+            "risk_table_loss": 8,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 12,
+            "digitized_s_start": 0.3656,
+            "digitized_s_end": 0.2845,
+            "reconstructed_s_end": 0.232,
+            "expected_s_end": 0.1318
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9792,
+            "actual": 0.9433,
+            "error": 0.0359,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.9166,
+            "actual": 0.8494,
+            "error": 0.0672,
+            "pass": false
+          },
+          {
+            "time": 24,
+            "expected": 0.6459,
+            "actual": 0.6682,
+            "error": 0.0223,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.4123,
+            "actual": 0.4151,
+            "error": 0.0028,
+            "pass": true
+          },
+          {
+            "time": 48,
+            "expected": 0.2863,
+            "actual": 0.382,
+            "error": 0.0957,
+            "pass": false
+          },
+          {
+            "time": 60,
+            "expected": 0.1318,
+            "actual": 0.232,
+            "error": 0.1002,
+            "pass": false
+          }
+        ]
+      }
     }
   },
   "passed": false

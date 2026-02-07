@@ -47,6 +47,8 @@ AMBIGUITY_SPREAD_PX_THRESHOLD = 8.0
 AMBIGUITY_DENSITY_THRESHOLD = 8
 AMBIGUITY_MODERATE_THRESHOLD = 0.5
 AMBIGUITY_HIGH_THRESHOLD = 0.85
+CROSSING_RELAXED_SWAP_FACTOR = 0.35
+CROSSING_LOCKED_SWAP_FACTOR = 1.25
 
 
 def _column_stats(
@@ -504,6 +506,56 @@ def _build_curve_x_maps(
     return maps, sorted(union_x)
 
 
+def _detect_crossing_window_mask(
+    curve_names: list[str],
+    x_maps: dict[str, dict[int, list[int]]],
+    x_values: list[int],
+    dilation: int = 8,
+) -> list[bool]:
+    """Detect likely crossing windows and dilate around them."""
+    if len(curve_names) < 2 or not x_values:
+        return [False] * len(x_values)
+
+    pair_prev_sign: dict[tuple[int, int], int] = {}
+    crossing_indices: set[int] = set()
+
+    for idx, x in enumerate(x_values):
+        medians: list[float | None] = []
+        for name in curve_names:
+            ys = x_maps[name].get(x)
+            medians.append(float(np.median(ys)) if ys else None)
+
+        for i in range(len(curve_names)):
+            yi = medians[i]
+            if yi is None:
+                continue
+            for j in range(i + 1, len(curve_names)):
+                yj = medians[j]
+                if yj is None:
+                    continue
+                diff = yi - yj
+                key = (i, j)
+                if abs(diff) <= (CROSSING_MARGIN_PX + 1):
+                    crossing_indices.add(idx)
+                    continue
+                sign = 1 if diff > 0 else -1
+                prev_sign = pair_prev_sign.get(key)
+                if prev_sign is not None and sign != prev_sign:
+                    crossing_indices.add(idx)
+                pair_prev_sign[key] = sign
+
+    if not crossing_indices:
+        return [False] * len(x_values)
+
+    mask = [False] * len(x_values)
+    for idx in crossing_indices:
+        lo = max(0, idx - dilation)
+        hi = min(len(mask) - 1, idx + dilation)
+        for k in range(lo, hi + 1):
+            mask[k] = True
+    return mask
+
+
 def _curve_candidates_for_x(
     x_map: dict[int, list[int]],
     sorted_keys: list[int],
@@ -648,6 +700,7 @@ def _transition_matrix_vectorized(
     curr_y: NDArray[np.float32],
     curr_missing: NDArray[np.bool_],
     x_gap: int,
+    swap_penalty: float = SWAP_PENALTY,
 ) -> NDArray[np.float32]:
     """
     Compute transition costs between all prev/curr states in vectorized form.
@@ -690,7 +743,7 @@ def _transition_matrix_vectorized(
                     & (np.abs(curr_diff) > float(CROSSING_MARGIN_PX))
                     & (np.sign(prev_diff) != np.sign(curr_diff))
                 )
-                transition += swap_mask.astype(np.float32) * float(SWAP_PENALTY)
+                transition += swap_mask.astype(np.float32) * float(swap_penalty)
 
     return transition.astype(np.float32, copy=False)
 
@@ -701,6 +754,7 @@ def _trace_curves_joint(
     image: NDArray[Any] | None,
     curve_color_priors: dict[str, tuple[float, float, float] | None] | None,
     max_fallback_gap_px: int,
+    crossing_relaxed: bool = False,
 ) -> dict[str, list[tuple[int, int]]]:
     """Jointly trace all curves with state exclusivity and identity priors."""
     if not x_values:
@@ -709,6 +763,11 @@ def _trace_curves_joint(
     curve_names = list(raw_curves.keys())
     x_maps, _ = _build_curve_x_maps(raw_curves)
     sorted_keys = {name: sorted(x_maps[name].keys()) for name in curve_names}
+    crossing_window_mask = _detect_crossing_window_mask(
+        curve_names=curve_names,
+        x_maps=x_maps,
+        x_values=x_values,
+    )
     color_maps = _build_color_prior_maps(image) if image is not None else None
     expected_labs: dict[str, tuple[float, float, float] | None] = {
         name: (
@@ -723,6 +782,7 @@ def _trace_curves_joint(
     state_y_by_x: list[NDArray[np.float32]] = []
     state_missing_by_x: list[NDArray[np.bool_]] = []
     state_data_cost_by_x: list[NDArray[np.float32]] = []
+    ambiguity_by_x: list[float] = []
     for x in x_values:
         curve_candidates: list[list[int | None]] = []
         curve_costs: list[list[float]] = []
@@ -759,12 +819,15 @@ def _trace_curves_joint(
 
         x_ambiguity = float(np.mean(curve_ambiguities)) if curve_ambiguities else 0.0
         beam_size = _adaptive_state_beam(x_ambiguity, len(curve_names))
+        if crossing_relaxed and x_ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
+            beam_size = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam_size + 48)
         pruned_states = _prune_states_with_identity_diversity(states, beam_size)
         states_by_x.append(pruned_states)
         y_arr, missing_arr, data_cost_arr = _states_to_dense_arrays(pruned_states, n_curves)
         state_y_by_x.append(y_arr)
         state_missing_by_x.append(missing_arr)
         state_data_cost_by_x.append(data_cost_arr)
+        ambiguity_by_x.append(x_ambiguity)
 
     dp_costs: list[np.ndarray] = []
     parents: list[np.ndarray] = []
@@ -784,6 +847,17 @@ def _trace_curves_joint(
         curr_cost = np.full(n_curr, np.inf, dtype=np.float32)
         curr_parent = np.full(n_curr, -1, dtype=np.int32)
         x_gap = x_values[i] - x_values[i - 1]
+        local_ambiguity = max(ambiguity_by_x[i - 1], ambiguity_by_x[i])
+        swap_penalty = SWAP_PENALTY
+        if crossing_relaxed:
+            in_crossing_window = bool(crossing_window_mask[i] or crossing_window_mask[i - 1])
+            if in_crossing_window:
+                swap_penalty = SWAP_PENALTY * CROSSING_RELAXED_SWAP_FACTOR
+            else:
+                # Outside crossing windows, keep identity assignment stable.
+                swap_penalty = SWAP_PENALTY * CROSSING_LOCKED_SWAP_FACTOR
+                if local_ambiguity < AMBIGUITY_MODERATE_THRESHOLD:
+                    swap_penalty *= 1.1
 
         transition = _transition_matrix_vectorized(
             prev_y=prev_y,
@@ -791,6 +865,7 @@ def _trace_curves_joint(
             curr_y=curr_y,
             curr_missing=curr_missing,
             x_gap=x_gap,
+            swap_penalty=swap_penalty,
         )
         total = prev_cost[:, None] + transition + curr_data_cost[None, :]
         best_parent = np.argmin(total, axis=0).astype(np.int32)
@@ -862,6 +937,7 @@ def resolve_overlaps(
     mapping: AxisMapping,
     image: NDArray[Any] | None = None,
     curve_color_priors: dict[str, tuple[float, float, float] | None] | None = None,
+    crossing_relaxed: bool = False,
 ) -> dict[str, list[tuple[int, int]]]:
     """Resolve overlaps by jointly tracing all curves with identity priors."""
     clean: dict[str, list[tuple[int, int]]] = {}
@@ -883,6 +959,7 @@ def resolve_overlaps(
         image=image,
         curve_color_priors=curve_color_priors,
         max_fallback_gap_px=max_fallback_gap_px,
+        crossing_relaxed=crossing_relaxed,
     )
 
     for name, traced in traced_by_curve.items():
