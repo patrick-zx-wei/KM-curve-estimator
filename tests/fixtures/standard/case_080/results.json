@@ -19,18 +19,18 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.1582546925617939,
-      "rmse": 0.19252328127039522,
-      "dtw": 0.012712864839817326,
+      "mae": 0.1589531915476791,
+      "rmse": 0.19378075717424958,
+      "dtw": 0.012955310227215909,
       "frechet": 0.2030041913921634,
-      "max_error": 0.33744016993068
+      "max_error": 0.3597101138906947
     },
     "Treatment": {
-      "mae": 0.13714562316787068,
-      "rmse": 0.15806175570123834,
-      "dtw": 0.014361162724561616,
-      "frechet": 0.2151993535421819,
-      "max_error": 0.279416042420028
+      "mae": 0.13945576215719618,
+      "rmse": 0.16109362622630607,
+      "dtw": 0.012823190756286833,
+      "frechet": 0.21143533149309157,
+      "max_error": 0.27824764118238815
     }
   },
   "hard_points": {
@@ -39,22 +39,22 @@
         {
           "time": 6,
           "expected": 0.9216,
-          "actual": 0.9666,
-          "error": 0.045,
+          "actual": 0.964,
+          "error": 0.0424,
           "pass": true
         },
         {
           "time": 12,
           "expected": 0.7,
-          "actual": 0.4969,
-          "error": 0.2031,
+          "actual": 0.4956,
+          "error": 0.2044,
           "pass": false
         },
         {
           "time": 24,
           "expected": 0.3201,
-          "actual": 0.2373,
-          "error": 0.0828,
+          "actual": 0.2369,
+          "error": 0.0832,
           "pass": false
         }
       ],
@@ -65,23 +65,23 @@
         {
           "time": 6,
           "expected": 0.819,
-          "actual": 0.9512,
-          "error": 0.1322,
+          "actual": 0.9567,
+          "error": 0.1377,
           "pass": false
         },
         {
           "time": 12,
           "expected": 0.6147,
-          "actual": 0.5232,
-          "error": 0.0915,
+          "actual": 0.5262,
+          "error": 0.0885,
           "pass": false
         },
         {
           "time": 24,
           "expected": 0.3541,
-          "actual": 0.3107,
-          "error": 0.0434,
-          "pass": true
+          "actual": 0.2415,
+          "error": 0.1126,
+          "pass": false
         }
       ],
       "all_pass": false
@@ -89,28 +89,28 @@
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.14000892818185715,
-      "rmse": 0.17317971627070447,
-      "dtw": 0.045993936258859204,
-      "frechet": 0.15484662625043788,
-      "max_error": 0.3738235273404677
+      "mae": 0.14180813396883954,
+      "rmse": 0.17720606776173523,
+      "dtw": 0.04483237564516774,
+      "frechet": 0.15390122153782693,
+      "max_error": 0.38138635992283054
     },
     "Treatment": {
-      "mae": 0.0946805184599153,
-      "rmse": 0.11123727349617885,
-      "dtw": 0.04957415850332661,
-      "frechet": 0.1819882764282829,
-      "max_error": 0.2564362261218514
+      "mae": 0.09891216889902968,
+      "rmse": 0.12055883114940744,
+      "dtw": 0.041871615316075056,
+      "frechet": 0.14245153306718428,
+      "max_error": 0.2946401362128193
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.05512987206767676,
+      "mae": 0.05377375317678888,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.03002202588585618,
+      "mae": 0.05524908826834249,
       "dtw": null,
       "rmse": null
     }
@@ -124,19 +124,28 @@
     "warnings": [
       "GPT extraction failed: Request timed out.",
       "Using Gemini fallback",
-      "GPT metadata extraction failed: Request timed out.",
-      "Using Gemini fallback",
+      "Metadata fast phase failed (ServerError); escalating",
+      "Low GPT metadata confidence (0.70), verifying with Gemini",
       "Control: anchor constraints adjusted 1/1071 points",
+      "Control: anchor-checkpoint refinement adjusted 196/1072 points across 2 intervals",
+      "Treatment: anchor-checkpoint refinement adjusted 411/960 points across 3 intervals",
+      "Control: anchor constraints adjusted 1/1040 points",
       "Control: early plateau guard adjusted 567/1066 points",
       "Treatment: early plateau guard adjusted 99/999 points (interval-aware)",
       "Control: flagged for rescue (collapsed_tail, single_large_drop)",
       "Treatment: flagged for rescue (collapsed_tail, single_large_drop, anchor_interval_drop_mismatch)",
       "Control: anchor constraints adjusted 1/1071 points",
+      "Control: anchor-checkpoint refinement adjusted 196/1072 points across 2 intervals",
+      "Treatment: anchor-checkpoint refinement adjusted 411/960 points across 3 intervals",
+      "Control: anchor constraints adjusted 1/1040 points",
       "Control: early plateau guard adjusted 567/1066 points",
       "Treatment: early plateau guard adjusted 99/999 points (interval-aware)",
       "Control: flagged for rescue (collapsed_tail, single_large_drop)",
       "Treatment: flagged for rescue (collapsed_tail, single_large_drop, anchor_interval_drop_mismatch)",
       "Control: anchor constraints adjusted 1/1071 points",
+      "Control: anchor-checkpoint refinement adjusted 196/1072 points across 2 intervals",
+      "Treatment: anchor-checkpoint refinement adjusted 411/960 points across 3 intervals",
+      "Control: anchor constraints adjusted 1/1040 points",
       "Control: early plateau guard adjusted 567/1066 points",
       "Treatment: early plateau guard adjusted 99/999 points (interval-aware)",
       "Control: flagged for rescue (collapsed_tail, single_large_drop)",
@@ -144,60 +153,66 @@
       "Added 11 terminal right-censored survivors at t=24.0",
       "Control: used censoring-mark hints in 3 intervals",
       "Control: adjusted event/censor split from censoring hints in 2 intervals",
-      "Control: residual-map correction improved objective to 0.4854",
-      "Control: full-mode objective 0.0862 (fit=0.0551, interval=0.0000, landmark=0.0565)",
+      "Control: full-mode objective 0.0850 (fit=0.0538, interval=0.0000, landmark=0.0567)",
       "Added 19 terminal right-censored survivors at t=24.0",
       "Treatment: used censoring-mark hints in 3 intervals",
       "Treatment: adjusted event/censor split from censoring hints in 1 intervals",
-      "Treatment: full-mode objective 0.0667 (fit=0.0300, interval=0.0000, landmark=0.0667)"
+      "Treatment: full-mode objective 0.0977 (fit=0.0552, interval=0.0000, landmark=0.0772)"
     ]
   },
   "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.1582546925617939,
-        "reconstruction_mae": 0.14000892818185715,
-        "delta_reconstruction_minus_digitize": -0.018245764379936746,
+        "digitize_mae": 0.1589531915476791,
+        "reconstruction_mae": 0.14180813396883954,
+        "delta_reconstruction_minus_digitize": -0.01714505757883955,
         "hard_fail_count": 2,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 12,
             "expected": 0.7,
-            "actual": 0.4969,
-            "error": 0.2031,
-            "bias": -0.2031
+            "actual": 0.4956,
+            "error": 0.2044,
+            "bias": -0.2044
           },
           {
             "time": 24,
             "expected": 0.3201,
-            "actual": 0.2373,
-            "error": 0.0828,
-            "bias": -0.0828
+            "actual": 0.2369,
+            "error": 0.0832,
+            "bias": -0.0832
           }
         ]
       },
       "Treatment": {
-        "digitize_mae": 0.13714562316787068,
-        "reconstruction_mae": 0.0946805184599153,
-        "delta_reconstruction_minus_digitize": -0.04246510470795538,
-        "hard_fail_count": 2,
+        "digitize_mae": 0.13945576215719618,
+        "reconstruction_mae": 0.09891216889902968,
+        "delta_reconstruction_minus_digitize": -0.040543593258166505,
+        "hard_fail_count": 3,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 6,
             "expected": 0.819,
-            "actual": 0.9512,
-            "error": 0.1322,
-            "bias": 0.1322
+            "actual": 0.9567,
+            "error": 0.1377,
+            "bias": 0.1377
           },
           {
             "time": 12,
             "expected": 0.6147,
-            "actual": 0.5232,
-            "error": 0.0915,
-            "bias": -0.0915
+            "actual": 0.5262,
+            "error": 0.0885,
+            "bias": -0.0885
+          },
+          {
+            "time": 24,
+            "expected": 0.3541,
+            "actual": 0.2415,
+            "error": 0.1126,
+            "bias": -0.1126
           }
         ]
       }
@@ -207,14 +222,14 @@
     },
     "hard_fail_times": {
       "12": 2,
-      "24": 1,
+      "24": 2,
       "6": 1
     }
   },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.14000892818185715,
+        "reconstruction_mae": 0.14180813396883954,
         "intervals": [
           {
             "t_start": 0.0,
@@ -227,7 +242,7 @@
             "terminal_carryover_censors": 0,
             "digitized_s_start": 1.0,
             "digitized_s_end": 0.9864,
-            "reconstructed_s_end": 0.9666,
+            "reconstructed_s_end": 0.964,
             "expected_s_end": 0.9216
           },
           {
@@ -240,8 +255,8 @@
             "censors_reconstructed": 0,
             "terminal_carryover_censors": 0,
             "digitized_s_start": 0.9864,
-            "digitized_s_end": 0.3745,
-            "reconstructed_s_end": 0.4969,
+            "digitized_s_end": 0.376,
+            "reconstructed_s_end": 0.4956,
             "expected_s_end": 0.7
           },
           {
@@ -253,9 +268,9 @@
             "events_reconstructed": 32,
             "censors_reconstructed": 3,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.3745,
+            "digitized_s_start": 0.376,
             "digitized_s_end": 0.3,
-            "reconstructed_s_end": 0.2787,
+            "reconstructed_s_end": 0.2783,
             "expected_s_end": 0.5434
           },
           {
@@ -269,7 +284,7 @@
             "terminal_carryover_censors": 11,
             "digitized_s_start": 0.3,
             "digitized_s_end": 0.3,
-            "reconstructed_s_end": 0.2373,
+            "reconstructed_s_end": 0.2369,
             "expected_s_end": 0.3201
           }
         ],
@@ -277,28 +292,28 @@
           {
             "time": 6,
             "expected": 0.9216,
-            "actual": 0.9666,
-            "error": 0.045,
+            "actual": 0.964,
+            "error": 0.0424,
             "pass": true
           },
           {
             "time": 12,
             "expected": 0.7,
-            "actual": 0.4969,
-            "error": 0.2031,
+            "actual": 0.4956,
+            "error": 0.2044,
             "pass": false
           },
           {
             "time": 24,
             "expected": 0.3201,
-            "actual": 0.2373,
-            "error": 0.0828,
+            "actual": 0.2369,
+            "error": 0.0832,
             "pass": false
           }
         ]
       },
       "Treatment": {
-        "reconstruction_mae": 0.0946805184599153,
+        "reconstruction_mae": 0.09891216889902968,
         "intervals": [
           {
             "t_start": 0.0,
@@ -310,8 +325,8 @@
             "censors_reconstructed": 98,
             "terminal_carryover_censors": 0,
             "digitized_s_start": 1.0,
-            "digitized_s_end": 1.0,
-            "reconstructed_s_end": 0.9512,
+            "digitized_s_end": 0.9962,
+            "reconstructed_s_end": 0.9567,
             "expected_s_end": 0.819
           },
           {
@@ -323,9 +338,9 @@
             "events_reconstructed": 54,
             "censors_reconstructed": 0,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 1.0,
-            "digitized_s_end": 0.3432,
-            "reconstructed_s_end": 0.5232,
+            "digitized_s_start": 0.9962,
+            "digitized_s_end": 0.3444,
+            "reconstructed_s_end": 0.5262,
             "expected_s_end": 0.6147
           },
           {
@@ -334,12 +349,12 @@
             "n_start": 66,
             "n_end": 34,
             "risk_table_loss": 32,
-            "events_reconstructed": 22,
-            "censors_reconstructed": 10,
+            "events_reconstructed": 32,
+            "censors_reconstructed": 0,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.3432,
-            "digitized_s_end": 0.342,
-            "reconstructed_s_end": 0.3488,
+            "digitized_s_start": 0.3444,
+            "digitized_s_end": 0.3,
+            "reconstructed_s_end": 0.2711,
             "expected_s_end": 0.4646
           },
           {
@@ -351,9 +366,9 @@
             "events_reconstructed": 3,
             "censors_reconstructed": 12,
             "terminal_carryover_censors": 19,
-            "digitized_s_start": 0.342,
-            "digitized_s_end": 0.342,
-            "reconstructed_s_end": 0.3107,
+            "digitized_s_start": 0.3,
+            "digitized_s_end": 0.3,
+            "reconstructed_s_end": 0.2415,
             "expected_s_end": 0.3541
           }
         ],
@@ -361,23 +376,23 @@
           {
             "time": 6,
             "expected": 0.819,
-            "actual": 0.9512,
-            "error": 0.1322,
+            "actual": 0.9567,
+            "error": 0.1377,
             "pass": false
           },
           {
             "time": 12,
             "expected": 0.6147,
-            "actual": 0.5232,
-            "error": 0.0915,
+            "actual": 0.5262,
+            "error": 0.0885,
             "pass": false
           },
           {
             "time": 24,
             "expected": 0.3541,
-            "actual": 0.3107,
-            "error": 0.0434,
-            "pass": true
+            "actual": 0.2415,
+            "error": 0.1126,
+            "pass": false
           }
         ]
       }
