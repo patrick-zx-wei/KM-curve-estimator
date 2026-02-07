@@ -390,6 +390,242 @@ def _ocr_y_tick_values(ocr_tokens: RawOCRTokens | None) -> list[float]:
     return _normalize_y_tick_scale(raw_values)
 
 
+def _unique_sorted(values: list[float]) -> list[float]:
+    return sorted(set(float(v) for v in values))
+
+
+def _median_positive_step(values: list[float]) -> float | None:
+    if len(values) < 2:
+        return None
+    diffs = [values[i + 1] - values[i] for i in range(len(values) - 1)]
+    pos = [d for d in diffs if d > 1e-6]
+    if not pos:
+        return None
+    pos.sort()
+    return float(pos[len(pos) // 2])
+
+
+def _filter_ticks_to_bounds(values: list[float], start: float, end: float) -> list[float]:
+    if not values:
+        return []
+    lo = min(start, end)
+    hi = max(start, end)
+    span = max(1e-6, hi - lo)
+    pad = 0.08 * span
+    kept = [float(v) for v in values if (lo - pad) <= float(v) <= (hi + pad)]
+    return _unique_sorted(kept)
+
+
+def _axis_tick_list_score(
+    values: list[float],
+    start: float,
+    end: float,
+    expected_interval: float | None,
+) -> float:
+    """Score axis tick list quality against axis bounds and regularity."""
+    ticks = _unique_sorted(values)
+    if len(ticks) < 2:
+        return -1e9
+    lo = min(start, end)
+    hi = max(start, end)
+    span = max(1e-6, hi - lo)
+    if ticks[-1] <= ticks[0]:
+        return -1e9
+
+    out_of_range = sum(1 for t in ticks if t < lo - 0.1 * span or t > hi + 0.1 * span)
+    coverage = float(np.clip((ticks[-1] - ticks[0]) / span, 0.0, 1.25))
+
+    diffs = [ticks[i + 1] - ticks[i] for i in range(len(ticks) - 1)]
+    pos = [d for d in diffs if d > 1e-6]
+    if len(pos) < 1:
+        return -1e9
+    med = float(np.median(np.asarray(pos, dtype=np.float64)))
+    mad = float(np.median(np.abs(np.asarray(pos, dtype=np.float64) - med))) if len(pos) > 1 else 0.0
+    regularity = float(np.clip(1.0 - (mad / max(1e-6, med)), 0.0, 1.0))
+
+    start_prox = min(abs(t - lo) for t in ticks)
+    end_prox = min(abs(t - hi) for t in ticks)
+    start_bonus = 1.0 if start_prox <= 0.07 * span else 0.0
+    end_bonus = 1.0 if end_prox <= 0.07 * span else 0.0
+
+    interval_bonus = 0.0
+    if expected_interval is not None and expected_interval > 0:
+        rel_err = abs(med - float(expected_interval)) / max(1e-6, float(expected_interval))
+        interval_bonus = float(np.clip(1.0 - rel_err, -1.0, 1.0))
+
+    score = 0.0
+    score += 0.30 * float(len(ticks))
+    score += 3.00 * coverage
+    score += 2.00 * regularity
+    score += 0.80 * start_bonus
+    score += 0.60 * end_bonus
+    score += 0.80 * interval_bonus
+    score -= 1.50 * float(out_of_range)
+    return float(score)
+
+
+def _synthesize_ticks_from_bounds(
+    start: float,
+    end: float,
+    interval: float | None,
+    count_hint: int,
+) -> list[float]:
+    lo = float(min(start, end))
+    hi = float(max(start, end))
+    span = hi - lo
+    if span <= 1e-6:
+        return []
+
+    ticks: list[float] = []
+    if interval is not None and interval > 1e-6:
+        step = float(interval)
+        n_steps = int(round(span / step))
+        if 1 <= n_steps <= 80:
+            for i in range(n_steps + 1):
+                v = lo + i * step
+                if v <= hi + 0.01 * step:
+                    ticks.append(float(v))
+
+    if len(ticks) < 2:
+        n = max(2, min(20, int(count_hint)))
+        vals = np.linspace(lo, hi, num=n, endpoint=True, dtype=np.float64)
+        ticks = [float(v) for v in vals.tolist()]
+
+    rounded = [float(round(v, 6)) for v in ticks]
+    return _unique_sorted(rounded)
+
+
+def _lists_close(a: list[float], b: list[float], tol: float = 1e-6) -> bool:
+    if len(a) != len(b):
+        return False
+    return all(abs(float(x) - float(y)) <= tol for x, y in zip(a, b))
+
+
+def _reconcile_axis_ticks(
+    axis_name: str,
+    start: float,
+    end: float,
+    tick_values: list[float],
+    tick_interval: float | None,
+    ocr_ticks: list[float],
+    warnings: list[str],
+) -> tuple[list[float], float | None]:
+    """
+    Reconcile axis tick list from metadata and OCR using coverage + regularity scoring.
+
+    This prevents compressed/partial tick lists from silently passing when start/end are correct.
+    """
+    meta_ticks = _filter_ticks_to_bounds(tick_values, start, end)
+    ocr_ticks_f = _filter_ticks_to_bounds(ocr_ticks, start, end)
+
+    candidates: list[tuple[str, list[float]]] = []
+    if len(meta_ticks) >= 2:
+        candidates.append(("metadata", meta_ticks))
+    if len(ocr_ticks_f) >= 2:
+        candidates.append(("ocr", ocr_ticks_f))
+
+    if len(meta_ticks) >= 2 and len(ocr_ticks_f) >= 2:
+        merged = _unique_sorted(meta_ticks + ocr_ticks_f)
+        if len(merged) >= 2:
+            candidates.append(("merged", merged))
+
+    synth = _synthesize_ticks_from_bounds(
+        start=start,
+        end=end,
+        interval=tick_interval,
+        count_hint=max(len(meta_ticks), len(ocr_ticks_f), 2),
+    )
+    if len(synth) >= 2:
+        candidates.append(("synth", synth))
+
+    if not candidates:
+        return tick_values, tick_interval
+
+    best_source = ""
+    best_ticks: list[float] = []
+    best_score = -1e9
+    for source, cand in candidates:
+        score = _axis_tick_list_score(cand, start=start, end=end, expected_interval=tick_interval)
+        if score > best_score:
+            best_score = float(score)
+            best_source = source
+            best_ticks = cand
+
+    if not best_ticks:
+        return tick_values, tick_interval
+
+    new_interval = _median_positive_step(best_ticks)
+    resolved_interval = float(new_interval) if new_interval is not None else tick_interval
+
+    old_ticks = _unique_sorted(tick_values)
+    changed_ticks = not _lists_close(old_ticks, best_ticks, tol=1e-4)
+    changed_interval = (
+        resolved_interval is not None
+        and tick_interval is not None
+        and abs(float(resolved_interval) - float(tick_interval)) > 1e-4
+    ) or (resolved_interval is not None and tick_interval is None)
+
+    if changed_ticks or changed_interval:
+        warnings.append(
+            f"Reconciled {axis_name} ticks via {best_source} "
+            f"(n={len(old_ticks)}->{len(best_ticks)}, interval={tick_interval}->{resolved_interval})"
+        )
+
+    return best_ticks, resolved_interval
+
+
+def _maybe_reconcile_axis_tick_values(
+    plot_metadata: PlotMetadata,
+    ocr_tokens: RawOCRTokens | None,
+    warnings: list[str],
+) -> PlotMetadata:
+    """Reconcile x/y tick values using OCR evidence and axis bounds."""
+    x_axis = plot_metadata.x_axis
+    y_axis = plot_metadata.y_axis
+
+    ocr_x_ticks = _ocr_x_tick_values(ocr_tokens)
+    ocr_y_ticks = _ocr_y_tick_values(ocr_tokens)
+
+    new_x_ticks, new_x_interval = _reconcile_axis_ticks(
+        axis_name="x_axis",
+        start=float(x_axis.start),
+        end=float(x_axis.end),
+        tick_values=[float(v) for v in x_axis.tick_values],
+        tick_interval=x_axis.tick_interval,
+        ocr_ticks=ocr_x_ticks,
+        warnings=warnings,
+    )
+    new_y_ticks, new_y_interval = _reconcile_axis_ticks(
+        axis_name="y_axis",
+        start=float(y_axis.start),
+        end=float(y_axis.end),
+        tick_values=[float(v) for v in y_axis.tick_values],
+        tick_interval=y_axis.tick_interval,
+        ocr_ticks=ocr_y_ticks,
+        warnings=warnings,
+    )
+
+    updated_x = x_axis
+    updated_y = y_axis
+    if not _lists_close(_unique_sorted(x_axis.tick_values), new_x_ticks, tol=1e-4):
+        updated_x = updated_x.model_copy(update={"tick_values": new_x_ticks})
+    if new_x_interval is not None and (
+        x_axis.tick_interval is None or abs(float(new_x_interval) - float(x_axis.tick_interval)) > 1e-4
+    ):
+        updated_x = updated_x.model_copy(update={"tick_interval": float(new_x_interval)})
+
+    if not _lists_close(_unique_sorted(y_axis.tick_values), new_y_ticks, tol=1e-4):
+        updated_y = updated_y.model_copy(update={"tick_values": new_y_ticks})
+    if new_y_interval is not None and (
+        y_axis.tick_interval is None or abs(float(new_y_interval) - float(y_axis.tick_interval)) > 1e-4
+    ):
+        updated_y = updated_y.model_copy(update={"tick_interval": float(new_y_interval)})
+
+    if updated_x is x_axis and updated_y is y_axis:
+        return plot_metadata
+    return plot_metadata.model_copy(update={"x_axis": updated_x, "y_axis": updated_y})
+
+
 def _counts_monotone_score(counts: list[int]) -> float:
     """Score monotone non-increasing behavior in a risk-table count sequence."""
     if len(counts) < 2:
@@ -1115,6 +1351,7 @@ def mmpu(state: PipelineState) -> PipelineState:
 
     plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, image_path, warnings)
     plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
+    plot_metadata = _maybe_reconcile_axis_tick_values(plot_metadata, ocr_tokens, warnings)
 
     # Validate: at least one curve must be detected
     if len(plot_metadata.curves) == 0:
@@ -1397,6 +1634,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
 
     plot_metadata = _maybe_correct_y_axis_start(plot_metadata, ocr_tokens, image_path, warnings)
     plot_metadata = _maybe_correct_x_axis_end(plot_metadata, ocr_tokens, warnings)
+    plot_metadata = _maybe_reconcile_axis_tick_values(plot_metadata, ocr_tokens, warnings)
 
     # Validate: at least one curve must be detected
     if len(plot_metadata.curves) == 0:

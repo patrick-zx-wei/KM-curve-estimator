@@ -74,6 +74,19 @@ def _extract_style_directives(modifiers: list[Modifier]) -> tuple[str, str, str]
     return background, direction, frame_layout
 
 
+def _uniform_ticks(start: float, end: float, step: float, ndigits: int = 2) -> list[float]:
+    """Generate deterministic ticks with rounding-safe arithmetic."""
+    if step <= 0:
+        return [round(float(start), ndigits), round(float(end), ndigits)]
+    lo = float(min(start, end))
+    hi = float(max(start, end))
+    n_steps = int(np.floor((hi - lo) / step + 1e-9))
+    vals = [round(lo + i * step, ndigits) for i in range(n_steps + 1)]
+    if not vals or abs(float(vals[-1]) - hi) > 1e-6:
+        vals.append(round(hi, ndigits))
+    return sorted(set(float(v) for v in vals))
+
+
 def _apply_font_directive(matplotlib, modifiers: list[Modifier]) -> None:
     """Apply font family style to matplotlib rcParams for this render."""
     font_family = "sans"
@@ -168,6 +181,7 @@ def render_test_case(
     background_style, curve_direction, frame_layout = _extract_style_directives(figure_mods)
     has_explicit_grid = any(isinstance(m, GridLines) for m in figure_mods)
     _apply_background_style(ax, ax_table, background_style, has_explicit_grid)
+    test_case.curve_direction = curve_direction
 
     # Plot curves
     for curve in test_case.curves:
@@ -193,12 +207,7 @@ def render_test_case(
                 update={"start": mod.y_start}
             )
             # Update tick values
-            y_ticks = [
-                round(v, 1)
-                for v in np.arange(mod.y_start, 1.01, 0.2)
-            ]
-            if 1.0 not in y_ticks:
-                y_ticks.append(1.0)
+            y_ticks = _uniform_ticks(start=float(mod.y_start), end=1.0, step=0.2, ndigits=1)
             test_case.y_axis = test_case.y_axis.model_copy(
                 update={"tick_values": y_ticks}
             )
@@ -264,6 +273,8 @@ def render_test_case(
     _apply_frame_layout(ax, frame_layout)
 
     if test_case.title:
+        if curve_direction == "upward" and "survival" in test_case.title.lower():
+            test_case.title = "Cumulative Incidence Curve"
         ax.set_title(test_case.title)
 
     # Legend

@@ -8,26 +8,41 @@
     "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
+    "x_tick_interval_error": 0.0,
+    "y_tick_interval_error": 0.0,
+    "x_tick_count_detected": 7,
+    "x_tick_count_expected": 7,
+    "y_tick_count_detected": 6,
+    "y_tick_count_expected": 6,
+    "x_tick_values_mae": 0.0,
+    "y_tick_values_mae": 0.0,
+    "x_tick_coverage_detected": 1.0,
+    "x_tick_coverage_expected": 1.0,
+    "y_tick_coverage_detected": 1.0,
+    "y_tick_coverage_expected": 1.0,
     "n_curves_detected": 2,
     "n_curves_expected": 2,
     "curves_match": true,
+    "curve_direction_detected": "downward",
+    "curve_direction_expected": "downward",
+    "curve_direction_match": true,
     "risk_table_detected": true,
     "risk_table_expected": true
   },
   "digitize": {
     "Control": {
-      "mae": 0.030765272930878867,
-      "rmse": 0.03410265029628009,
-      "dtw": 0.001203117488327927,
-      "frechet": 0.0085688099619734,
-      "max_error": 0.06561573422458172
+      "mae": 0.25341914194128196,
+      "rmse": 0.2601768010792989,
+      "dtw": 0.047958028651060934,
+      "frechet": 0.268515429323461,
+      "max_error": 0.3698880053148037
     },
     "Treatment": {
-      "mae": 0.023740098377784447,
-      "rmse": 0.029591667379985823,
-      "dtw": 0.001165525433438549,
-      "frechet": 0.014166112503101791,
-      "max_error": 0.07274985039390536
+      "mae": 0.18817409777477198,
+      "rmse": 0.236042307350869,
+      "dtw": 0.06319773903788976,
+      "frechet": 0.2792452573776245,
+      "max_error": 0.4975845410628019
     }
   },
   "hard_points": {
@@ -35,110 +50,647 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.98,
-          "actual": 0.9824,
-          "error": 0.0024,
-          "pass": true
+          "expected": 0.7992,
+          "actual": 0.6547,
+          "error": 0.1445,
+          "pass": false
         },
         {
           "time": 12,
-          "expected": 0.8566,
-          "actual": 0.8568,
-          "error": 0.0002,
+          "expected": 0.6759,
+          "actual": 0.6547,
+          "error": 0.0212,
           "pass": true
         },
         {
           "time": 24,
-          "expected": 0.4858,
-          "actual": 0.4974,
-          "error": 0.0116,
+          "expected": 0.4934,
+          "actual": 0.4647,
+          "error": 0.0287,
           "pass": true
         },
         {
           "time": 36,
-          "expected": 0.1213,
-          "actual": 0.0857,
-          "error": 0.0356,
+          "expected": 0.3436,
+          "actual": 0.3141,
+          "error": 0.0295,
           "pass": true
         },
         {
           "time": 48,
-          "expected": 0.0121,
-          "actual": 0.0085,
-          "error": 0.0036,
+          "expected": 0.2505,
+          "actual": 0.2458,
+          "error": 0.0047,
           "pass": true
         }
       ],
-      "all_pass": true
+      "all_pass": false
     },
     "Treatment": {
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.9672,
-          "actual": 0.9773,
-          "error": 0.0101,
-          "pass": true
+          "expected": 0.9378,
+          "actual": 0.6643,
+          "error": 0.2735,
+          "pass": false
         },
         {
           "time": 12,
-          "expected": 0.8482,
-          "actual": 0.8578,
-          "error": 0.0096,
-          "pass": true
+          "expected": 0.8367,
+          "actual": 0.6643,
+          "error": 0.1724,
+          "pass": false
         },
         {
           "time": 24,
-          "expected": 0.4652,
-          "actual": 0.503,
-          "error": 0.0378,
+          "expected": 0.6591,
+          "actual": 0.6355,
+          "error": 0.0236,
           "pass": true
         },
         {
           "time": 36,
-          "expected": 0.1524,
-          "actual": 0.1299,
-          "error": 0.0225,
-          "pass": true
+          "expected": 0.485,
+          "actual": 0.6162,
+          "error": 0.1312,
+          "pass": false
         },
         {
           "time": 48,
-          "expected": 0.0267,
-          "actual": 0.0191,
-          "error": 0.0076,
-          "pass": true
+          "expected": 0.3612,
+          "actual": 0.5404,
+          "error": 0.1792,
+          "pass": false
         }
       ],
-      "all_pass": true
+      "all_pass": false
     }
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.009310292738573995,
-      "rmse": 0.012064475212515918,
-      "dtw": 0.0013047677857095609,
-      "frechet": 0.009778493417986978,
-      "max_error": 0.03532442376406161
+      "mae": 0.11306636019387156,
+      "rmse": 0.15661447913465992,
+      "dtw": 0.029521483475465484,
+      "frechet": 0.12550721805295806,
+      "max_error": 0.3428847166169503
     },
     "Treatment": {
-      "mae": 0.012247829260092696,
-      "rmse": 0.0156496877906104,
-      "dtw": 0.0020611414613036037,
-      "frechet": 0.01143039964172235,
-      "max_error": 0.04861441479737294
+      "mae": 0.15594510936048622,
+      "rmse": 0.18164109148095112,
+      "dtw": 0.0650205588774664,
+      "frechet": 0.1823511508425274,
+      "max_error": 0.33331595593090746
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.023650162665238283,
+      "mae": 0.16293382889788885,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.01191364005275213,
+      "mae": 0.13351563531895785,
       "dtw": null,
       "rmse": null
     }
   },
-  "passed": true
+  "reconstruction_meta": {
+    "mode": "full",
+    "patient_counts": {
+      "Control": 417,
+      "Treatment": 417
+    },
+    "warnings": [
+      "GPT extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "GPT metadata extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "I_TICK_DETECT_X:7:0.163:409.0",
+      "I_TICK_DETECT_Y:6:0.125:325.0",
+      "I_TICK_CAL_X:7:0.175:0.0:0.14:0.020",
+      "I_TICK_CAL_Y:6:0.271:0.0:0.33:0.000",
+      "W_COLOR_PRIOR_REJECTED:Control:107.8",
+      "W_COLOR_PRIOR_REJECTED:Treatment:107.0",
+      "I_HSL_KMEDOIDS_USED:2:2437",
+      "W_CROSSING_DISABLED_CAP:2:669:1037",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:771:772",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:786:786",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:827:827",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:841:846",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:884:884",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:904:904",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:933:934",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1013:1013",
+      "W_SOFT_MONOTONE_ADJUST:Control:10",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:6",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:5:325:1037",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:149:152",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:230:230",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:250:250",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:271:272",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:290:290",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:479:479",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:517:517",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:605:605",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:615:615",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:619:619",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:708:709",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:747:753",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:770:779",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:786:787",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:827:827",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:838:846",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:881:886",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:890:890",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:898:898",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:904:904",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:933:934",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:949:949",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:953:958",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:974:987",
+      "W_SOFT_MONOTONE_ADJUST:Control:10",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:6",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:2",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.827",
+      "I_TICK_DETECT_X:7:0.163:409.0",
+      "I_TICK_DETECT_Y:6:0.125:325.0",
+      "I_TICK_CAL_X:7:0.175:0.0:0.14:0.020",
+      "I_TICK_CAL_Y:6:0.271:0.0:0.33:0.000",
+      "W_COLOR_PRIOR_REJECTED:Control:95.1",
+      "W_COLOR_PRIOR_REJECTED:Treatment:132.9",
+      "I_HSL_KMEDOIDS_USED:2:2437",
+      "W_CROSSING_DISABLED_CAP:2:488:1037",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:687:687",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:696:697",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:703:703",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:719:719",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:766:766",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:863:863",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:873:873",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:880:880",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:928:928",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:932:932",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:937:937",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:941:941",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:947:947",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:962:962",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1013:1013",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1035:1035",
+      "W_SOFT_MONOTONE_ADJUST:Control:8",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:5",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:3:389:1037",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:228:228",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:273:273",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:282:282",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:289:289",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:611:611",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:617:617",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:670:670",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:680:687",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:692:692",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:696:703",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:712:714",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:719:719",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:760:760",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:766:767",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:782:782",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:816:816",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:823:823",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:833:833",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:873:874",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:880:880",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:894:894",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:932:932",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:937:942",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:947:947",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:961:963",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1035:1035",
+      "W_SOFT_MONOTONE_ADJUST:Control:6",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:5",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:4",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.729",
+      "I_TICK_DETECT_X:7:0.163:409.0",
+      "I_TICK_DETECT_Y:6:0.125:325.0",
+      "I_TICK_CAL_X:7:0.175:0.0:0.14:0.020",
+      "I_TICK_CAL_Y:6:0.271:0.0:0.33:0.000",
+      "W_COLOR_PRIOR_REJECTED:Control:107.8",
+      "W_COLOR_PRIOR_REJECTED:Treatment:107.0",
+      "I_HSL_KMEDOIDS_USED:2:2437",
+      "W_CROSSING_DISABLED_CAP:2:669:1037",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:771:772",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:786:786",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:827:827",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:841:846",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:884:884",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:904:904",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:933:934",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1013:1013",
+      "W_SOFT_MONOTONE_ADJUST:Control:10",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:6",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:5:325:1037",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:149:152",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:230:230",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:250:250",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:271:272",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:290:290",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:479:479",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:517:517",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:605:605",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:615:615",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:619:619",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:708:709",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:747:753",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:770:779",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:786:787",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:827:827",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:838:846",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:881:886",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:890:890",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:898:898",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:904:904",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:933:934",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:949:949",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:953:958",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:974:987",
+      "W_SOFT_MONOTONE_ADJUST:Control:10",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:6",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:6",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V2_CONFIDENCE:0.727",
+      "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_034/hard_points.json",
+      "Loaded hardpoint constraints: 2 groups from tests/fixtures/standard/case_034/hard_points.json (tol=0.010)",
+      "Control: applied 5 hardpoint anchors before reconstruction",
+      "Added 18 terminal right-censored survivors at t=60.0",
+      "Control: used censoring-mark hints in 5 intervals",
+      "Control: adjusted event/censor split from censoring hints in 2 intervals",
+      "Control: hardpoint residual mean=0.0457, max=0.1445, tol=0.0100",
+      "Control: full-mode objective 3.0870 (fit=0.0230, interval=0.0000, landmark=0.0142)",
+      "Control: hardpoint residual (mean=0.0457, max=0.1445, tol=0.0100)",
+      "Treatment: applied 5 hardpoint anchors before reconstruction",
+      "Added 26 terminal right-censored survivors at t=60.0",
+      "Treatment: used censoring-mark hints in 5 intervals",
+      "Treatment: adjusted event/censor split from censoring hints in 1 intervals",
+      "Treatment: hardpoint residual mean=0.1560, max=0.2735, tol=0.0100",
+      "Treatment: full-mode objective 6.7646 (fit=0.1620, interval=0.0000, landmark=0.1531)",
+      "Treatment: hardpoint residual (mean=0.1560, max=0.2735, tol=0.0100)"
+    ]
+  },
+  "benchmark_track": "full_track",
+  "diagnostics": {
+    "per_arm": {
+      "Control": {
+        "digitize_mae": 0.25341914194128196,
+        "reconstruction_mae": 0.11306636019387156,
+        "delta_reconstruction_minus_digitize": -0.1403527817474104,
+        "hard_fail_count": 1,
+        "stage_attribution": "digitization_limited",
+        "failed_landmarks": [
+          {
+            "time": 6,
+            "expected": 0.7992,
+            "actual": 0.6547,
+            "error": 0.1445,
+            "bias": -0.1445
+          }
+        ]
+      },
+      "Treatment": {
+        "digitize_mae": 0.18817409777477198,
+        "reconstruction_mae": 0.15594510936048622,
+        "delta_reconstruction_minus_digitize": -0.03222898841428576,
+        "hard_fail_count": 4,
+        "stage_attribution": "digitization_limited",
+        "failed_landmarks": [
+          {
+            "time": 6,
+            "expected": 0.9378,
+            "actual": 0.6643,
+            "error": 0.2735,
+            "bias": -0.2735
+          },
+          {
+            "time": 12,
+            "expected": 0.8367,
+            "actual": 0.6643,
+            "error": 0.1724,
+            "bias": -0.1724
+          },
+          {
+            "time": 36,
+            "expected": 0.485,
+            "actual": 0.6162,
+            "error": 0.1312,
+            "bias": 0.1312
+          },
+          {
+            "time": 48,
+            "expected": 0.3612,
+            "actual": 0.5404,
+            "error": 0.1792,
+            "bias": 0.1792
+          }
+        ]
+      }
+    },
+    "stage_attribution_counts": {
+      "digitization_limited": 2
+    },
+    "hard_fail_times": {
+      "6": 2,
+      "12": 1,
+      "36": 1,
+      "48": 1
+    }
+  },
+  "stage_mae": {
+    "arms": {
+      "Control": {
+        "digitize_mae": 0.25341914194128196,
+        "reconstruction_mae": 0.11306636019387156,
+        "delta_reconstruction_minus_digitize": -0.1403527817474104,
+        "stage_attribution": "digitization_limited"
+      },
+      "Treatment": {
+        "digitize_mae": 0.18817409777477198,
+        "reconstruction_mae": 0.15594510936048622,
+        "delta_reconstruction_minus_digitize": -0.03222898841428576,
+        "stage_attribution": "digitization_limited"
+      }
+    },
+    "mean_digitize_mae": 0.22079661985802695,
+    "mean_reconstruction_mae": 0.1345057347771789,
+    "mean_delta_reconstruction_minus_digitize": -0.08629088508084808
+  },
+  "interval_debug": {
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.11306636019387156,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 417,
+            "n_end": 243,
+            "risk_table_loss": 174,
+            "events_reconstructed": 144,
+            "censors_reconstructed": 30,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9608,
+            "digitized_s_end": 0.9747,
+            "reconstructed_s_end": 0.6547,
+            "expected_s_end": 0.7516
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 243,
+            "n_end": 133,
+            "risk_table_loss": 110,
+            "events_reconstructed": 26,
+            "censors_reconstructed": 84,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9747,
+            "digitized_s_end": 0.819,
+            "reconstructed_s_end": 0.5571,
+            "expected_s_end": 0.5555
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 133,
+            "n_end": 84,
+            "risk_table_loss": 49,
+            "events_reconstructed": 30,
+            "censors_reconstructed": 19,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.819,
+            "digitized_s_end": 0.7145,
+            "reconstructed_s_end": 0.4241,
+            "expected_s_end": 0.4216
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 84,
+            "n_end": 49,
+            "risk_table_loss": 35,
+            "events_reconstructed": 20,
+            "censors_reconstructed": 15,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.7145,
+            "digitized_s_end": 0.5962,
+            "reconstructed_s_end": 0.3141,
+            "expected_s_end": 0.2958
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 49,
+            "n_end": 32,
+            "risk_table_loss": 17,
+            "events_reconstructed": 10,
+            "censors_reconstructed": 7,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.5962,
+            "digitized_s_end": 0.5127,
+            "reconstructed_s_end": 0.2458,
+            "expected_s_end": 0.2505
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 32,
+            "n_end": 18,
+            "risk_table_loss": 14,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 10,
+            "terminal_carryover_censors": 18,
+            "digitized_s_start": 0.5127,
+            "digitized_s_end": 0.4686,
+            "reconstructed_s_end": 0.2068,
+            "expected_s_end": 0.2001
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.7992,
+            "actual": 0.6547,
+            "error": 0.1445,
+            "pass": false
+          },
+          {
+            "time": 12,
+            "expected": 0.6759,
+            "actual": 0.6547,
+            "error": 0.0212,
+            "pass": true
+          },
+          {
+            "time": 24,
+            "expected": 0.4934,
+            "actual": 0.4647,
+            "error": 0.0287,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.3436,
+            "actual": 0.3141,
+            "error": 0.0295,
+            "pass": true
+          },
+          {
+            "time": 48,
+            "expected": 0.2505,
+            "actual": 0.2458,
+            "error": 0.0047,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment": {
+        "reconstruction_mae": 0.15594510936048622,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 417,
+            "n_end": 270,
+            "risk_table_loss": 147,
+            "events_reconstructed": 140,
+            "censors_reconstructed": 7,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.7208,
+            "digitized_s_end": 0.9494,
+            "reconstructed_s_end": 0.6643,
+            "expected_s_end": 0.87
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 270,
+            "n_end": 175,
+            "risk_table_loss": 95,
+            "events_reconstructed": 8,
+            "censors_reconstructed": 87,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9494,
+            "digitized_s_end": 0.8,
+            "reconstructed_s_end": 0.6397,
+            "expected_s_end": 0.7279
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 175,
+            "n_end": 108,
+            "risk_table_loss": 67,
+            "events_reconstructed": 5,
+            "censors_reconstructed": 62,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.8,
+            "digitized_s_end": 0.6956,
+            "reconstructed_s_end": 0.6162,
+            "expected_s_end": 0.5829
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 108,
+            "n_end": 62,
+            "risk_table_loss": 46,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 42,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.6956,
+            "digitized_s_end": 0.5861,
+            "reconstructed_s_end": 0.5834,
+            "expected_s_end": 0.4384
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 62,
+            "n_end": 38,
+            "risk_table_loss": 24,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 20,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.5861,
+            "digitized_s_end": 0.4975,
+            "reconstructed_s_end": 0.5404,
+            "expected_s_end": 0.3433
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 38,
+            "n_end": 26,
+            "risk_table_loss": 12,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 8,
+            "terminal_carryover_censors": 26,
+            "digitized_s_start": 0.4975,
+            "digitized_s_end": 0.4487,
+            "reconstructed_s_end": 0.476,
+            "expected_s_end": 0.2937
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9378,
+            "actual": 0.6643,
+            "error": 0.2735,
+            "pass": false
+          },
+          {
+            "time": 12,
+            "expected": 0.8367,
+            "actual": 0.6643,
+            "error": 0.1724,
+            "pass": false
+          },
+          {
+            "time": 24,
+            "expected": 0.6591,
+            "actual": 0.6355,
+            "error": 0.0236,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.485,
+            "actual": 0.6162,
+            "error": 0.1312,
+            "pass": false
+          },
+          {
+            "time": 48,
+            "expected": 0.3612,
+            "actual": 0.5404,
+            "error": 0.1792,
+            "pass": false
+          }
+        ]
+      }
+    }
+  },
+  "artifacts": {
+    "overlay_results": "overlay_results.png"
+  },
+  "passed": false
 }

@@ -263,6 +263,19 @@ def _ensure_endpoint_tick(ticks: list[float], max_time: float) -> list[float]:
     return sorted(set(out))
 
 
+def _uniform_ticks(start: float, end: float, step: float, ndigits: int = 2) -> list[float]:
+    """Generate deterministic ticks with rounding-safe arithmetic."""
+    if step <= 0:
+        return [round(float(start), ndigits), round(float(end), ndigits)]
+    lo = float(min(start, end))
+    hi = float(max(start, end))
+    n_steps = int(np.floor((hi - lo) / step + 1e-9))
+    vals = [round(lo + i * step, ndigits) for i in range(n_steps + 1)]
+    if not vals or abs(float(vals[-1]) - hi) > 1e-6:
+        vals.append(round(hi, ndigits))
+    return sorted(set(float(v) for v in vals))
+
+
 def _step_survival_at(step_coords: list[tuple[float, float]], t: float) -> float:
     """Evaluate step-function survival at time t."""
     if not step_coords:
@@ -440,6 +453,14 @@ def generate_test_case(
     if line_styles is None:
         line_styles = ["solid"] * n_curves
 
+    inferred_direction = "downward"
+    for mod in modifiers:
+        if hasattr(mod, "direction"):
+            direction = str(getattr(mod, "direction")).lower()
+            if direction in ("downward", "upward"):
+                inferred_direction = direction
+                break
+
     # Risk table time points
     risk_time_points = _compute_risk_table_intervals(max_time)
 
@@ -535,9 +556,7 @@ def generate_test_case(
         )
 
     # Y-axis ticks
-    y_ticks = [round(v, 1) for v in np.arange(y_axis_start, 1.01, 0.2)]
-    if 1.0 not in y_ticks:
-        y_ticks.append(1.0)
+    y_ticks = _uniform_ticks(start=float(y_axis_start), end=1.0, step=0.2, ndigits=1)
 
     x_axis = AxisConfig(
         label="Time (months)",
@@ -549,7 +568,7 @@ def generate_test_case(
     )
 
     y_axis = AxisConfig(
-        label="Survival Probability",
+        label=("Cumulative Incidence" if inferred_direction == "upward" else "Survival Probability"),
         start=y_axis_start,
         end=1.0,
         tick_interval=0.2,
@@ -570,4 +589,5 @@ def generate_test_case(
         difficulty=difficulty,
         tier=tier,
         gap_pattern=gap_pattern,
+        curve_direction=inferred_direction,
     )
