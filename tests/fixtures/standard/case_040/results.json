@@ -2,12 +2,39 @@
   "case_name": "case_040",
   "difficulty": 1,
   "n_curves": 2,
-  "pipeline_errors": [],
+  "pipeline_errors": [
+    {
+      "stage": "digitize",
+      "message": "digitization_v3 confidence too low (0.434)",
+      "details": {
+        "confidence": 0.4340621126004151
+      }
+    },
+    {
+      "stage": "digitize",
+      "message": "digitization_v3 confidence too low (0.434)",
+      "details": {
+        "confidence": 0.4340621126004151
+      }
+    }
+  ],
   "mmpu": {
     "x_axis_start_error": 0.0,
     "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
+    "x_tick_interval_error": 0.0,
+    "y_tick_interval_error": 0.0,
+    "x_tick_count_detected": 7,
+    "x_tick_count_expected": 7,
+    "y_tick_count_detected": 6,
+    "y_tick_count_expected": 6,
+    "x_tick_values_mae": 0.0,
+    "y_tick_values_mae": 0.0,
+    "x_tick_coverage_detected": 1.0,
+    "x_tick_coverage_expected": 1.0,
+    "y_tick_coverage_detected": 1.0,
+    "y_tick_coverage_expected": 1.0,
     "n_curves_detected": 2,
     "n_curves_expected": 2,
     "curves_match": true,
@@ -19,18 +46,18 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.10496173822769357,
-      "rmse": 0.11568489376490489,
-      "dtw": 0.003143721735148431,
-      "frechet": 0.09206283038615537,
-      "max_error": 0.18040979946766378
+      "mae": 0.03910723326149864,
+      "rmse": 0.10286953443872976,
+      "dtw": 0.07518636405568452,
+      "frechet": 0.3454844989237409,
+      "max_error": 0.6882486348440365
     },
     "Treatment": {
-      "mae": 0.06134180974330361,
-      "rmse": 0.06799106490539764,
-      "dtw": 0.01442670730787086,
-      "frechet": 0.11610657028140853,
-      "max_error": 0.12789763609851856
+      "mae": 0.09980689278405673,
+      "rmse": 0.14193926072748847,
+      "dtw": 0.057692360695252805,
+      "frechet": 0.4928472999630055,
+      "max_error": 0.48425217789270153
     }
   },
   "hard_points": {
@@ -39,50 +66,60 @@
         {
           "time": 6,
           "expected": 0.6414,
-          "actual": 0.5074,
-          "error": 0.134,
+          "actual": 0.8096,
+          "error": 0.1682,
+          "expected_plot_y": 0.6414,
+          "actual_plot_y": 0.8096,
+          "plot_error": 0.1682,
           "pass": false
         }
       ],
-      "all_pass": false
+      "all_pass": false,
+      "evaluation_space": "survival",
+      "plot_space": "survival"
     },
     "Treatment": {
       "landmarks": [
         {
           "time": 6,
           "expected": 0.7708,
-          "actual": 0.7014,
-          "error": 0.0694,
+          "actual": 0.642,
+          "error": 0.1288,
+          "expected_plot_y": 0.7708,
+          "actual_plot_y": 0.642,
+          "plot_error": 0.1288,
           "pass": false
         }
       ],
-      "all_pass": false
+      "all_pass": false,
+      "evaluation_space": "survival",
+      "plot_space": "survival"
     }
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.10883431958304833,
-      "rmse": 0.12344884954153566,
-      "dtw": 0.009572761927499295,
-      "frechet": 0.10706711485883752,
-      "max_error": 0.22124912534739183
+      "mae": 0.1718258677151476,
+      "rmse": 0.2058985994848272,
+      "dtw": 0.06812294874819856,
+      "frechet": 0.3504463204685374,
+      "max_error": 0.3708177614937068
     },
     "Treatment": {
-      "mae": 0.04808912232236807,
-      "rmse": 0.05836510811614411,
-      "dtw": 0.03044837533784098,
-      "frechet": 0.14402286392423325,
-      "max_error": 0.11451542703668671
+      "mae": 0.06886459426888147,
+      "rmse": 0.08041689401681058,
+      "dtw": 0.009842021853181343,
+      "frechet": 0.08318692124890875,
+      "max_error": 0.167833023479514
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.02909383077794549,
+      "mae": 0.20399330196872342,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.027160169315648634,
+      "mae": 0.6613788697457743,
       "dtw": null,
       "rmse": null
     }
@@ -98,90 +135,287 @@
       "Using Gemini fallback",
       "GPT metadata extraction failed: Request timed out.",
       "Using Gemini fallback",
-      "Control: anchor constraints adjusted 168/1955 points",
-      "Treatment: anchor constraints adjusted 346/1543 points",
-      "Control: anchor-checkpoint refinement adjusted 1641/2123 points across 5 intervals",
-      "Treatment: anchor-checkpoint refinement adjusted 1402/1885 points across 5 intervals",
-      "Control: anchor constraints adjusted 412/2398 points",
-      "Treatment: anchor constraints adjusted 284/2295 points",
-      "Control: early plateau guard adjusted 517/1566 points",
-      "Treatment: early plateau guard adjusted 48/1509 points (interval-aware)",
-      "Treatment: flagged for rescue (early_plateau)",
-      "Control: anchor constraints adjusted 168/1955 points",
-      "Treatment: anchor constraints adjusted 346/1543 points",
-      "Control: anchor-checkpoint refinement adjusted 1641/2123 points across 5 intervals",
-      "Treatment: anchor-checkpoint refinement adjusted 1402/1885 points across 5 intervals",
-      "Control: anchor constraints adjusted 412/2398 points",
-      "Treatment: anchor constraints adjusted 284/2295 points",
-      "Control: early plateau guard adjusted 517/1566 points",
-      "Treatment: early plateau guard adjusted 48/1509 points (interval-aware)",
-      "Treatment: flagged for rescue (early_plateau)",
-      "Control: anchor constraints adjusted 168/1955 points",
-      "Treatment: anchor constraints adjusted 346/1543 points",
-      "Control: anchor-checkpoint refinement adjusted 1641/2123 points across 5 intervals",
-      "Treatment: anchor-checkpoint refinement adjusted 1402/1885 points across 5 intervals",
-      "Control: anchor constraints adjusted 412/2398 points",
-      "Treatment: anchor constraints adjusted 284/2295 points",
-      "Control: early plateau guard adjusted 517/1566 points",
-      "Treatment: early plateau guard adjusted 48/1509 points (interval-aware)",
-      "Treatment: flagged for rescue (early_plateau)",
+      "I_TICK_DETECT_RAW_X:8:4.796",
+      "I_TICK_DETECT_RAW_Y:6:9.166",
+      "I_TICK_HOTSPOT_X:4:0.440",
+      "I_TICK_HOTSPOT_Y:6:0.494",
+      "I_TICK_X_CLIPPED_TO_AXIS:8->7",
+      "I_TICK_MATCH_X:7:1.00:2.0:7",
+      "I_TICK_MATCH_Y:6:1.00:7.5:6",
+      "I_TICK_DETECT_X:7:1.000:686.0",
+      "I_TICK_DETECT_Y:6:1.000:376.0",
+      "I_TICK_CAL_X:7:1.000:0.0:0.14:0.071",
+      "I_TICK_CAL_Y:6:1.000:0.0:0.17:0.167",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "W_COLOR_PRIOR_REJECTED:Control:93.8",
+      "W_COLOR_PRIOR_REJECTED:Treatment:128.2",
+      "I_HSL_KMEDOIDS_USED:2:2303",
+      "W_CROSSING_DISABLED_CAP:4:1220:1740",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:8:13",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:17:17",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:32:35",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:50:52",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:64:70",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:137:139",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:145:146",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:156:156",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:160:160",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:167:167",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:181:182",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:187:187",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:410:410",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:414:414",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:442:442",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:449:449",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:453:454",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:473:473",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:516:516",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:520:520",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:582:583",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:587:587",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1737:1739",
+      "W_LOW_MARGIN_HIGH:Control:0.483",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:2:1336:1740",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:8:17",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:32:44",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:50:51",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:64:74",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:92:94",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:99:99",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:316:316",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:321:324",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:340:341",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:364:366",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:372:372",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:376:377",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:382:382",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:393:410",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:414:420",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:428:428",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:434:436",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:441:441",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:446:448",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:456:468",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:473:475",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:481:485",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:516:516",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:520:520",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:525:525",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1735:1739",
+      "W_LOW_MARGIN_HIGH:Control:0.598",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "E_HARD_FAIL_LOW_MARGIN:Control:0.483",
+      "W_COLOR_REJECT_PENALTY:2",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.578",
+      "I_TICK_DETECT_RAW_X:8:4.796",
+      "I_TICK_DETECT_RAW_Y:6:9.166",
+      "I_TICK_HOTSPOT_X:4:0.440",
+      "I_TICK_HOTSPOT_Y:6:0.494",
+      "I_TICK_X_CLIPPED_TO_AXIS:8->7",
+      "I_TICK_MATCH_X:7:1.00:2.0:7",
+      "I_TICK_MATCH_Y:6:1.00:7.5:6",
+      "I_TICK_DETECT_X:7:1.000:686.0",
+      "I_TICK_DETECT_Y:6:1.000:376.0",
+      "I_TICK_CAL_X:7:1.000:0.0:0.14:0.071",
+      "I_TICK_CAL_Y:6:1.000:0.0:0.17:0.167",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "W_COLOR_PRIOR_REJECTED:Control:105.8",
+      "W_COLOR_PRIOR_REJECTED:Treatment:103.4",
+      "I_HSL_KMEDOIDS_USED:2:2303",
+      "W_CROSSING_DISABLED_CAP:2:1638:1740",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:8:17",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:32:43",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1738:1739",
+      "W_LOW_MARGIN_HIGH:Treatment:0.504",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:5:1211:1740",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:8:17",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:32:43",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:57:57",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:63:63",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:69:72",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:91:94",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:99:99",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:107:111",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:115:116",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:132:132",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:138:138",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:142:142",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:392:397",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:491:579",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1299:1299",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1305:1306",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1312:1313",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1319:1328",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1355:1359",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1370:1378",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1383:1386",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1390:1390",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1410:1410",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1717:1717",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1738:1739",
+      "W_LOW_MARGIN_HIGH:Control:0.367",
+      "W_LOW_MARGIN_HIGH:Treatment:0.496",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "E_HARD_FAIL_LOW_MARGIN:Treatment:0.504",
+      "W_COLOR_REJECT_PENALTY:4",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_NEEDS_MANUAL_REVIEW:0.434",
+      "I_TICK_DETECT_RAW_X:8:4.796",
+      "I_TICK_DETECT_RAW_Y:6:9.166",
+      "I_TICK_HOTSPOT_X:4:0.440",
+      "I_TICK_HOTSPOT_Y:6:0.494",
+      "I_TICK_X_CLIPPED_TO_AXIS:8->7",
+      "I_TICK_MATCH_X:7:1.00:2.0:7",
+      "I_TICK_MATCH_Y:6:1.00:7.5:6",
+      "I_TICK_DETECT_X:7:1.000:686.0",
+      "I_TICK_DETECT_Y:6:1.000:376.0",
+      "I_TICK_CAL_X:7:1.000:0.0:0.14:0.071",
+      "I_TICK_CAL_Y:6:1.000:0.0:0.17:0.167",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "W_COLOR_PRIOR_REJECTED:Control:105.8",
+      "W_COLOR_PRIOR_REJECTED:Treatment:103.4",
+      "I_HSL_KMEDOIDS_USED:2:2303",
+      "W_CROSSING_DISABLED_CAP:2:1638:1740",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:8:17",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:32:43",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1738:1739",
+      "W_LOW_MARGIN_HIGH:Treatment:0.504",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:5:1211:1740",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:8:17",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:32:43",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:57:57",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:63:63",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:69:72",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:91:94",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:99:99",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:107:111",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:115:116",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:132:132",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:138:138",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:142:142",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:392:397",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:491:579",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1299:1299",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1305:1306",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1312:1313",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1319:1328",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1355:1359",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1370:1378",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1383:1386",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1390:1390",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1410:1410",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1717:1717",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1738:1739",
+      "W_LOW_MARGIN_HIGH:Control:0.367",
+      "W_LOW_MARGIN_HIGH:Treatment:0.496",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "E_HARD_FAIL_LOW_MARGIN:Treatment:0.504",
+      "W_COLOR_REJECT_PENALTY:6",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_NEEDS_MANUAL_REVIEW:0.434",
+      "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_040/hard_points.json",
+      "Loaded hardpoint constraints: 2 groups from tests/fixtures/standard/case_040/hard_points.json (tol=0.010)",
+      "Control: applied 1 hardpoint anchors before reconstruction",
       "Added 12 terminal right-censored survivors at t=12.0",
-      "Control: used censoring-mark hints in 5 intervals",
-      "Control: adjusted event/censor split from censoring hints in 4 intervals",
-      "Control: full-mode objective 0.0355 (fit=0.0291, interval=0.0000, landmark=0.0117)",
+      "Control: used censoring-mark hints in 6 intervals",
+      "Control: adjusted event/censor split from censoring hints in 6 intervals",
+      "Control: forced feedback enabled due to high-loss zero-event interval pattern",
+      "Control: hardpoint residual mean=0.1682, max=0.1682, tol=0.0100",
+      "Control: full-mode objective 4.8320 (fit=0.2041, interval=0.0000, landmark=0.2144)",
+      "Control: hardpoint residual (mean=0.1682, max=0.1682, tol=0.0100)",
+      "Treatment: applied 1 hardpoint anchors before reconstruction",
       "Added 28 terminal right-censored survivors at t=12.0",
-      "Treatment: used censoring-mark hints in 4 intervals",
-      "Treatment: adjusted event/censor split from censoring hints in 1 intervals",
-      "Treatment: full-mode objective 0.0398 (fit=0.0272, interval=0.0000, landmark=0.0230)"
+      "Treatment: used censoring-mark hints in 6 intervals",
+      "Treatment: adjusted event/censor split from censoring hints in 5 intervals",
+      "Treatment: hardpoint residual mean=0.1288, max=0.1288, tol=0.0100",
+      "Treatment: full-mode objective 4.4005 (fit=0.6614, interval=0.0000, landmark=0.6051)",
+      "Treatment: hardpoint residual (mean=0.1288, max=0.1288, tol=0.0100)"
     ]
   },
   "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.10496173822769357,
-        "reconstruction_mae": 0.10883431958304833,
-        "delta_reconstruction_minus_digitize": 0.0038725813553547594,
+        "digitize_mae": 0.03910723326149864,
+        "reconstruction_mae": 0.1718258677151476,
+        "delta_reconstruction_minus_digitize": 0.13271863445364895,
         "hard_fail_count": 1,
-        "stage_attribution": "digitization_limited",
+        "stage_attribution": "reconstruction_limited",
         "failed_landmarks": [
           {
             "time": 6,
             "expected": 0.6414,
-            "actual": 0.5074,
-            "error": 0.134,
-            "bias": -0.134
+            "actual": 0.8096,
+            "error": 0.1682,
+            "bias": 0.1682
           }
         ]
       },
       "Treatment": {
-        "digitize_mae": 0.06134180974330361,
-        "reconstruction_mae": 0.04808912232236807,
-        "delta_reconstruction_minus_digitize": -0.013252687420935542,
+        "digitize_mae": 0.09980689278405673,
+        "reconstruction_mae": 0.06886459426888147,
+        "delta_reconstruction_minus_digitize": -0.030942298515175257,
         "hard_fail_count": 1,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 6,
             "expected": 0.7708,
-            "actual": 0.7014,
-            "error": 0.0694,
-            "bias": -0.0694
+            "actual": 0.642,
+            "error": 0.1288,
+            "bias": -0.1288
           }
         ]
       }
     },
     "stage_attribution_counts": {
-      "digitization_limited": 2
+      "reconstruction_limited": 1,
+      "digitization_limited": 1
     },
     "hard_fail_times": {
       "6": 2
     }
   },
+  "stage_mae": {
+    "arms": {
+      "Control": {
+        "digitize_mae": 0.03910723326149864,
+        "reconstruction_mae": 0.1718258677151476,
+        "delta_reconstruction_minus_digitize": 0.13271863445364895,
+        "stage_attribution": "reconstruction_limited"
+      },
+      "Treatment": {
+        "digitize_mae": 0.09980689278405673,
+        "reconstruction_mae": 0.06886459426888147,
+        "delta_reconstruction_minus_digitize": -0.030942298515175257,
+        "stage_attribution": "digitization_limited"
+      }
+    },
+    "mean_digitize_mae": 0.06945706302277768,
+    "mean_reconstruction_mae": 0.12034523099201454,
+    "mean_delta_reconstruction_minus_digitize": 0.05088816796923685
+  },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.10883431958304833,
+        "reconstruction_mae": 0.1718258677151476,
         "intervals": [
           {
             "t_start": 0.0,
@@ -189,12 +423,12 @@
             "n_start": 101,
             "n_end": 81,
             "risk_table_loss": 20,
-            "events_reconstructed": 18,
-            "censors_reconstructed": 2,
+            "events_reconstructed": 7,
+            "censors_reconstructed": 13,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 1.0,
-            "digitized_s_end": 0.815,
-            "reconstructed_s_end": 0.82,
+            "digitized_s_start": 0.8029,
+            "digitized_s_end": 0.9659,
+            "reconstructed_s_end": 0.9244,
             "expected_s_end": 0.9032
           },
           {
@@ -203,12 +437,12 @@
             "n_start": 81,
             "n_end": 65,
             "risk_table_loss": 16,
-            "events_reconstructed": 14,
-            "censors_reconstructed": 2,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 16,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.815,
-            "digitized_s_end": 0.6756,
-            "reconstructed_s_end": 0.6765,
+            "digitized_s_start": 0.9659,
+            "digitized_s_end": 0.8341,
+            "reconstructed_s_end": 0.9244,
             "expected_s_end": 0.8313
           },
           {
@@ -217,12 +451,12 @@
             "n_start": 65,
             "n_end": 45,
             "risk_table_loss": 20,
-            "events_reconstructed": 16,
-            "censors_reconstructed": 4,
+            "events_reconstructed": 7,
+            "censors_reconstructed": 13,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.6756,
-            "digitized_s_end": 0.4972,
-            "reconstructed_s_end": 0.5074,
+            "digitized_s_start": 0.8341,
+            "digitized_s_end": 0.6667,
+            "reconstructed_s_end": 0.8096,
             "expected_s_end": 0.6414
           },
           {
@@ -231,12 +465,12 @@
             "n_start": 45,
             "n_end": 30,
             "risk_table_loss": 15,
-            "events_reconstructed": 10,
-            "censors_reconstructed": 5,
+            "events_reconstructed": 3,
+            "censors_reconstructed": 12,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.4972,
-            "digitized_s_end": 0.376,
-            "reconstructed_s_end": 0.3946,
+            "digitized_s_start": 0.6667,
+            "digitized_s_end": 0.6233,
+            "reconstructed_s_end": 0.7472,
             "expected_s_end": 0.5007
           },
           {
@@ -248,9 +482,9 @@
             "events_reconstructed": 3,
             "censors_reconstructed": 8,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.376,
-            "digitized_s_end": 0.3755,
-            "reconstructed_s_end": 0.3552,
+            "digitized_s_start": 0.6233,
+            "digitized_s_end": 0.3589,
+            "reconstructed_s_end": 0.6532,
             "expected_s_end": 0.3577
           },
           {
@@ -259,12 +493,12 @@
             "n_start": 19,
             "n_end": 12,
             "risk_table_loss": 7,
-            "events_reconstructed": 1,
-            "censors_reconstructed": 6,
+            "events_reconstructed": 2,
+            "censors_reconstructed": 5,
             "terminal_carryover_censors": 12,
-            "digitized_s_start": 0.3755,
-            "digitized_s_end": 0.318,
-            "reconstructed_s_end": 0.333,
+            "digitized_s_start": 0.3589,
+            "digitized_s_end": 0.2242,
+            "reconstructed_s_end": 0.5763,
             "expected_s_end": 0.2259
           }
         ],
@@ -272,14 +506,14 @@
           {
             "time": 6,
             "expected": 0.6414,
-            "actual": 0.5074,
-            "error": 0.134,
+            "actual": 0.8096,
+            "error": 0.1682,
             "pass": false
           }
         ]
       },
       "Treatment": {
-        "reconstruction_mae": 0.04808912232236807,
+        "reconstruction_mae": 0.06886459426888147,
         "intervals": [
           {
             "t_start": 0.0,
@@ -287,12 +521,12 @@
             "n_start": 101,
             "n_end": 94,
             "risk_table_loss": 7,
-            "events_reconstructed": 7,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 5,
+            "censors_reconstructed": 2,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.99,
-            "digitized_s_end": 0.921,
-            "reconstructed_s_end": 0.9307,
+            "digitized_s_start": 0.6032,
+            "digitized_s_end": 0.8966,
+            "reconstructed_s_end": 0.9505,
             "expected_s_end": 0.9693
           },
           {
@@ -301,12 +535,12 @@
             "n_start": 94,
             "n_end": 78,
             "risk_table_loss": 16,
-            "events_reconstructed": 14,
-            "censors_reconstructed": 2,
+            "events_reconstructed": 15,
+            "censors_reconstructed": 1,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.921,
-            "digitized_s_end": 0.7817,
-            "reconstructed_s_end": 0.7921,
+            "digitized_s_start": 0.8966,
+            "digitized_s_end": 0.8205,
+            "reconstructed_s_end": 0.7972,
             "expected_s_end": 0.8637
           },
           {
@@ -315,12 +549,12 @@
             "n_start": 78,
             "n_end": 61,
             "risk_table_loss": 17,
-            "events_reconstructed": 8,
-            "censors_reconstructed": 9,
+            "events_reconstructed": 15,
+            "censors_reconstructed": 2,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.7817,
-            "digitized_s_end": 0.6338,
-            "reconstructed_s_end": 0.7014,
+            "digitized_s_start": 0.8205,
+            "digitized_s_end": 0.637,
+            "reconstructed_s_end": 0.642,
             "expected_s_end": 0.7708
           },
           {
@@ -332,9 +566,9 @@
             "events_reconstructed": 17,
             "censors_reconstructed": 0,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.6338,
-            "digitized_s_end": 0.4857,
-            "reconstructed_s_end": 0.506,
+            "digitized_s_start": 0.637,
+            "digitized_s_end": 0.4963,
+            "reconstructed_s_end": 0.4631,
             "expected_s_end": 0.6275
           },
           {
@@ -343,12 +577,12 @@
             "n_start": 44,
             "n_end": 36,
             "risk_table_loss": 8,
-            "events_reconstructed": 8,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 4,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.4857,
-            "digitized_s_end": 0.4158,
-            "reconstructed_s_end": 0.414,
+            "digitized_s_start": 0.4963,
+            "digitized_s_end": 0.3347,
+            "reconstructed_s_end": 0.42,
             "expected_s_end": 0.5277
           },
           {
@@ -357,12 +591,12 @@
             "n_start": 36,
             "n_end": 28,
             "risk_table_loss": 8,
-            "events_reconstructed": 8,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 3,
+            "censors_reconstructed": 5,
             "terminal_carryover_censors": 28,
-            "digitized_s_start": 0.4158,
-            "digitized_s_end": 0.3499,
-            "reconstructed_s_end": 0.322,
+            "digitized_s_start": 0.3347,
+            "digitized_s_end": 0.2226,
+            "reconstructed_s_end": 0.3828,
             "expected_s_end": 0.466
           }
         ],
@@ -370,13 +604,16 @@
           {
             "time": 6,
             "expected": 0.7708,
-            "actual": 0.7014,
-            "error": 0.0694,
+            "actual": 0.642,
+            "error": 0.1288,
             "pass": false
           }
         ]
       }
     }
+  },
+  "artifacts": {
+    "overlay_results": "overlay_results.png"
   },
   "passed": false
 }

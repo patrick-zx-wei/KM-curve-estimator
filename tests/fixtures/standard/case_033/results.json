@@ -31,11 +31,11 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.08513405002060638,
-      "rmse": 0.0992104086810286,
-      "dtw": 0.004128007251031878,
-      "frechet": 0.10216451882797717,
-      "max_error": 0.1849751611777709
+      "mae": 0.04782075177476771,
+      "rmse": 0.1224143831016532,
+      "dtw": 0.07569417598366086,
+      "frechet": 0.3644916702010059,
+      "max_error": 0.3856872796185016
     }
   },
   "hard_points": {
@@ -44,61 +44,61 @@
         {
           "time": 6,
           "expected": 0.8745,
-          "actual": 0.8828,
-          "error": 0.0083,
+          "actual": 0.857,
+          "error": 0.0175,
           "expected_plot_y": 0.1255,
-          "actual_plot_y": 0.1172,
-          "plot_error": 0.0083,
+          "actual_plot_y": 0.143,
+          "plot_error": 0.0175,
           "pass": true
         },
         {
           "time": 12,
           "expected": 0.7567,
-          "actual": 0.7648,
-          "error": 0.0081,
+          "actual": 0.7368,
+          "error": 0.0199,
           "expected_plot_y": 0.2433,
-          "actual_plot_y": 0.2352,
-          "plot_error": 0.0081,
+          "actual_plot_y": 0.2632,
+          "plot_error": 0.0199,
           "pass": true
         },
         {
           "time": 24,
           "expected": 0.5068,
-          "actual": 0.5121,
-          "error": 0.0053,
+          "actual": 0.5619,
+          "error": 0.0551,
           "expected_plot_y": 0.4932,
-          "actual_plot_y": 0.4879,
-          "plot_error": 0.0053,
-          "pass": true
+          "actual_plot_y": 0.4381,
+          "plot_error": 0.0551,
+          "pass": false
         },
         {
           "time": 36,
           "expected": 0.3904,
-          "actual": 0.3916,
-          "error": 0.0012,
+          "actual": 0.4477,
+          "error": 0.0573,
           "expected_plot_y": 0.6096,
-          "actual_plot_y": 0.6084,
-          "plot_error": 0.0012,
-          "pass": true
+          "actual_plot_y": 0.5523,
+          "plot_error": 0.0573,
+          "pass": false
         }
       ],
-      "all_pass": true,
+      "all_pass": false,
       "evaluation_space": "survival",
       "plot_space": "incidence"
     }
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.024480595208369968,
-      "rmse": 0.02962204539405775,
-      "dtw": 0.002658486256490545,
-      "frechet": 0.021963851720649852,
-      "max_error": 0.06253533050335891
+      "mae": 0.02452630662100766,
+      "rmse": 0.03365801191571342,
+      "dtw": 0.005174095205486379,
+      "frechet": 0.05729903559206001,
+      "max_error": 0.09384595617043423
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.07276111594945796,
+      "mae": 0.18347321374315248,
       "dtw": null,
       "rmse": null
     }
@@ -106,28 +106,27 @@
   "reconstruction_meta": {
     "mode": "full",
     "patient_counts": {
-      "Control": 252
+      "Control": 187
     },
     "warnings": [
-      "GPT extraction failed: Request timed out.",
-      "Using Gemini fallback",
       "Low GPT metadata confidence (0.70), verifying with Gemini",
+      "Gemini verification failed, using low-confidence GPT result",
       "W_DIRECTION_AMBIGUOUS_TEXT",
       "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:1:17.222",
-      "I_TICK_DETECT_RAW_Y:0:0.000",
-      "I_TICK_MATCH_X:7:0.00:0.0:1",
-      "I_TICK_MATCH_Y:6:0.00:0.0:0",
+      "I_TICK_DETECT_RAW_X:2:3.997",
+      "I_TICK_DETECT_RAW_Y:1:13.421",
+      "I_TICK_MATCH_X:7:0.14:0.0:2",
+      "I_TICK_MATCH_Y:6:0.00:0.0:1",
       "W_TICK_MATCH_X_WEAK",
       "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:7:0.189:390.0",
-      "I_TICK_DETECT_Y:6:0.214:535.5",
-      "I_TICK_CAL_X:7:0.190:0.0:0.14:0.036",
-      "I_TICK_CAL_Y:6:0.271:0.0:0.33:0.000",
+      "I_TICK_DETECT_X:7:0.202:667.0",
+      "I_TICK_DETECT_Y:6:0.077:385.0",
+      "I_TICK_CAL_X:7:0.204:0.0:0.00:0.071",
+      "I_TICK_CAL_Y:6:0.231:0.0:0.17:0.013",
       "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:111.8",
+      "W_COLOR_PRIOR_REJECTED:Control:112.3",
       "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "I_HSL_KMEDOIDS_USED:1:2094",
+      "I_HSL_KMEDOIDS_USED:1:2413",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
@@ -136,23 +135,23 @@
       "I_DETERMINISTIC_RETRACE_SKIPPED",
       "W_COLOR_REJECT_PENALTY:1",
       "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V2_CONFIDENCE:0.706",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.737",
       "W_DIRECTION_AMBIGUOUS_TEXT",
       "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:1:17.222",
-      "I_TICK_DETECT_RAW_Y:0:0.000",
-      "I_TICK_MATCH_X:7:0.00:0.0:1",
-      "I_TICK_MATCH_Y:6:0.00:0.0:0",
+      "I_TICK_DETECT_RAW_X:2:3.997",
+      "I_TICK_DETECT_RAW_Y:1:13.421",
+      "I_TICK_MATCH_X:7:0.14:0.0:2",
+      "I_TICK_MATCH_Y:6:0.00:0.0:1",
       "W_TICK_MATCH_X_WEAK",
       "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:7:0.189:390.0",
-      "I_TICK_DETECT_Y:6:0.214:535.5",
-      "I_TICK_CAL_X:7:0.190:0.0:0.14:0.036",
-      "I_TICK_CAL_Y:6:0.271:0.0:0.33:0.000",
+      "I_TICK_DETECT_X:7:0.202:667.0",
+      "I_TICK_DETECT_Y:6:0.077:385.0",
+      "I_TICK_CAL_X:7:0.204:0.0:0.00:0.071",
+      "I_TICK_CAL_Y:6:0.231:0.0:0.17:0.013",
       "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:111.8",
+      "W_COLOR_PRIOR_REJECTED:Control:112.3",
       "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "I_HSL_KMEDOIDS_USED:1:2094",
+      "I_HSL_KMEDOIDS_USED:1:2413",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
@@ -161,23 +160,23 @@
       "I_DETERMINISTIC_RETRACE_SKIPPED",
       "W_COLOR_REJECT_PENALTY:2",
       "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V2_CONFIDENCE:0.656",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.687",
       "W_DIRECTION_AMBIGUOUS_TEXT",
       "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:1:17.222",
-      "I_TICK_DETECT_RAW_Y:0:0.000",
-      "I_TICK_MATCH_X:7:0.00:0.0:1",
-      "I_TICK_MATCH_Y:6:0.00:0.0:0",
+      "I_TICK_DETECT_RAW_X:2:3.997",
+      "I_TICK_DETECT_RAW_Y:1:13.421",
+      "I_TICK_MATCH_X:7:0.14:0.0:2",
+      "I_TICK_MATCH_Y:6:0.00:0.0:1",
       "W_TICK_MATCH_X_WEAK",
       "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:7:0.189:390.0",
-      "I_TICK_DETECT_Y:6:0.214:535.5",
-      "I_TICK_CAL_X:7:0.190:0.0:0.14:0.036",
-      "I_TICK_CAL_Y:6:0.271:0.0:0.33:0.000",
+      "I_TICK_DETECT_X:7:0.202:667.0",
+      "I_TICK_DETECT_Y:6:0.077:385.0",
+      "I_TICK_CAL_X:7:0.204:0.0:0.00:0.071",
+      "I_TICK_CAL_Y:6:0.231:0.0:0.17:0.013",
       "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:111.8",
+      "W_COLOR_PRIOR_REJECTED:Control:112.3",
       "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "I_HSL_KMEDOIDS_USED:1:2094",
+      "I_HSL_KMEDOIDS_USED:1:2413",
       "E_NEEDS_RETRACE_MONOTONE:Control",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
@@ -186,52 +185,71 @@
       "I_DETERMINISTIC_RETRACE_SKIPPED",
       "W_COLOR_REJECT_PENALTY:3",
       "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V2_CONFIDENCE:0.606",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.637",
       "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_033/hard_points.json",
       "Loaded hardpoint constraints: 1 groups from tests/fixtures/standard/case_033/hard_points.json (tol=0.010)",
       "Control: applied 4 hardpoint anchors before reconstruction",
-      "Using estimated mode without risk table (configured N=187, derived N=252).",
-      "Added 73 terminal censored patients to match cohort size",
-      "Control: switched to estimated reconstruction (objective 0.7556 -> 0.4659)",
-      "Control: estimated fallback checks (n=252, interval_mismatch=0.284)",
-      "Control: landmark proxy improved (0.0277 -> 0.0055)",
-      "Control: hardpoint residual improved (max 0.0348 -> 0.0083)"
+      "Added 32 terminal right-censored survivors at t=36.0",
+      "Control: used censoring-mark hints in 6 intervals",
+      "Control: adjusted event/censor split from censoring hints in 6 intervals",
+      "Control: residual-map correction improved objective to 1.9487",
+      "Control: hardpoint residual mean=0.0374, max=0.0573, tol=0.0100",
+      "Control: full-mode objective 1.5503 (fit=0.1833, interval=0.0000, landmark=0.2194)",
+      "Control: hardpoint residual (mean=0.0374, max=0.0573, tol=0.0100)"
     ]
   },
   "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.08513405002060638,
-        "reconstruction_mae": 0.024480595208369968,
-        "delta_reconstruction_minus_digitize": -0.06065345481223641,
-        "hard_fail_count": 0,
-        "stage_attribution": "digitization_warning",
-        "failed_landmarks": []
+        "digitize_mae": 0.04782075177476771,
+        "reconstruction_mae": 0.02452630662100766,
+        "delta_reconstruction_minus_digitize": -0.02329444515376005,
+        "hard_fail_count": 2,
+        "stage_attribution": "reconstruction_limited",
+        "failed_landmarks": [
+          {
+            "time": 24,
+            "expected": 0.5068,
+            "actual": 0.5619,
+            "error": 0.0551,
+            "bias": 0.0551
+          },
+          {
+            "time": 36,
+            "expected": 0.3904,
+            "actual": 0.4477,
+            "error": 0.0573,
+            "bias": 0.0573
+          }
+        ]
       }
     },
     "stage_attribution_counts": {
-      "digitization_warning": 1
+      "reconstruction_limited": 1
     },
-    "hard_fail_times": {}
+    "hard_fail_times": {
+      "24": 1,
+      "36": 1
+    }
   },
   "stage_mae": {
     "arms": {
       "Control": {
-        "digitize_mae": 0.08513405002060638,
-        "reconstruction_mae": 0.024480595208369968,
-        "delta_reconstruction_minus_digitize": -0.06065345481223641,
-        "stage_attribution": "digitization_warning"
+        "digitize_mae": 0.04782075177476771,
+        "reconstruction_mae": 0.02452630662100766,
+        "delta_reconstruction_minus_digitize": -0.02329444515376005,
+        "stage_attribution": "reconstruction_limited"
       }
     },
-    "mean_digitize_mae": 0.08513405002060638,
-    "mean_reconstruction_mae": 0.024480595208369968,
-    "mean_delta_reconstruction_minus_digitize": -0.06065345481223641
+    "mean_digitize_mae": 0.04782075177476771,
+    "mean_reconstruction_mae": 0.02452630662100766,
+    "mean_delta_reconstruction_minus_digitize": -0.02329444515376005
   },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.024480595208369968,
+        "reconstruction_mae": 0.02452630662100766,
         "intervals": [
           {
             "t_start": 0.0,
@@ -239,12 +257,12 @@
             "n_start": 187,
             "n_end": 142,
             "risk_table_loss": 45,
-            "events_reconstructed": 29,
-            "censors_reconstructed": 8,
+            "events_reconstructed": 25,
+            "censors_reconstructed": 20,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.9915,
-            "digitized_s_end": 0.9212,
-            "reconstructed_s_end": 0.8828,
+            "digitized_s_start": 0.9767,
+            "digitized_s_end": 0.8677,
+            "reconstructed_s_end": 0.857,
             "expected_s_end": 0.8745
           },
           {
@@ -253,12 +271,12 @@
             "n_start": 142,
             "n_end": 108,
             "risk_table_loss": 34,
-            "events_reconstructed": 28,
-            "censors_reconstructed": 8,
+            "events_reconstructed": 19,
+            "censors_reconstructed": 15,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.9212,
-            "digitized_s_end": 0.8267,
-            "reconstructed_s_end": 0.7648,
+            "digitized_s_start": 0.8677,
+            "digitized_s_end": 0.76,
+            "reconstructed_s_end": 0.7368,
             "expected_s_end": 0.7567
           },
           {
@@ -267,12 +285,12 @@
             "n_start": 108,
             "n_end": 74,
             "risk_table_loss": 34,
-            "events_reconstructed": 30,
-            "censors_reconstructed": 2,
+            "events_reconstructed": 18,
+            "censors_reconstructed": 16,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.8267,
-            "digitized_s_end": 0.7506,
-            "reconstructed_s_end": 0.6361,
+            "digitized_s_start": 0.76,
+            "digitized_s_end": 0.5725,
+            "reconstructed_s_end": 0.6032,
             "expected_s_end": 0.5815
           },
           {
@@ -281,12 +299,12 @@
             "n_start": 74,
             "n_end": 58,
             "risk_table_loss": 16,
-            "events_reconstructed": 28,
-            "censors_reconstructed": 7,
+            "events_reconstructed": 5,
+            "censors_reconstructed": 11,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.7506,
-            "digitized_s_end": 0.653,
-            "reconstructed_s_end": 0.5121,
+            "digitized_s_start": 0.5725,
+            "digitized_s_end": 0.1676,
+            "reconstructed_s_end": 0.5619,
             "expected_s_end": 0.5068
           },
           {
@@ -295,12 +313,12 @@
             "n_start": 58,
             "n_end": 46,
             "risk_table_loss": 12,
-            "events_reconstructed": 12,
-            "censors_reconstructed": 12,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 8,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.653,
-            "digitized_s_end": 0.5361,
-            "reconstructed_s_end": 0.4541,
+            "digitized_s_start": 0.1676,
+            "digitized_s_end": 0.4434,
+            "reconstructed_s_end": 0.5188,
             "expected_s_end": 0.4443
           },
           {
@@ -309,12 +327,12 @@
             "n_start": 46,
             "n_end": 32,
             "risk_table_loss": 14,
-            "events_reconstructed": 12,
-            "censors_reconstructed": 3,
-            "terminal_carryover_censors": 73,
-            "digitized_s_start": 0.5361,
-            "digitized_s_end": 0.2883,
-            "reconstructed_s_end": 0.3916,
+            "events_reconstructed": 6,
+            "censors_reconstructed": 8,
+            "terminal_carryover_censors": 32,
+            "digitized_s_start": 0.4434,
+            "digitized_s_end": 0.3937,
+            "reconstructed_s_end": 0.4477,
             "expected_s_end": 0.3904
           }
         ],
@@ -322,30 +340,30 @@
           {
             "time": 6,
             "expected": 0.8745,
-            "actual": 0.8828,
-            "error": 0.0083,
+            "actual": 0.857,
+            "error": 0.0175,
             "pass": true
           },
           {
             "time": 12,
             "expected": 0.7567,
-            "actual": 0.7648,
-            "error": 0.0081,
+            "actual": 0.7368,
+            "error": 0.0199,
             "pass": true
           },
           {
             "time": 24,
             "expected": 0.5068,
-            "actual": 0.5121,
-            "error": 0.0053,
-            "pass": true
+            "actual": 0.5619,
+            "error": 0.0551,
+            "pass": false
           },
           {
             "time": 36,
             "expected": 0.3904,
-            "actual": 0.3916,
-            "error": 0.0012,
-            "pass": true
+            "actual": 0.4477,
+            "error": 0.0573,
+            "pass": false
           }
         ]
       }

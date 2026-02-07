@@ -39,6 +39,12 @@ def digitize_v2(state: PipelineState) -> PipelineState:
     return _digitize_v2(state)
 
 
+def digitize_v3(state: PipelineState) -> PipelineState:
+    from km_estimator.nodes.digitization_3 import digitize_v3 as _digitize_v3
+
+    return _digitize_v3(state)
+
+
 def reconstruct(state: PipelineState) -> PipelineState:
     from km_estimator.nodes.reconstruction import reconstruct as _reconstruct
 
@@ -54,10 +60,10 @@ def validate(state: PipelineState) -> PipelineState:
 __all__ = [
     "digitize",
     "digitize_v2",
+    "digitize_v3",
     "input_guard",
     "mmpu",
     "preprocess",
     "reconstruct",
     "validate",
 ]
-

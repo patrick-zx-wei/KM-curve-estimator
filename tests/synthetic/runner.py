@@ -140,48 +140,93 @@ def _draw_axis_tick_overlay(
     x_anchor_px: list[int] | None = None,
     y_anchor_py: list[int] | None = None,
 ) -> None:
-    """Draw where the pipeline thinks axis tick marks are."""
+    """Draw calibrated axes and where the pipeline thinks tick marks are."""
     h, w = overlay.shape[:2]
     x_tick_color = (200, 0, 255)   # magenta
     y_tick_color = (0, 180, 255)   # orange
-    base_color = (60, 60, 60)
+    axis_color = (70, 70, 70)
 
     x_axis = plot_metadata.x_axis
     y_axis = plot_metadata.y_axis
     x0, y_base = mapping.real_to_px(float(x_axis.start), float(y_axis.start))
-    x0 = int(np.clip(x0, 0, w - 1))
-    y_base = int(np.clip(y_base, 0, h - 1))
+    x1, _ = mapping.real_to_px(float(x_axis.end), float(y_axis.start))
+    _, y1 = mapping.real_to_px(float(x_axis.start), float(y_axis.end))
 
-    # Draw baseline hint for context.
-    cv2.line(overlay, (0, y_base), (w - 1, y_base), base_color, 1, cv2.LINE_AA)
+    x0 = int(np.clip(x0, 0, w - 1))
+    x1 = int(np.clip(x1, 0, w - 1))
+    y_base = int(np.clip(y_base, 0, h - 1))
+    y1 = int(np.clip(y1, 0, h - 1))
+
+    axis_thickness = max(1, int(round(min(h, w) * 0.0025)))
+    tick_len = max(6, int(round(min(h, w) * 0.011)))
+    x_lo, x_hi = sorted((x0, x1))
+    y_lo, y_hi = sorted((y1, y_base))
+
+    # Draw calibrated axis spines used for px<->real mapping.
+    cv2.line(
+        overlay,
+        (x_lo, y_base),
+        (x_hi, y_base),
+        axis_color,
+        axis_thickness,
+        cv2.LINE_AA,
+    )
+    cv2.line(
+        overlay,
+        (x0, min(y_base, y1)),
+        (x0, max(y_base, y1)),
+        axis_color,
+        axis_thickness,
+        cv2.LINE_AA,
+    )
 
     x_positions: list[int] = []
     if x_anchor_px:
-        x_positions = [int(np.clip(px, 0, w - 1)) for px in x_anchor_px]
+        x_positions = [int(np.clip(px, x_lo, x_hi)) for px in x_anchor_px]
     else:
         for xv in x_axis.tick_values:
             px, _ = mapping.real_to_px(float(xv), float(y_axis.start))
-            x_positions.append(int(np.clip(px, 0, w - 1)))
+            x_positions.append(int(np.clip(px, x_lo, x_hi)))
+    x_positions = sorted(set(x_positions))
 
-    # X-axis ticks: markers on baseline.
-    for cx in x_positions:
+    # X-axis ticks: redraw inward (upward) to avoid overlapping x tick labels.
+    for i, cx in enumerate(x_positions):
         cy = y_base
-        cv2.circle(overlay, (cx, cy), 3, x_tick_color, -1, cv2.LINE_AA)
-        cv2.line(overlay, (cx, cy - 7), (cx, cy + 7), x_tick_color, 1, cv2.LINE_AA)
+        local_len = tick_len if 0 < i < len(x_positions) - 1 else max(4, int(round(tick_len * 0.65)))
+        y_in = int(np.clip(cy - local_len, y_lo, y_hi))
+        cv2.line(
+            overlay,
+            (int(cx), int(cy)),
+            (int(cx), y_in),
+            x_tick_color,
+            max(1, axis_thickness),
+            cv2.LINE_AA,
+        )
+        cv2.circle(overlay, (cx, cy), 2, x_tick_color, -1, cv2.LINE_AA)
 
     y_positions: list[int] = []
     if y_anchor_py:
-        y_positions = [int(np.clip(py, 0, h - 1)) for py in y_anchor_py]
+        y_positions = [int(np.clip(py, y_lo, y_hi)) for py in y_anchor_py]
     else:
         for yv in y_axis.tick_values:
             _, py = mapping.real_to_px(float(x_axis.start), float(yv))
-            y_positions.append(int(np.clip(py, 0, h - 1)))
+            y_positions.append(int(np.clip(py, y_lo, y_hi)))
+    y_positions = sorted(set(y_positions), reverse=True)
 
-    # Y-axis ticks: markers on left axis.
-    for cy in y_positions:
+    # Y-axis ticks: redraw inward (rightward) to avoid overlapping y tick labels.
+    for i, cy in enumerate(y_positions):
         cx = x0
-        cv2.circle(overlay, (cx, cy), 3, y_tick_color, -1, cv2.LINE_AA)
-        cv2.line(overlay, (cx - 7, cy), (cx + 7, cy), y_tick_color, 1, cv2.LINE_AA)
+        local_len = tick_len if 0 < i < len(y_positions) - 1 else max(4, int(round(tick_len * 0.65)))
+        x_in = int(np.clip(cx + local_len, x_lo, x_hi))
+        cv2.line(
+            overlay,
+            (int(cx), int(cy)),
+            (x_in, int(cy)),
+            y_tick_color,
+            max(1, axis_thickness),
+            cv2.LINE_AA,
+        )
+        cv2.circle(overlay, (cx, cy), 2, y_tick_color, -1, cv2.LINE_AA)
 
 
 def _write_overlay_artifact(state, case_dir: Path) -> dict:
@@ -209,7 +254,13 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
     x_tick_anchor_px: list[int] | None = None
     y_tick_anchor_py: list[int] | None = None
     try:
-        from km_estimator.nodes.digitization_2.axis_map import build_plot_model
+        import os
+
+        digitizer = os.getenv("KM_DIGITIZER", "").strip().lower()
+        if digitizer in {"v3", "3", "digitization_3"}:
+            from km_estimator.nodes.digitization_3.axis_map import build_plot_model
+        else:
+            from km_estimator.nodes.digitization_2.axis_map import build_plot_model
 
         plot_model = build_plot_model(image=image, meta=state.plot_metadata, ocr_tokens=state.ocr_tokens)
         if not isinstance(plot_model, ProcessingError):
@@ -280,10 +331,10 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
     cv2.putText(overlay, "reconstructed", (66, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
     cv2.circle(overlay, (41, 66), 3, x_tick_color, -1, cv2.LINE_AA)
     cv2.line(overlay, (41, 59), (41, 73), x_tick_color, 1, cv2.LINE_AA)
-    cv2.putText(overlay, "x-axis tick anchor", (66, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(overlay, "x-axis tick redraw", (66, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
     cv2.circle(overlay, (41, 84), 3, y_tick_color, -1, cv2.LINE_AA)
     cv2.line(overlay, (34, 84), (48, 84), y_tick_color, 1, cv2.LINE_AA)
-    cv2.putText(overlay, "y-axis tick anchor", (66, 88), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(overlay, "y-axis tick redraw", (66, 88), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
 
     out_path = case_dir / "overlay_results.png"
     ok = cv2.imwrite(str(out_path), overlay)
@@ -356,7 +407,11 @@ def run_case(
         "difficulty": test_case.difficulty,
         "n_curves": len(test_case.curves),
         "pipeline_errors": [
-            {"stage": e.stage.value, "message": e.message}
+            {
+                "stage": e.stage.value,
+                "message": e.message,
+                "details": e.details,
+            }
             for e in state.errors
         ],
     }
@@ -463,7 +518,11 @@ def run_case(
         }
     else:
         results["validation"] = {"error": "no pipeline output"}
-        results["reconstruction_meta"] = {"error": "no pipeline output"}
+        results["reconstruction_meta"] = {
+            "error": "no pipeline output",
+            "warnings": list(state.mmpu_warnings),
+            "flagged_for_review": bool(state.flagged_for_review),
+        }
 
     # Stage diagnostics: attribute failures to digitization vs reconstruction per arm.
     results["benchmark_track"] = _classify_benchmark_track(results)
