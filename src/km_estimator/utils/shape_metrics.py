@@ -69,7 +69,7 @@ def dtw_distance(
             )
 
     # Normalize by path length
-    return dtw_matrix[n, m] / max(n, m)
+    return float(dtw_matrix[n, m] / max(n, m))
 
 
 def frechet_distance(

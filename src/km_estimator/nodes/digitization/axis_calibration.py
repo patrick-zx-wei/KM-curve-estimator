@@ -69,7 +69,7 @@ class AxisMapping:
 
 
 def calibrate_axes(
-    image: NDArray, meta: PlotMetadata
+    image: NDArray[np.uint8], meta: PlotMetadata
 ) -> AxisMapping | ProcessingError:
     """Detect plot region via Hough lines, build coordinate mapping."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -91,7 +91,10 @@ def calibrate_axes(
         verticals: list[tuple[int, int]] = []  # (x, length)
 
         for line in lines:
-            lx1, ly1, lx2, ly2 = line[0]
+            coords = np.asarray(line, dtype=np.int32).reshape(-1)
+            if coords.size < 4:
+                continue
+            lx1, ly1, lx2, ly2 = (int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3]))
             line_len = int(np.hypot(lx2 - lx1, ly2 - ly1))
             if abs(ly2 - ly1) < 8 and line_len >= int(w * 0.35):  # horizontal
                 horizontals.append(((ly1 + ly2) // 2, line_len))

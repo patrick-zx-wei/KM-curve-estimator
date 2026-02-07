@@ -47,7 +47,7 @@ DOWNWARD_DIRECTION_HINTS = (
     "progression-free survival",
     "disease-free survival",
     "event-free survival",
-    "kaplan-meier",
+    "survival probability",
 )
 
 
@@ -107,14 +107,46 @@ def _infer_curve_direction(
     combined = " ".join(texts).lower()
     upward_hits = sum(1 for hint in UPWARD_DIRECTION_HINTS if hint in combined)
     downward_hits = sum(1 for hint in DOWNWARD_DIRECTION_HINTS if hint in combined)
+    explicit_upward = any(
+        phrase in combined
+        for phrase in ("cumulative incidence", "incidence", "cumulative event")
+    )
+    explicit_downward = any(
+        phrase in combined
+        for phrase in (
+            "overall survival",
+            "progression-free survival",
+            "disease-free survival",
+            "event-free survival",
+            "survival probability",
+        )
+    )
 
     inferred: str | None = None
-    if upward_hits >= 1 and upward_hits >= downward_hits + 1:
+    if explicit_upward and not explicit_downward:
         inferred = "upward"
-    elif downward_hits >= 1 and downward_hits >= upward_hits:
+    elif explicit_downward and not explicit_upward:
+        inferred = "downward"
+    elif upward_hits >= 2 and upward_hits >= downward_hits + 2:
+        inferred = "upward"
+    elif downward_hits >= 2 and downward_hits >= upward_hits + 2:
         inferred = "downward"
 
     current = plot_metadata.curve_direction if plot_metadata.curve_direction in ("downward", "upward") else "downward"
+
+    # Avoid overcorrecting explicit incidence/survival metadata unless opposite evidence is strong.
+    if (
+        current == "upward"
+        and explicit_upward
+        and not (explicit_downward and downward_hits >= upward_hits + 2)
+    ):
+        return plot_metadata
+    if (
+        current == "downward"
+        and explicit_downward
+        and not (explicit_upward and upward_hits >= downward_hits + 2)
+    ):
+        return plot_metadata
 
     if inferred is not None and inferred != current:
         warnings.append(
@@ -245,12 +277,25 @@ def _parse_risk_table_from_ocr(
     ocr_tokens: RawOCRTokens,
     curve_names: list[str],
 ) -> RiskTable | None:
-    """Build RiskTable from OCR risk_table_text if possible."""
+    """Build RiskTable from OCR output, with fallback to unstructured OCR text."""
+    rows: list[list[str]] = []
     table = ocr_tokens.risk_table_text
-    if not table:
-        return None
+    if table:
+        rows.extend([[str(c).strip() for c in row if str(c).strip()] for row in table])
 
-    rows = [[str(c).strip() for c in row if str(c).strip()] for row in table]
+    # Fallback rows derived from OCR text when structured table extraction fails.
+    unstructured_sources: list[str] = []
+    unstructured_sources.extend(str(v) for v in ocr_tokens.annotations)
+    unstructured_sources.extend(str(v) for v in ocr_tokens.axis_labels)
+    unstructured_sources.extend(str(v) for v in ocr_tokens.legend_labels)
+    if ocr_tokens.title:
+        unstructured_sources.append(str(ocr_tokens.title))
+    for text in unstructured_sources:
+        for chunk in re.split(r"[\n;|]+", text):
+            tokens = [tok for tok in chunk.strip().split() if tok]
+            if len(tokens) >= 2 and len(_extract_numeric_tokens(chunk)) >= 2:
+                rows.append(tokens)
+
     rows = [row for row in rows if row]
     if len(rows) < 2:
         return None

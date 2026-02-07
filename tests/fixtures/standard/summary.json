@@ -1,40 +1,41 @@
 {
-  "total": 100,
-  "passed": 16,
-  "failed": 84,
-  "mean_mae": 0.0555,
-  "median_mae": 0.0297,
+  "total": 5,
+  "passed": 0,
+  "failed": 5,
+  "mean_mae": 0.1453,
+  "median_mae": 0.1352,
   "worst_cases": [
-    "case_001",
-    "case_002",
-    "case_003",
-    "case_004",
-    "case_005",
-    "case_006",
-    "case_007",
-    "case_008",
-    "case_009",
-    "case_010"
+    "case_020",
+    "case_040",
+    "case_060",
+    "case_080",
+    "case_100"
   ],
+  "failure_breakdown": {
+    "hard_points_failed": 5,
+    "digitization_mae_failed": 5,
+    "risk_table_missed": 1,
+    "x_axis_end_misread": 0,
+    "curve_count_mismatch": 0,
+    "pipeline_crash": 0
+  },
+  "stage_attribution": {
+    "clean": 1,
+    "reconstruction_limited": 4,
+    "digitization_limited": 11,
+    "mixed": 1
+  },
   "by_difficulty": {
-    "1": {
-      "n": 19,
-      "pass": 4
-    },
     "2": {
-      "n": 47,
-      "pass": 11
-    },
-    "3": {
-      "n": 6,
+      "n": 3,
       "pass": 0
     },
     "4": {
-      "n": 24,
-      "pass": 1
+      "n": 1,
+      "pass": 0
     },
     "5": {
-      "n": 4,
+      "n": 1,
       "pass": 0
     }
   }

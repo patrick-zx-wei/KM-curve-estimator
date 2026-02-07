@@ -63,8 +63,9 @@ def _choose_interval_event_count(
     center = int(round(bounded_target))
 
     # Evaluate all candidates for smaller intervals; otherwise use a bounded local search.
+    candidates: list[int]
     if lost_total <= 40:
-        candidates = range(0, lost_total + 1)
+        candidates = list(range(0, lost_total + 1))
     else:
         low = max(0, center - 8)
         high = min(lost_total, center + 8)
