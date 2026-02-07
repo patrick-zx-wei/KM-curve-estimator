@@ -116,6 +116,12 @@ def build_ground_truth_ipd(test_case: SyntheticTestCase) -> IPDOutput:
 def compute_hard_points(test_case: SyntheticTestCase) -> dict:
     """Compute landmark survival probabilities and median/quartile survival times."""
     result = {}
+    direction = (
+        test_case.curve_direction
+        if test_case.curve_direction in ("downward", "upward")
+        else "downward"
+    )
+    plot_space = "incidence" if direction == "upward" else "survival"
 
     for curve in test_case.curves:
         patients = curve.patients
@@ -127,23 +133,25 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
         # Standard clinical time points (only those within the drawn curve)
         candidate_times = [6, 12, 24, 36, 48, 60, 96, 120]
         time_labels = {
-            6: "6-month survival",
-            12: "1-year survival",
-            24: "2-year survival",
-            36: "3-year survival",
-            48: "4-year survival",
-            60: "5-year survival",
-            96: "8-year survival",
-            120: "10-year survival",
+            6: "6-month value",
+            12: "1-year value",
+            24: "2-year value",
+            36: "3-year value",
+            48: "4-year value",
+            60: "5-year value",
+            96: "8-year value",
+            120: "10-year value",
         }
 
         landmarks = []
         for t in candidate_times:
             if t <= last_event_t:
                 s = _get_survival_at_step(step_coords, float(t))
+                plot_y = (1.0 - s) if direction == "upward" else s
                 landmarks.append({
                     "time": t,
                     "survival": round(s, 4),
+                    "plot_y": round(plot_y, 4),
                     "description": time_labels[t],
                 })
 
@@ -160,6 +168,9 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
             "landmarks": landmarks,
             "median_survival": median,
             "quartiles": quartiles,
+            "curve_direction": direction,
+            "plot_space": plot_space,
+            "evaluation_space": "survival",
         }
 
     return result
@@ -226,6 +237,8 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "total_events": sum(
             sum(1 for p in c.patients if p.event) for c in test_case.curves
         ),
+        "hard_points_space": "survival",
+        "plot_space_for_upward": "incidence",
     }
     _write_json(output_dir / "metadata.json", metadata)
 
@@ -483,6 +496,12 @@ def compare_hard_points(
     """Check if reconstructed IPD matches landmark survival values."""
     results = {}
 
+    direction = (
+        actual_ipd.metadata.curve_direction
+        if actual_ipd.metadata.curve_direction in ("downward", "upward")
+        else "downward"
+    )
+
     for curve in actual_ipd.curves:
         group = curve.group_name
         if group not in hard_points:
@@ -496,19 +515,29 @@ def compare_hard_points(
         for lm in expected.get("landmarks", []):
             t = lm["time"]
             expected_s = lm["survival"]
+            expected_plot_y = (
+                lm.get("plot_y", expected_s if direction == "downward" else 1.0 - expected_s)
+            )
             actual_s = _get_survival_at_step_local(reconstructed_km, float(t))
+            actual_plot_y = actual_s if direction == "downward" else (1.0 - actual_s)
             error = abs(actual_s - expected_s)
+            plot_error = abs(float(actual_plot_y) - float(expected_plot_y))
             landmark_results.append({
                 "time": t,
                 "expected": expected_s,
                 "actual": round(actual_s, 4),
                 "error": round(error, 4),
+                "expected_plot_y": round(float(expected_plot_y), 4),
+                "actual_plot_y": round(float(actual_plot_y), 4),
+                "plot_error": round(float(plot_error), 4),
                 "pass": error <= tolerance,
             })
 
         results[group] = {
             "landmarks": landmark_results,
             "all_pass": all(lr["pass"] for lr in landmark_results),
+            "evaluation_space": "survival",
+            "plot_space": ("incidence" if direction == "upward" else "survival"),
         }
 
     return results

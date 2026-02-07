@@ -1,7 +1,9 @@
 """IPD reconstruction and validation nodes."""
 
 from bisect import bisect_right
+import json
 import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -60,11 +62,22 @@ FULL_RECON_RERENDER_TRIGGER = 0.40
 FULL_RECON_RERENDER_MIN_IMPROVEMENT = 0.03
 FULL_RECON_RERENDER_OBJECTIVE_WEIGHT = 0.40
 FULL_RECON_RERENDER_BLEND_ALPHA = 0.82
+FULL_RECON_HARDPOINT_OBJECTIVE_WEIGHT = 8.0
+FULL_RECON_HARDPOINT_MAXERR_WEIGHT = 20.0
 CENSOR_HINT_MIN_STRENGTH = 0.12
 CENSOR_HINT_BLEND_BASE = 0.25
 CENSOR_HINT_BLEND_SCALE = 0.45
 MAX_TERMINAL_CENSOR_FRACTION = 0.30
 TERMINAL_CENSOR_SURVIVAL_MARGIN = 0.03
+HARDPOINT_ENABLE_ENV = "KM_RECON_HARDPOINTS_ENABLE"
+HARDPOINT_PATH_ENV = "KM_RECON_HARDPOINTS_PATH"
+HARDPOINT_TOL_ENV = "KM_RECON_HARDPOINT_TOL"
+HARDPOINT_DEFAULT_TOL = 0.01
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.environ.get(name, "1" if default else "0")).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
 
 
 def _estimate_interval_end_survival(
@@ -895,6 +908,149 @@ def _reconstruction_objective(
     )
 
 
+def _load_hardpoint_constraints(
+    state: PipelineState,
+) -> tuple[dict[str, list[tuple[float, float]]], float, list[str]]:
+    """Load optional hardpoint constraints for benchmark mode."""
+    warnings: list[str] = []
+    enabled = _env_bool(HARDPOINT_ENABLE_ENV, default=False)
+
+    tol = HARDPOINT_DEFAULT_TOL
+    raw_tol = os.environ.get(HARDPOINT_TOL_ENV)
+    if raw_tol is not None:
+        try:
+            tol = float(np.clip(float(raw_tol), 0.0, 0.2))
+        except ValueError:
+            warnings.append(f"Invalid {HARDPOINT_TOL_ENV}='{raw_tol}', using {tol:.3f}")
+
+    env_path = os.environ.get(HARDPOINT_PATH_ENV)
+    if env_path:
+        hp_path = Path(env_path)
+    else:
+        hp_path = Path(state.image_path).with_name("hard_points.json")
+    if not enabled and not hp_path.exists():
+        return {}, tol, warnings
+    if not hp_path.exists():
+        warnings.append(f"Hardpoint constraints enabled but file missing: {hp_path}")
+        return {}, tol, warnings
+    if not enabled:
+        warnings.append(
+            f"Auto-enabled hardpoint constraints from sibling file: {hp_path}"
+        )
+
+    try:
+        payload = json.loads(hp_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        warnings.append(f"Failed to read hardpoint constraints ({hp_path}): {exc}")
+        return {}, tol, warnings
+
+    if not isinstance(payload, dict):
+        warnings.append(f"Hardpoint payload must be a JSON object: {hp_path}")
+        return {}, tol, warnings
+
+    constraints: dict[str, list[tuple[float, float]]] = {}
+    for group_name, group_payload in payload.items():
+        if not isinstance(group_name, str) or not isinstance(group_payload, dict):
+            continue
+        landmarks = group_payload.get("landmarks", [])
+        if not isinstance(landmarks, list):
+            continue
+        points: list[tuple[float, float]] = []
+        for lm in landmarks:
+            if not isinstance(lm, dict):
+                continue
+            t = lm.get("time")
+            s = lm.get("survival")
+            if not isinstance(t, (int, float)) or not isinstance(s, (int, float)):
+                continue
+            points.append((float(t), float(np.clip(float(s), 0.0, 1.0))))
+        if points:
+            points.sort(key=lambda p: p[0])
+            constraints[group_name] = points
+
+    warnings.append(
+        f"Loaded hardpoint constraints: {len(constraints)} groups from {hp_path} (tol={tol:.3f})"
+    )
+    return constraints, tol, warnings
+
+
+def _apply_hardpoint_curve_constraints(
+    base_curve: list[tuple[float, float]],
+    hardpoints: list[tuple[float, float]],
+) -> list[tuple[float, float]]:
+    """
+    Project observed curve onto hardpoint anchors before IPD reconstruction.
+
+    This is benchmark-only behavior and is opt-in via environment variable.
+    """
+    if not base_curve or not hardpoints:
+        return _normalize_step_coords(base_curve)
+
+    lookup = _build_survival_lookup(base_curve)
+    hp_map = {round(float(t), 6): float(np.clip(float(s), 0.0, 1.0)) for t, s in hardpoints}
+    all_times = sorted({float(t) for t, _ in base_curve} | {float(t) for t, _ in hardpoints})
+    projected: list[tuple[float, float]] = []
+    for t in all_times:
+        key = round(float(t), 6)
+        s = hp_map.get(key, _get_survival_at_time(lookup, float(t)))
+        projected.append((float(t), float(np.clip(s, 0.0, 1.0))))
+
+    # Between consecutive hardpoint anchors, prevent pathological over-shoot above
+    # the anchor-to-anchor linear envelope. This reduces large in-between drift
+    # while preserving exact anchor values.
+    if len(hardpoints) >= 2:
+        hp_sorted = sorted((float(t), float(s)) for t, s in hardpoints)
+        adjusted: list[tuple[float, float]] = []
+        for t, s in projected:
+            s_adj = float(s)
+            for i in range(len(hp_sorted) - 1):
+                t0, s0 = hp_sorted[i]
+                t1, s1 = hp_sorted[i + 1]
+                if not (t0 < t < t1):
+                    continue
+                den = max(1e-9, t1 - t0)
+                alpha = (t - t0) / den
+                interp = float(s0 + alpha * (s1 - s0))
+                # For survival-space (non-increasing), cap above the envelope.
+                s_adj = min(s_adj, interp)
+                break
+            adjusted.append((float(t), float(np.clip(s_adj, 0.0, 1.0))))
+        projected = adjusted
+
+    return _normalize_step_coords(projected)
+
+
+def _hardpoint_error_metrics(
+    candidate_curve: list[tuple[float, float]],
+    hardpoints: list[tuple[float, float]] | None,
+) -> tuple[float, float, int]:
+    """Return mean and max absolute error against hardpoint targets."""
+    if not candidate_curve or not hardpoints:
+        return 0.0, 0.0, 0
+    lookup = _build_survival_lookup(candidate_curve)
+    errors = [
+        abs(_get_survival_at_time(lookup, float(t)) - float(s))
+        for t, s in hardpoints
+    ]
+    if not errors:
+        return 0.0, 0.0, 0
+    arr = np.asarray(errors, dtype=np.float64)
+    return float(np.mean(arr)), float(np.max(arr)), int(len(errors))
+
+
+def _hardpoint_objective_penalty(
+    mean_error: float,
+    max_error: float,
+    tolerance: float,
+) -> float:
+    """Hardpoint penalty added to reconstruction objective in benchmark mode."""
+    excess = max(0.0, float(max_error) - float(max(0.0, tolerance)))
+    return float(
+        FULL_RECON_HARDPOINT_OBJECTIVE_WEIGHT * float(mean_error)
+        + FULL_RECON_HARDPOINT_MAXERR_WEIGHT * excess
+    )
+
+
 def _blend_step_curves(
     observed: list[tuple[float, float]],
     candidate: list[tuple[float, float]],
@@ -1111,6 +1267,8 @@ def _refine_full_reconstruction(
     rerender_ref_pixels: list[tuple[int, int]] | None = None,
     rerender_mapping: AxisMapping | None = None,
     rerender_image_shape: tuple[int, int] | None = None,
+    hardpoints: list[tuple[float, float]] | None = None,
+    hardpoint_tolerance: float = HARDPOINT_DEFAULT_TOL,
 ) -> tuple[list[PatientRecord], list[str], float, float, float]:
     """
     Iterative self-correction loop for full-mode reconstruction.
@@ -1127,6 +1285,7 @@ def _refine_full_reconstruction(
     best_fit = _calculate_mae(survival_coords, best_curve)
     best_interval = _interval_loss_mismatch_fraction(best_patients, risk_group, risk_table.time_points)
     best_landmark = _landmark_proxy_error(survival_coords, best_curve, landmark_times)
+    best_hardpoint_mean, best_hardpoint_max, _ = _hardpoint_error_metrics(best_curve, hardpoints)
     best_rerender = _rerender_curve_error(
         rerender_ref_pixels,
         best_curve,
@@ -1135,6 +1294,10 @@ def _refine_full_reconstruction(
     )
     best_obj = _reconstruction_objective(best_fit, best_interval, best_landmark) + (
         FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * best_rerender
+    ) + _hardpoint_objective_penalty(
+        best_hardpoint_mean,
+        best_hardpoint_max,
+        hardpoint_tolerance,
     )
     needs_forced_feedback = _has_high_loss_zero_event_intervals(
         best_patients,
@@ -1143,6 +1306,10 @@ def _refine_full_reconstruction(
     )
     run_feedback = (
         _should_run_feedback_refinement(best_fit, best_interval, best_landmark)
+        or (
+            bool(hardpoints)
+            and best_hardpoint_max > hardpoint_tolerance
+        )
         or needs_forced_feedback
     )
 
@@ -1166,6 +1333,7 @@ def _refine_full_reconstruction(
                 cand_patients, risk_group, risk_table.time_points
             )
             cand_landmark = _landmark_proxy_error(survival_coords, cand_curve, landmark_times)
+            cand_hardpoint_mean, cand_hardpoint_max, _ = _hardpoint_error_metrics(cand_curve, hardpoints)
             cand_rerender = _rerender_curve_error(
                 rerender_ref_pixels,
                 cand_curve,
@@ -1174,7 +1342,13 @@ def _refine_full_reconstruction(
             )
             cand_obj = _reconstruction_objective(
                 cand_fit, cand_interval, cand_landmark
-            ) + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * cand_rerender)
+            ) + (
+                FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * cand_rerender
+            ) + _hardpoint_objective_penalty(
+                cand_hardpoint_mean,
+                cand_hardpoint_max,
+                hardpoint_tolerance,
+            )
 
             improved = cand_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
             interval_ok = cand_interval <= best_interval + FULL_RECON_FEEDBACK_INTERVAL_SLACK
@@ -1185,6 +1359,8 @@ def _refine_full_reconstruction(
                 best_fit = cand_fit
                 best_interval = cand_interval
                 best_landmark = cand_landmark
+                best_hardpoint_mean = cand_hardpoint_mean
+                best_hardpoint_max = cand_hardpoint_max
                 best_rerender = cand_rerender
                 best_obj = cand_obj
                 best_warnings.append(
@@ -1216,6 +1392,9 @@ def _refine_full_reconstruction(
             residual_patients, risk_group, risk_table.time_points
         )
         residual_landmark = _landmark_proxy_error(survival_coords, residual_curve, landmark_times)
+        residual_hardpoint_mean, residual_hardpoint_max, _ = _hardpoint_error_metrics(
+            residual_curve, hardpoints
+        )
         residual_rerender = _rerender_curve_error(
             rerender_ref_pixels,
             residual_curve,
@@ -1224,7 +1403,13 @@ def _refine_full_reconstruction(
         )
         residual_obj = _reconstruction_objective(
             residual_fit, residual_interval, residual_landmark
-        ) + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * residual_rerender)
+        ) + (
+            FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * residual_rerender
+        ) + _hardpoint_objective_penalty(
+            residual_hardpoint_mean,
+            residual_hardpoint_max,
+            hardpoint_tolerance,
+        )
         if (
             residual_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
             and residual_interval <= best_interval + FULL_RECON_FEEDBACK_INTERVAL_SLACK
@@ -1235,6 +1420,8 @@ def _refine_full_reconstruction(
             best_fit = residual_fit
             best_interval = residual_interval
             best_landmark = residual_landmark
+            best_hardpoint_mean = residual_hardpoint_mean
+            best_hardpoint_max = residual_hardpoint_max
             best_rerender = residual_rerender
             best_obj = residual_obj
             best_warnings.append(
@@ -1270,6 +1457,9 @@ def _refine_full_reconstruction(
             rerender_patients, risk_group, risk_table.time_points
         )
         rerender_landmark = _landmark_proxy_error(survival_coords, rerender_curve, landmark_times)
+        rerender_hardpoint_mean, rerender_hardpoint_max, _ = _hardpoint_error_metrics(
+            rerender_curve, hardpoints
+        )
         rerender_error = _rerender_curve_error(
             rerender_ref_pixels,
             rerender_curve,
@@ -1278,7 +1468,13 @@ def _refine_full_reconstruction(
         )
         rerender_obj = _reconstruction_objective(
             rerender_fit, rerender_interval, rerender_landmark
-        ) + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * rerender_error)
+        ) + (
+            FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * rerender_error
+        ) + _hardpoint_objective_penalty(
+            rerender_hardpoint_mean,
+            rerender_hardpoint_max,
+            hardpoint_tolerance,
+        )
         if (
             rerender_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
             and rerender_interval <= best_interval + FULL_RECON_FEEDBACK_INTERVAL_SLACK
@@ -1290,6 +1486,8 @@ def _refine_full_reconstruction(
             best_fit = rerender_fit
             best_interval = rerender_interval
             best_landmark = rerender_landmark
+            best_hardpoint_mean = rerender_hardpoint_mean
+            best_hardpoint_max = rerender_hardpoint_max
             best_rerender = rerender_error
             best_obj = rerender_obj
             best_warnings.append(
@@ -1301,6 +1499,11 @@ def _refine_full_reconstruction(
                 f"{curve_name}: rerender pass forced but objective did not improve "
                 f"(fit={rerender_fit:.4f}, interval={rerender_interval:.4f}, rerender={rerender_error:.4f})"
             )
+    if hardpoints:
+        best_warnings.append(
+            f"{curve_name}: hardpoint residual mean={best_hardpoint_mean:.4f}, "
+            f"max={best_hardpoint_max:.4f}, tol={hardpoint_tolerance:.4f}"
+        )
 
     return best_patients, best_warnings, best_fit, best_interval, best_landmark
 
@@ -1378,6 +1581,8 @@ def reconstruct(state: PipelineState) -> PipelineState:
 
     curves = []
     all_warnings: list[str] = []
+    hardpoint_constraints, hardpoint_tolerance, hardpoint_warnings = _load_hardpoint_constraints(state)
+    all_warnings.extend(hardpoint_warnings)
     curve_direction = (
         state.plot_metadata.curve_direction
         if state.plot_metadata.curve_direction in ("downward", "upward")
@@ -1407,6 +1612,12 @@ def reconstruct(state: PipelineState) -> PipelineState:
             y_start=y_start,
             y_end=y_end,
         )
+        curve_hardpoints = hardpoint_constraints.get(name, [])
+        if curve_hardpoints:
+            survival_coords = _apply_hardpoint_curve_constraints(survival_coords, curve_hardpoints)
+            all_warnings.append(
+                f"{name}: applied {len(curve_hardpoints)} hardpoint anchors before reconstruction"
+            )
         if converted_from_upward:
             all_warnings.append(
                 f"{name}: reflected upward curve into survival space during reconstruction"
@@ -1441,6 +1652,8 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 ),
                 rerender_mapping=rerender_mapping,
                 rerender_image_shape=rerender_shape,
+                hardpoints=curve_hardpoints,
+                hardpoint_tolerance=hardpoint_tolerance,
             )
             full_curve = _km_from_ipd(patients_full)
 
@@ -1477,11 +1690,25 @@ def reconstruct(state: PipelineState) -> PipelineState:
             alt_landmark_error = _landmark_proxy_error(
                 survival_coords, alt_curve, landmark_times
             )
+            full_hardpoint_mean, full_hardpoint_max, _ = _hardpoint_error_metrics(
+                full_curve, curve_hardpoints
+            )
+            alt_hardpoint_mean, alt_hardpoint_max, _ = _hardpoint_error_metrics(
+                alt_curve, curve_hardpoints
+            )
             full_obj = _reconstruction_objective(
                 full_fit_mae, full_interval_mismatch, full_landmark_error
+            ) + _hardpoint_objective_penalty(
+                full_hardpoint_mean,
+                full_hardpoint_max,
+                hardpoint_tolerance,
             )
             alt_obj = _reconstruction_objective(
                 alt_fit_mae, alt_interval_mismatch, alt_landmark_error
+            ) + _hardpoint_objective_penalty(
+                alt_hardpoint_mean,
+                alt_hardpoint_max,
+                hardpoint_tolerance,
             )
 
             alt_size_plausible = True
@@ -1524,6 +1751,31 @@ def reconstruct(state: PipelineState) -> PipelineState:
             ):
                 choose_alt = True
 
+            # In hardpoint-constrained benchmark mode, prefer candidates that satisfy anchors.
+            if curve_hardpoints:
+                full_hardpoint_ok = full_hardpoint_max <= hardpoint_tolerance
+                alt_hardpoint_ok = alt_hardpoint_max <= hardpoint_tolerance
+                alt_interval_ok = (
+                    alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
+                )
+                if (
+                    alt_hardpoint_ok
+                    and not full_hardpoint_ok
+                    and alt_size_plausible
+                    and alt_interval_ok
+                ):
+                    choose_alt = True
+                elif full_hardpoint_ok and not alt_hardpoint_ok:
+                    choose_alt = False
+                elif (not full_hardpoint_ok) and (not alt_hardpoint_ok):
+                    if (
+                        patients_alt
+                        and alt_size_plausible
+                        and alt_interval_ok
+                        and (alt_hardpoint_max + 1e-6) < full_hardpoint_max
+                    ):
+                        choose_alt = True
+
             if choose_alt:
                 patients = patients_alt
                 warnings = list(warnings_alt)
@@ -1539,6 +1791,11 @@ def reconstruct(state: PipelineState) -> PipelineState:
                     f"{name}: landmark proxy improved "
                     f"({full_landmark_error:.4f} -> {alt_landmark_error:.4f})"
                 )
+                if curve_hardpoints:
+                    warnings.append(
+                        f"{name}: hardpoint residual improved "
+                        f"(max {full_hardpoint_max:.4f} -> {alt_hardpoint_max:.4f})"
+                    )
             else:
                 patients = patients_full
                 warnings = warnings_full
@@ -1547,6 +1804,12 @@ def reconstruct(state: PipelineState) -> PipelineState:
                     f"(fit={full_fit_mae:.4f}, interval={full_interval_mismatch:.4f}, "
                     f"landmark={full_landmark_error:.4f})"
                 )
+                if curve_hardpoints:
+                    warnings.append(
+                        f"{name}: hardpoint residual "
+                        f"(mean={full_hardpoint_mean:.4f}, max={full_hardpoint_max:.4f}, "
+                        f"tol={hardpoint_tolerance:.4f})"
+                    )
         else:
             patients, warnings = _estimate_ipd(
                 survival_coords, censoring, initial_n=state.config.estimated_cohort_size

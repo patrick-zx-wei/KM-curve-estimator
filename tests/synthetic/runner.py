@@ -13,6 +13,7 @@ from concurrent.futures import as_completed
 import json
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from .data_gen import _km_from_ipd
@@ -31,6 +32,264 @@ DEFAULT_FIXED_CASES = [
     "case_083",
     "case_100",
 ]
+
+
+def _tick_values_mae(detected: list[float], expected: list[float]) -> float | None:
+    det = sorted(float(v) for v in detected)
+    exp = sorted(float(v) for v in expected)
+    n = min(len(det), len(exp))
+    if n == 0:
+        return None
+    arr = np.abs(
+        np.asarray(det[:n], dtype=np.float64) - np.asarray(exp[:n], dtype=np.float64)
+    )
+    return float(np.mean(arr))
+
+
+def _tick_coverage(ticks: list[float], axis_start: float, axis_end: float) -> float | None:
+    if len(ticks) < 2:
+        return None
+    lo = min(float(axis_start), float(axis_end))
+    hi = max(float(axis_start), float(axis_end))
+    span = hi - lo
+    if span <= 1e-9:
+        return None
+    vals = sorted(float(v) for v in ticks)
+    return float(np.clip((vals[-1] - vals[0]) / span, 0.0, 1.5))
+
+
+def _overlay_curve_to_plot_space(
+    coords: list[tuple[float, float]],
+    curve_direction: str,
+    y_start: float,
+    y_end: float,
+    assume_survival_space: bool,
+) -> list[tuple[float, float]]:
+    """Map curve coordinates into plotted y-space for visualization overlays."""
+    if not coords:
+        return []
+
+    ordered = sorted((float(t), float(s)) for t, s in coords)
+    y_abs_max = float(max(abs(y_start), abs(y_end)))
+    percent_scale = 100.0 if (1.5 < y_abs_max <= 100.5) else 1.0
+    y_lo = float(min(y_start, y_end))
+    y_hi = float(max(y_start, y_end))
+
+    def normalize_survival_like(val: float) -> float:
+        if percent_scale > 1.0 and val > 1.5:
+            return float(np.clip(val / percent_scale, 0.0, 1.0))
+        return float(np.clip(val, 0.0, 1.0))
+
+    out: list[tuple[float, float]] = []
+    if curve_direction == "upward":
+        # Upward plots are incidence-like: y_plot = 1 - S.
+        # Reconstructed curves are in survival-space by construction.
+        net = ordered[-1][1] - ordered[0][1]
+        treat_as_survival = bool(assume_survival_space or (net < -0.02))
+        for t, y in ordered:
+            if treat_as_survival:
+                s_norm = normalize_survival_like(y)
+                y_plot = (1.0 - s_norm) * percent_scale
+            else:
+                if percent_scale > 1.0 and y <= 1.5:
+                    y_plot = float(y * percent_scale)
+                elif percent_scale <= 1.0 and y > 1.5:
+                    y_plot = float(y / 100.0)
+                else:
+                    y_plot = float(y)
+            out.append((float(t), float(np.clip(y_plot, y_lo, y_hi))))
+        return out
+
+    # Downward survival plot.
+    for t, y in ordered:
+        if percent_scale > 1.0 and y <= 1.5:
+            y_plot = float(y * percent_scale)
+        elif percent_scale <= 1.0 and y > 1.5:
+            y_plot = float(y / 100.0)
+        else:
+            y_plot = float(y)
+        out.append((float(t), float(np.clip(y_plot, y_lo, y_hi))))
+    return out
+
+
+def _curve_to_polyline_pixels(
+    coords: list[tuple[float, float]],
+    mapping,
+    image_shape: tuple[int, int],
+) -> np.ndarray | None:
+    """Convert real-space curve coordinates into clipped image pixel polyline."""
+    if len(coords) < 2:
+        return None
+    h, w = image_shape
+    pts: list[tuple[int, int]] = []
+    for t, y in coords:
+        px, py = mapping.real_to_px(float(t), float(y))
+        cx = int(np.clip(px, 0, w - 1))
+        cy = int(np.clip(py, 0, h - 1))
+        if not pts or (cx, cy) != pts[-1]:
+            pts.append((cx, cy))
+    if len(pts) < 2:
+        return None
+    return np.asarray(pts, dtype=np.int32).reshape(-1, 1, 2)
+
+
+def _draw_axis_tick_overlay(
+    overlay: np.ndarray,
+    mapping,
+    plot_metadata,
+    x_anchor_px: list[int] | None = None,
+    y_anchor_py: list[int] | None = None,
+) -> None:
+    """Draw where the pipeline thinks axis tick marks are."""
+    h, w = overlay.shape[:2]
+    x_tick_color = (200, 0, 255)   # magenta
+    y_tick_color = (0, 180, 255)   # orange
+    base_color = (60, 60, 60)
+
+    x_axis = plot_metadata.x_axis
+    y_axis = plot_metadata.y_axis
+    x0, y_base = mapping.real_to_px(float(x_axis.start), float(y_axis.start))
+    x0 = int(np.clip(x0, 0, w - 1))
+    y_base = int(np.clip(y_base, 0, h - 1))
+
+    # Draw baseline hint for context.
+    cv2.line(overlay, (0, y_base), (w - 1, y_base), base_color, 1, cv2.LINE_AA)
+
+    x_positions: list[int] = []
+    if x_anchor_px:
+        x_positions = [int(np.clip(px, 0, w - 1)) for px in x_anchor_px]
+    else:
+        for xv in x_axis.tick_values:
+            px, _ = mapping.real_to_px(float(xv), float(y_axis.start))
+            x_positions.append(int(np.clip(px, 0, w - 1)))
+
+    # X-axis ticks: markers on baseline.
+    for cx in x_positions:
+        cy = y_base
+        cv2.circle(overlay, (cx, cy), 3, x_tick_color, -1, cv2.LINE_AA)
+        cv2.line(overlay, (cx, cy - 7), (cx, cy + 7), x_tick_color, 1, cv2.LINE_AA)
+
+    y_positions: list[int] = []
+    if y_anchor_py:
+        y_positions = [int(np.clip(py, 0, h - 1)) for py in y_anchor_py]
+    else:
+        for yv in y_axis.tick_values:
+            _, py = mapping.real_to_px(float(x_axis.start), float(yv))
+            y_positions.append(int(np.clip(py, 0, h - 1)))
+
+    # Y-axis ticks: markers on left axis.
+    for cy in y_positions:
+        cx = x0
+        cv2.circle(overlay, (cx, cy), 3, y_tick_color, -1, cv2.LINE_AA)
+        cv2.line(overlay, (cx - 7, cy), (cx + 7, cy), y_tick_color, 1, cv2.LINE_AA)
+
+
+def _write_overlay_artifact(state, case_dir: Path) -> dict:
+    """
+    Write overlay image showing digitized and reconstructed curves over graph.png.
+
+    Returns artifact metadata for results.json.
+    """
+    if state.plot_metadata is None:
+        return {"overlay_results": None, "error": "no plot_metadata"}
+
+    image_path = case_dir / "graph.png"
+    image = cv2.imread(str(image_path))
+    if image is None:
+        return {"overlay_results": None, "error": f"failed to load image: {image_path}"}
+
+    # Lazy import keeps generation-only tasks lightweight.
+    from km_estimator.models import ProcessingError
+    from km_estimator.nodes.digitization.axis_calibration import calibrate_axes
+
+    mapping = calibrate_axes(image, state.plot_metadata)
+    if isinstance(mapping, ProcessingError):
+        return {"overlay_results": None, "error": f"axis calibration failed: {mapping.message}"}
+
+    x_tick_anchor_px: list[int] | None = None
+    y_tick_anchor_py: list[int] | None = None
+    try:
+        from km_estimator.nodes.digitization_2.axis_map import build_plot_model
+
+        plot_model = build_plot_model(image=image, meta=state.plot_metadata, ocr_tokens=state.ocr_tokens)
+        if not isinstance(plot_model, ProcessingError):
+            if len(plot_model.x_tick_anchors) >= 2:
+                x_tick_anchor_px = [int(px) for px, _ in plot_model.x_tick_anchors]
+            if len(plot_model.y_tick_anchors) >= 2:
+                y_tick_anchor_py = [int(py) for py, _ in plot_model.y_tick_anchors]
+    except Exception:
+        # Debug overlay should not fail the test run.
+        pass
+
+    overlay = image.copy()
+    curve_direction = (
+        state.plot_metadata.curve_direction
+        if state.plot_metadata.curve_direction in ("downward", "upward")
+        else "downward"
+    )
+    y_start = float(state.plot_metadata.y_axis.start)
+    y_end = float(state.plot_metadata.y_axis.end)
+
+    # OpenCV BGR colors.
+    digitized_color = (255, 220, 0)      # cyan-ish
+    reconstructed_color = (0, 200, 40)   # green
+
+    if isinstance(state.digitized_curves, dict):
+        for coords in state.digitized_curves.values():
+            plot_coords = _overlay_curve_to_plot_space(
+                coords=coords,
+                curve_direction=curve_direction,
+                y_start=y_start,
+                y_end=y_end,
+                assume_survival_space=False,
+            )
+            poly = _curve_to_polyline_pixels(plot_coords, mapping, overlay.shape[:2])
+            if poly is not None:
+                cv2.polylines(overlay, [poly], False, digitized_color, 1, cv2.LINE_AA)
+
+    if state.output is not None:
+        for curve in state.output.curves:
+            km_coords = _km_from_ipd(curve.patients)
+            plot_coords = _overlay_curve_to_plot_space(
+                coords=km_coords,
+                curve_direction=curve_direction,
+                y_start=y_start,
+                y_end=y_end,
+                assume_survival_space=True,
+            )
+            poly = _curve_to_polyline_pixels(plot_coords, mapping, overlay.shape[:2])
+            if poly is not None:
+                cv2.polylines(overlay, [poly], False, reconstructed_color, 2, cv2.LINE_AA)
+
+    _draw_axis_tick_overlay(
+        overlay=overlay,
+        mapping=mapping,
+        plot_metadata=state.plot_metadata,
+        x_anchor_px=x_tick_anchor_px,
+        y_anchor_py=y_tick_anchor_py,
+    )
+
+    # Minimal legend
+    x_tick_color = (200, 0, 255)   # magenta
+    y_tick_color = (0, 180, 255)   # orange
+    cv2.rectangle(overlay, (12, 12), (320, 98), (255, 255, 255), -1)
+    cv2.rectangle(overlay, (12, 12), (320, 98), (40, 40, 40), 1)
+    cv2.line(overlay, (24, 30), (58, 30), digitized_color, 1, cv2.LINE_AA)
+    cv2.putText(overlay, "digitized", (66, 34), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.line(overlay, (24, 48), (58, 48), reconstructed_color, 2, cv2.LINE_AA)
+    cv2.putText(overlay, "reconstructed", (66, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.circle(overlay, (41, 66), 3, x_tick_color, -1, cv2.LINE_AA)
+    cv2.line(overlay, (41, 59), (41, 73), x_tick_color, 1, cv2.LINE_AA)
+    cv2.putText(overlay, "x-axis tick anchor", (66, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.circle(overlay, (41, 84), 3, y_tick_color, -1, cv2.LINE_AA)
+    cv2.line(overlay, (34, 84), (48, 84), y_tick_color, 1, cv2.LINE_AA)
+    cv2.putText(overlay, "y-axis tick anchor", (66, 88), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+
+    out_path = case_dir / "overlay_results.png"
+    ok = cv2.imwrite(str(out_path), overlay)
+    if not ok:
+        return {"overlay_results": None, "error": f"failed to write overlay: {out_path}"}
+    return {"overlay_results": str(out_path.name)}
 
 def run_case(
     case_name: str,
@@ -112,6 +371,26 @@ def run_case(
             "x_axis_end_error": abs(pm.x_axis.end - gt_x.end),
             "y_axis_start_error": abs(pm.y_axis.start - gt_y.start),
             "y_axis_end_error": abs(pm.y_axis.end - gt_y.end),
+            "x_tick_interval_error": (
+                abs(float(pm.x_axis.tick_interval) - float(gt_x.tick_interval))
+                if pm.x_axis.tick_interval is not None and gt_x.tick_interval is not None
+                else None
+            ),
+            "y_tick_interval_error": (
+                abs(float(pm.y_axis.tick_interval) - float(gt_y.tick_interval))
+                if pm.y_axis.tick_interval is not None and gt_y.tick_interval is not None
+                else None
+            ),
+            "x_tick_count_detected": len(pm.x_axis.tick_values),
+            "x_tick_count_expected": len(gt_x.tick_values),
+            "y_tick_count_detected": len(pm.y_axis.tick_values),
+            "y_tick_count_expected": len(gt_y.tick_values),
+            "x_tick_values_mae": _tick_values_mae(pm.x_axis.tick_values, gt_x.tick_values),
+            "y_tick_values_mae": _tick_values_mae(pm.y_axis.tick_values, gt_y.tick_values),
+            "x_tick_coverage_detected": _tick_coverage(pm.x_axis.tick_values, pm.x_axis.start, pm.x_axis.end),
+            "x_tick_coverage_expected": _tick_coverage(gt_x.tick_values, gt_x.start, gt_x.end),
+            "y_tick_coverage_detected": _tick_coverage(pm.y_axis.tick_values, pm.y_axis.start, pm.y_axis.end),
+            "y_tick_coverage_expected": _tick_coverage(gt_y.tick_values, gt_y.start, gt_y.end),
             "n_curves_detected": len(pm.curves),
             "n_curves_expected": len(test_case.curves),
             "curves_match": len(pm.curves) == len(test_case.curves),
@@ -191,6 +470,7 @@ def run_case(
     results["diagnostics"] = _build_case_diagnostics(results)
     results["stage_mae"] = _build_stage_mae_decomposition(results)
     results["interval_debug"] = _build_interval_debug_artifacts(state, test_case, results)
+    results["artifacts"] = _write_overlay_artifact(state, case_dir)
 
     # Overall pass/fail
     results["passed"] = _check_pass(results)

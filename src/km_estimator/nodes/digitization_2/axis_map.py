@@ -26,6 +26,17 @@ TICK_EXTENT_RATIO = 0.015
 TICK_SEARCH_RATIO = 0.035
 TICK_SCORE_MIN = 0.020
 TICK_MAX_SHIFT_RATIO = 0.08
+TICK_SCORE_DELTA_MIN = 0.010
+TICK_EDGE_HIT_REJECT_FRAC = 0.45
+TICK_GAIN_REJECT_MAX = 0.015
+TICK_SHIFT_REJECT_RATIO = 0.020
+TICK_SCORE_REJECT_MAX = 0.20
+TICK_PEAK_MIN_DIST_RATIO = 0.035
+TICK_PEAK_QUANTILE = 75.0
+TICK_PEAK_REL_THRESHOLD = 0.70
+TICK_DETECT_BAND_RATIO = 0.025
+TICK_DETECT_MIN_COUNT = 2
+TICK_ASSIGN_TOL_RATIO = 0.06
 
 
 @dataclass(frozen=True)
@@ -327,36 +338,364 @@ def _score_y_tick(
     return float(np.mean(patch)) / 255.0
 
 
+def _detect_tick_candidates_x(
+    dark_mask: NDArray[np.uint8],
+    axis_row: int,
+    axis_col: int,
+) -> tuple[list[int], float]:
+    """Independently detect x-axis tick pixel positions (columns)."""
+    h, w = dark_mask.shape
+    min_dim = max(1, min(h, w))
+    kernel_h = max(3, int(round(h * 0.018)))
+    vert_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, kernel_h))
+    vert = cv2.morphologyEx(dark_mask, cv2.MORPH_OPEN, vert_kernel)
+
+    band = max(2, int(round(min_dim * TICK_DETECT_BAND_RATIO)))
+    y0 = max(0, int(axis_row) - band)
+    y1 = min(h - 1, int(axis_row) + band)
+    if y1 <= y0:
+        return [], 0.0
+
+    profile = np.sum(vert[y0: y1 + 1, :], axis=0).astype(np.float32) / 255.0
+
+    # Exclude y-axis spine neighborhood to avoid counting the axis as a tick.
+    excl = max(2, int(round(w * 0.015)))
+    c0 = max(0, int(axis_col) - excl)
+    c1 = min(w, int(axis_col) + excl + 1)
+    profile[c0:c1] = 0.0
+
+    smooth = _smooth_1d(profile.astype(np.float32, copy=False))
+    q = float(np.percentile(smooth, 80.0)) if smooth.size else 0.0
+    threshold = max(1.0, q * 0.65)
+    min_dist = max(2, int(round(float(w) * TICK_PEAK_MIN_DIST_RATIO)))
+    peaks = _find_peaks_1d(smooth, threshold=threshold, min_distance=min_dist)
+    mean_score = float(np.mean(np.asarray([smooth[p] for p in peaks], dtype=np.float32))) if peaks else 0.0
+    return peaks, mean_score
+
+
+def _detect_tick_candidates_y(
+    dark_mask: NDArray[np.uint8],
+    axis_col: int,
+    axis_row: int,
+) -> tuple[list[int], float]:
+    """Independently detect y-axis tick pixel positions (rows)."""
+    h, w = dark_mask.shape
+    min_dim = max(1, min(h, w))
+    kernel_w = max(3, int(round(w * 0.018)))
+    horiz_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_w, 1))
+    horiz = cv2.morphologyEx(dark_mask, cv2.MORPH_OPEN, horiz_kernel)
+
+    band = max(2, int(round(min_dim * TICK_DETECT_BAND_RATIO)))
+    x0 = max(0, int(axis_col) - band)
+    x1 = min(w - 1, int(axis_col) + band)
+    if x1 <= x0:
+        return [], 0.0
+
+    profile = np.sum(horiz[:, x0: x1 + 1], axis=1).astype(np.float32) / 255.0
+
+    # Exclude x-axis spine neighborhood.
+    excl = max(2, int(round(h * 0.015)))
+    r0 = max(0, int(axis_row) - excl)
+    r1 = min(h, int(axis_row) + excl + 1)
+    profile[r0:r1] = 0.0
+
+    smooth = _smooth_1d(profile.astype(np.float32, copy=False))
+    q = float(np.percentile(smooth, 80.0)) if smooth.size else 0.0
+    threshold = max(1.0, q * 0.65)
+    min_dist = max(2, int(round(float(h) * TICK_PEAK_MIN_DIST_RATIO)))
+    peaks = _find_peaks_1d(smooth, threshold=threshold, min_distance=min_dist)
+    mean_score = float(np.mean(np.asarray([smooth[p] for p in peaks], dtype=np.float32))) if peaks else 0.0
+    return peaks, mean_score
+
+
+def _monotonic_subset_match(
+    expected: list[int],
+    detected: list[int],
+) -> list[int]:
+    """
+    Assign an ordered subset of detected positions to expected positions.
+
+    Both inputs must be sorted and len(detected) >= len(expected) >= 2.
+    """
+    n = len(expected)
+    m = len(detected)
+    if n < 2 or m < n:
+        return expected
+
+    inf = 1e18
+    cost = np.full((n, m), inf, dtype=np.float64)
+    prev = np.full((n, m), -1, dtype=np.int32)
+
+    for j in range(m):
+        cost[0, j] = abs(float(expected[0]) - float(detected[j]))
+
+    for i in range(1, n):
+        best_val = inf
+        best_idx = -1
+        for j in range(i, m):
+            candidate_prev = cost[i - 1, j - 1]
+            if candidate_prev < best_val:
+                best_val = candidate_prev
+                best_idx = j - 1
+            if best_idx >= 0 and best_val < inf:
+                cost[i, j] = best_val + abs(float(expected[i]) - float(detected[j]))
+                prev[i, j] = best_idx
+
+    j_end = int(np.argmin(cost[n - 1, n - 1:])) + (n - 1)
+    if not np.isfinite(cost[n - 1, j_end]):
+        return expected
+
+    out = [0] * n
+    j = j_end
+    for i in range(n - 1, -1, -1):
+        out[i] = int(detected[j])
+        if i > 0:
+            j = int(prev[i, j])
+            if j < 0:
+                return expected
+    return out
+
+
+def _assign_ticks_to_values(
+    expected_positions: list[int],
+    detected_positions: list[int],
+    axis_len: int,
+) -> tuple[list[int], float, float]:
+    """
+    Match independently detected ticks to value-tick sequence.
+
+    Returns (assigned_positions, match_ratio, median_shift).
+    """
+    if not expected_positions:
+        return [], 0.0, 0.0
+    expected = [int(v) for v in expected_positions]
+    detected = sorted(set(int(v) for v in detected_positions))
+    if len(detected) < TICK_DETECT_MIN_COUNT:
+        return expected, 0.0, 0.0
+
+    assigned = expected.copy()
+    hits = 0
+    tol = max(3, int(round(float(axis_len) * TICK_ASSIGN_TOL_RATIO)))
+
+    if len(detected) >= len(expected) and len(expected) >= 2:
+        assigned = _monotonic_subset_match(expected=expected, detected=detected)
+        hits = len(assigned)
+    else:
+        # Sparse detection: snap only when candidate is plausibly close.
+        n = len(expected)
+        m = len(detected)
+        if n >= 2 and m >= 1:
+            idxs = np.round(np.linspace(0, m - 1, n)).astype(int).tolist()
+            for i, j in enumerate(idxs):
+                cand = int(detected[int(np.clip(j, 0, m - 1))])
+                if abs(cand - expected[i]) <= tol:
+                    assigned[i] = cand
+                    hits += 1
+
+    shifts = np.abs(np.asarray(assigned, dtype=np.float32) - np.asarray(expected, dtype=np.float32))
+    med_shift = float(np.median(shifts)) if shifts.size else 0.0
+    match_ratio = float(hits) / float(max(1, len(expected)))
+    return assigned, match_ratio, med_shift
+
+
+def _independent_tick_anchors(
+    image: NDArray[np.uint8],
+    mapping: AxisMapping,
+) -> tuple[tuple[tuple[int, float], ...], tuple[tuple[int, float], ...], float, list[str]]:
+    """
+    Independent tick detection -> axis association -> value assignment.
+
+    1) Detect tick candidates in pixel space without value labels.
+    2) Associate candidates to x/y axes by geometry.
+    3) Match to ordered axis tick values.
+    """
+    warnings: list[str] = []
+    x0, y0, x1, y1 = mapping.plot_region
+    roi = image[y0:y1, x0:x1]
+    if roi.size == 0:
+        return (), (), 0.0, ["W_TICK_CALIB_EMPTY_ROI"]
+
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    dark_mask = _build_dark_mask(gray)
+    width = max(1, x1 - x0)
+    height = max(1, y1 - y0)
+
+    axis_col = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0] - x0, 0, width - 1))
+    axis_row = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1] - y0, 0, height - 1))
+
+    x_expected: list[int] = []
+    x_values: list[float] = []
+    for xv in mapping.x_axis.tick_values:
+        px, _ = mapping.real_to_px(float(xv), mapping.y_axis.start)
+        x_expected.append(int(np.clip(px - x0, 0, width - 1)))
+        x_values.append(float(xv))
+
+    y_expected: list[int] = []
+    y_values: list[float] = []
+    for yv in mapping.y_axis.tick_values:
+        _, py = mapping.real_to_px(mapping.x_axis.start, float(yv))
+        y_expected.append(int(np.clip(py - y0, 0, height - 1)))
+        y_values.append(float(yv))
+
+    x_detected, x_raw_score = _detect_tick_candidates_x(
+        dark_mask=dark_mask,
+        axis_row=axis_row,
+        axis_col=axis_col,
+    )
+    y_detected, y_raw_score = _detect_tick_candidates_y(
+        dark_mask=dark_mask,
+        axis_col=axis_col,
+        axis_row=axis_row,
+    )
+    warnings.append(f"I_TICK_DETECT_RAW_X:{len(x_detected)}:{x_raw_score:.3f}")
+    warnings.append(f"I_TICK_DETECT_RAW_Y:{len(y_detected)}:{y_raw_score:.3f}")
+
+    x_assigned, x_match_ratio, x_shift = _assign_ticks_to_values(
+        expected_positions=x_expected,
+        detected_positions=x_detected,
+        axis_len=width,
+    )
+    y_assigned, y_match_ratio, y_shift = _assign_ticks_to_values(
+        expected_positions=y_expected,
+        detected_positions=y_detected,
+        axis_len=height,
+    )
+
+    x_anchors = tuple((int(x0 + px), float(val)) for px, val in zip(x_assigned, x_values))
+    y_anchors = tuple((int(y0 + py), float(val)) for py, val in zip(y_assigned, y_values))
+
+    if x_values:
+        warnings.append(
+            f"I_TICK_MATCH_X:{len(x_values)}:{x_match_ratio:.2f}:{x_shift:.1f}:{len(x_detected)}"
+        )
+    if y_values:
+        warnings.append(
+            f"I_TICK_MATCH_Y:{len(y_values)}:{y_match_ratio:.2f}:{y_shift:.1f}:{len(y_detected)}"
+        )
+    if x_match_ratio < 0.5:
+        warnings.append("W_TICK_MATCH_X_WEAK")
+    if y_match_ratio < 0.5:
+        warnings.append("W_TICK_MATCH_Y_WEAK")
+
+    x_shift_den = max(1.0, float(width) * TICK_MAX_SHIFT_RATIO)
+    y_shift_den = max(1.0, float(height) * TICK_MAX_SHIFT_RATIO)
+    x_quality = float(np.clip(0.6 * x_match_ratio + 0.4 * (1.0 - min(1.0, x_shift / x_shift_den)), 0.0, 1.0))
+    y_quality = float(np.clip(0.6 * y_match_ratio + 0.4 * (1.0 - min(1.0, y_shift / y_shift_den)), 0.0, 1.0))
+    confidence = float(np.clip(0.5 * (x_quality + y_quality), 0.0, 1.0))
+    return x_anchors, y_anchors, confidence, warnings
+
+
+def _smooth_1d(values: NDArray[np.float32]) -> NDArray[np.float32]:
+    if values.size < 5:
+        return values
+    kernel = np.asarray([1.0, 2.0, 3.0, 2.0, 1.0], dtype=np.float32)
+    kernel /= float(np.sum(kernel))
+    padded = np.pad(values, (2, 2), mode="edge")
+    smooth = np.convolve(padded, kernel, mode="valid")
+    return smooth.astype(np.float32, copy=False)
+
+
+def _find_peaks_1d(
+    signal: NDArray[np.float32],
+    threshold: float,
+    min_distance: int,
+) -> list[int]:
+    n = int(signal.size)
+    if n < 3:
+        return []
+    candidates: list[int] = []
+    for i in range(1, n - 1):
+        v = float(signal[i])
+        if v < threshold:
+            continue
+        if v >= float(signal[i - 1]) and v >= float(signal[i + 1]):
+            candidates.append(i)
+    if not candidates:
+        return []
+
+    candidates.sort(key=lambda idx: float(signal[idx]), reverse=True)
+    selected: list[int] = []
+    for idx in candidates:
+        if all(abs(int(idx) - int(j)) >= min_distance for j in selected):
+            selected.append(int(idx))
+    selected.sort()
+    return selected
+
+
+def _detect_tick_positions_1d(
+    axis_len: int,
+    expected_count: int,
+    scorer: Callable[[int], float],
+) -> tuple[list[int], float]:
+    if axis_len <= 0:
+        return [], 0.0
+    raw = np.asarray([float(scorer(pos)) for pos in range(axis_len)], dtype=np.float32)
+    smoothed = _smooth_1d(raw)
+    q = float(np.percentile(smoothed, TICK_PEAK_QUANTILE)) if smoothed.size else 0.0
+    threshold = max(TICK_SCORE_MIN, q * TICK_PEAK_REL_THRESHOLD)
+    min_dist = max(2, int(round(float(axis_len) * TICK_PEAK_MIN_DIST_RATIO)))
+    peaks = _find_peaks_1d(smoothed, threshold=threshold, min_distance=min_dist)
+    if not peaks:
+        return [], 0.0
+
+    if expected_count >= 2 and len(peaks) > expected_count:
+        peaks = sorted(peaks, key=lambda idx: float(smoothed[idx]), reverse=True)[:expected_count]
+        peaks.sort()
+
+    mean_score = float(np.mean(np.asarray([smoothed[idx] for idx in peaks], dtype=np.float32)))
+    return peaks, mean_score
+
+
 def _refine_positions_1d(
     expected_positions: list[int],
     axis_len: int,
     scorer: Callable[[int], float],
-) -> tuple[list[int], float, float]:
+) -> tuple[list[int], float, float, float, float]:
     if not expected_positions:
-        return [], 0.0, 0.0
+        return [], 0.0, 0.0, 0.0, 0.0
     refined: list[int] = []
     scores: list[float] = []
     shifts: list[float] = []
+    gains: list[float] = []
+    boundary_hits = 0
+    tie_eps = 1e-6
     for idx, expected in enumerate(expected_positions):
         radius = _tick_search_radius(expected_positions, idx, axis_len)
-        best_pos = int(expected)
-        best_score = -1.0
+        lo = max(0, int(expected) - radius)
+        hi = min(axis_len - 1, int(expected) + radius)
+        expected_pos = int(np.clip(int(expected), lo, hi))
+        expected_score = float(scorer(expected_pos))
+        best_pos = int(expected_pos)
+        best_score = float(expected_score)
         lo = max(0, int(expected) - radius)
         hi = min(axis_len - 1, int(expected) + radius)
         for pos in range(lo, hi + 1):
             score = float(scorer(pos))
-            if score > best_score:
+            if score > best_score + tie_eps:
                 best_score = score
                 best_pos = pos
+            elif abs(score - best_score) <= tie_eps:
+                # Deterministic tie-break: keep candidate closest to expected.
+                if abs(int(pos) - int(expected_pos)) < abs(int(best_pos) - int(expected_pos)):
+                    best_pos = int(pos)
         if best_score < TICK_SCORE_MIN:
-            best_pos = int(expected)
-            best_score = float(scorer(best_pos))
+            best_pos = int(expected_pos)
+            best_score = float(expected_score)
+        elif (best_score - expected_score) < TICK_SCORE_DELTA_MIN:
+            # Avoid drifting to weak local maxima when improvement is negligible.
+            best_pos = int(expected_pos)
+            best_score = float(expected_score)
         refined.append(int(best_pos))
         scores.append(float(best_score))
-        shifts.append(float(abs(best_pos - int(expected))))
+        shifts.append(float(abs(best_pos - int(expected_pos))))
+        gains.append(float(best_score - expected_score))
+        if radius > 0 and (best_pos <= lo or best_pos >= hi):
+            boundary_hits += 1
     mean_score = float(np.mean(np.asarray(scores, dtype=np.float32))) if scores else 0.0
     med_shift = float(np.median(np.asarray(shifts, dtype=np.float32))) if shifts else 0.0
-    return refined, mean_score, med_shift
+    edge_hit_frac = float(boundary_hits) / float(max(1, len(refined)))
+    mean_gain = float(np.mean(np.asarray(gains, dtype=np.float32))) if gains else 0.0
+    return refined, mean_score, med_shift, edge_hit_frac, mean_gain
 
 
 def _refine_tick_anchors(
@@ -395,32 +734,95 @@ def _refine_tick_anchors(
         y_expected.append(int(np.clip(py - y0, 0, height - 1)))
         y_values.append(float(yv))
 
-    x_refined, x_score, x_shift = _refine_positions_1d(
+    x_refined, x_score, x_shift, x_edge_frac, x_gain = _refine_positions_1d(
         expected_positions=x_expected,
         axis_len=width,
         scorer=lambda pos: _score_x_tick(dark_mask, pos, y_axis_row=y_axis_row, tick_extent=tick_extent_y),
     )
-    y_refined, y_score, y_shift = _refine_positions_1d(
+    y_refined, y_score, y_shift, y_edge_frac, y_gain = _refine_positions_1d(
         expected_positions=y_expected,
         axis_len=height,
         scorer=lambda pos: _score_y_tick(dark_mask, pos, x_axis_col=x_axis_col, tick_extent=tick_extent_x),
     )
 
-    x_anchors = tuple((int(x0 + pos), float(val)) for pos, val in zip(x_refined, x_values))
-    y_anchors = tuple((int(y0 + pos), float(val)) for pos, val in zip(y_refined, y_values))
+    x_detected, x_detect_score = _detect_tick_positions_1d(
+        axis_len=width,
+        expected_count=len(x_expected),
+        scorer=lambda pos: _score_x_tick(dark_mask, pos, y_axis_row=y_axis_row, tick_extent=tick_extent_y),
+    )
+    y_detected, y_detect_score = _detect_tick_positions_1d(
+        axis_len=height,
+        expected_count=len(y_expected),
+        scorer=lambda pos: _score_y_tick(dark_mask, pos, x_axis_col=x_axis_col, tick_extent=tick_extent_x),
+    )
+
+    if len(x_detected) == len(x_expected) and len(x_expected) >= 2:
+        detect_shift = float(
+            np.median(
+                np.abs(
+                    np.asarray(x_detected, dtype=np.float32) - np.asarray(x_expected, dtype=np.float32)
+                )
+            )
+        )
+        warnings.append(f"I_TICK_DETECT_X:{len(x_detected)}:{x_detect_score:.3f}:{detect_shift:.1f}")
+        if x_detect_score >= x_score + 0.02 and detect_shift <= float(width) * 0.12:
+            x_refined = [int(v) for v in x_detected]
+            x_score = float(x_detect_score)
+            warnings.append("I_TICK_CAL_X_USED_PEAKS")
+
+    if len(y_detected) == len(y_expected) and len(y_expected) >= 2:
+        detect_shift = float(
+            np.median(
+                np.abs(
+                    np.asarray(y_detected, dtype=np.float32) - np.asarray(y_expected, dtype=np.float32)
+                )
+            )
+        )
+        warnings.append(f"I_TICK_DETECT_Y:{len(y_detected)}:{y_detect_score:.3f}:{detect_shift:.1f}")
+        if y_detect_score >= y_score + 0.02 and detect_shift <= float(height) * 0.12:
+            y_refined = [int(v) for v in y_detected]
+            y_score = float(y_detect_score)
+            warnings.append("I_TICK_CAL_Y_USED_PEAKS")
+
+    x_refined_anchors = tuple((int(x0 + pos), float(val)) for pos, val in zip(x_refined, x_values))
+    y_refined_anchors = tuple((int(y0 + pos), float(val)) for pos, val in zip(y_refined, y_values))
+    x_expected_anchors = tuple((int(x0 + pos), float(val)) for pos, val in zip(x_expected, x_values))
+    y_expected_anchors = tuple((int(y0 + pos), float(val)) for pos, val in zip(y_expected, y_values))
+
+    x_reject = (
+        x_edge_frac >= TICK_EDGE_HIT_REJECT_FRAC
+        and x_gain <= TICK_GAIN_REJECT_MAX
+        and x_shift >= float(width) * TICK_SHIFT_REJECT_RATIO
+        and x_score <= TICK_SCORE_REJECT_MAX
+    )
+    y_reject = (
+        y_edge_frac >= TICK_EDGE_HIT_REJECT_FRAC
+        and y_gain <= TICK_GAIN_REJECT_MAX
+        and y_shift >= float(height) * TICK_SHIFT_REJECT_RATIO
+        and y_score <= TICK_SCORE_REJECT_MAX
+    )
+
+    x_anchors = x_expected_anchors if x_reject else x_refined_anchors
+    y_anchors = y_expected_anchors if y_reject else y_refined_anchors
 
     x_quality = 0.0
     y_quality = 0.0
     if x_values:
         x_shift_den = max(1.0, float(width) * TICK_MAX_SHIFT_RATIO)
         x_quality = float(np.clip((x_score / 0.25) * (1.0 - min(1.0, x_shift / x_shift_den)), 0.0, 1.0))
-        warnings.append(f"I_TICK_CAL_X:{len(x_values)}:{x_score:.3f}:{x_shift:.1f}")
+        warnings.append(f"I_TICK_CAL_X:{len(x_values)}:{x_score:.3f}:{x_shift:.1f}:{x_edge_frac:.2f}:{x_gain:.3f}")
+        if x_reject:
+            x_quality = 0.0
+            warnings.append("W_TICK_CAL_X_REJECTED_UNSTABLE")
     else:
         warnings.append("W_TICK_CAL_X_NO_TICKS")
     if y_values:
         y_shift_den = max(1.0, float(height) * TICK_MAX_SHIFT_RATIO)
         y_quality = float(np.clip((y_score / 0.25) * (1.0 - min(1.0, y_shift / y_shift_den)), 0.0, 1.0))
-        warnings.append(f"I_TICK_CAL_Y:{len(y_values)}:{y_score:.3f}:{y_shift:.1f}")
+        warnings.append(f"I_TICK_CAL_Y:{len(y_values)}:{y_score:.3f}:{y_shift:.1f}:{y_edge_frac:.2f}:{y_gain:.3f}")
+        if y_reject:
+            y_quality = 0.0
+            warnings.append("W_TICK_CAL_Y_REJECTED_UNSTABLE")
     else:
         warnings.append("W_TICK_CAL_Y_NO_TICKS")
 
@@ -514,13 +916,41 @@ def build_plot_model(
     y_tick_anchors: tuple[tuple[int, float], ...] = ()
     tick_cal_conf = 0.0
     tick_warnings: list[str] = []
-    rx, ry, conf, refine_warnings = _refine_tick_anchors(image, mapping)
-    if len(rx) >= 2:
-        x_tick_anchors = rx
-    if len(ry) >= 2:
-        y_tick_anchors = ry
-    tick_cal_conf = max(tick_cal_conf, float(conf))
-    tick_warnings.extend(refine_warnings)
+    rx_ind, ry_ind, conf_ind, ind_warnings = _independent_tick_anchors(image, mapping)
+    rx_ref, ry_ref, conf_ref, ref_warnings = _refine_tick_anchors(image, mapping)
+    tick_warnings.extend(ind_warnings)
+    tick_warnings.extend(ref_warnings)
+
+    use_refine = (
+        conf_ref > conf_ind + 0.08
+        and len(rx_ref) >= 2
+        and len(ry_ref) >= 2
+    )
+    if use_refine:
+        x_tick_anchors = rx_ref
+        y_tick_anchors = ry_ref
+        tick_cal_conf = float(conf_ref)
+        tick_warnings.append("I_TICK_CAL_SOURCE:refine_fallback")
+    else:
+        if len(rx_ind) >= 2:
+            x_tick_anchors = rx_ind
+        elif len(rx_ref) >= 2:
+            x_tick_anchors = rx_ref
+            tick_warnings.append("W_TICK_CAL_X_FALLBACK_REFINE")
+
+        if len(ry_ind) >= 2:
+            y_tick_anchors = ry_ind
+        elif len(ry_ref) >= 2:
+            y_tick_anchors = ry_ref
+            tick_warnings.append("W_TICK_CAL_Y_FALLBACK_REFINE")
+
+        tick_cal_conf = float(
+            max(
+                conf_ind,
+                conf_ref if (len(x_tick_anchors) >= 2 and len(y_tick_anchors) >= 2) else 0.0,
+            )
+        )
+        tick_warnings.append("I_TICK_CAL_SOURCE:independent_detect")
 
     tick_mask = np.zeros((height, width), dtype=np.uint8)
     tick_mask = _draw_tick_mask(
