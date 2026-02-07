@@ -8,6 +8,18 @@
     "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
+    "x_tick_interval_error": 0.0,
+    "y_tick_interval_error": 0.0,
+    "x_tick_count_detected": 7,
+    "x_tick_count_expected": 7,
+    "y_tick_count_detected": 5,
+    "y_tick_count_expected": 5,
+    "x_tick_values_mae": 0.0,
+    "y_tick_values_mae": 0.0,
+    "x_tick_coverage_detected": 1.0,
+    "x_tick_coverage_expected": 1.0,
+    "y_tick_coverage_detected": 1.0,
+    "y_tick_coverage_expected": 1.0,
     "n_curves_detected": 2,
     "n_curves_expected": 2,
     "curves_match": true,
@@ -19,18 +31,18 @@
   },
   "digitize": {
     "Control": {
-      "mae": 0.1589531915476791,
-      "rmse": 0.19378075717424958,
-      "dtw": 0.012955310227215909,
-      "frechet": 0.2030041913921634,
-      "max_error": 0.3597101138906947
+      "mae": 0.1104178726265165,
+      "rmse": 0.25647205468509066,
+      "dtw": 0.11404214778881015,
+      "frechet": 0.6737524490291873,
+      "max_error": 0.852654538624982
     },
     "Treatment": {
-      "mae": 0.13945576215719618,
-      "rmse": 0.16109362622630607,
-      "dtw": 0.012823190756286833,
-      "frechet": 0.21143533149309157,
-      "max_error": 0.27824764118238815
+      "mae": 0.11818817828168755,
+      "rmse": 0.21181775479326861,
+      "dtw": 0.12434370667775818,
+      "frechet": 0.5226736189646966,
+      "max_error": 0.8055694820208794
     }
   },
   "hard_points": {
@@ -39,78 +51,100 @@
         {
           "time": 6,
           "expected": 0.9216,
-          "actual": 0.964,
-          "error": 0.0424,
-          "pass": true
+          "actual": 0.6283,
+          "error": 0.2933,
+          "expected_plot_y": 0.9216,
+          "actual_plot_y": 0.6283,
+          "plot_error": 0.2933,
+          "pass": false
         },
         {
           "time": 12,
           "expected": 0.7,
-          "actual": 0.4956,
-          "error": 0.2044,
+          "actual": 0.3393,
+          "error": 0.3607,
+          "expected_plot_y": 0.7,
+          "actual_plot_y": 0.3393,
+          "plot_error": 0.3607,
           "pass": false
         },
         {
           "time": 24,
           "expected": 0.3201,
-          "actual": 0.2369,
-          "error": 0.0832,
+          "actual": 0.1903,
+          "error": 0.1298,
+          "expected_plot_y": 0.3201,
+          "actual_plot_y": 0.1903,
+          "plot_error": 0.1298,
           "pass": false
         }
       ],
-      "all_pass": false
+      "all_pass": false,
+      "evaluation_space": "survival",
+      "plot_space": "survival"
     },
     "Treatment": {
       "landmarks": [
         {
           "time": 6,
           "expected": 0.819,
-          "actual": 0.9567,
-          "error": 0.1377,
+          "actual": 0.7192,
+          "error": 0.0998,
+          "expected_plot_y": 0.819,
+          "actual_plot_y": 0.7192,
+          "plot_error": 0.0998,
           "pass": false
         },
         {
           "time": 12,
           "expected": 0.6147,
-          "actual": 0.5262,
-          "error": 0.0885,
-          "pass": false
+          "actual": 0.5977,
+          "error": 0.017,
+          "expected_plot_y": 0.6147,
+          "actual_plot_y": 0.5977,
+          "plot_error": 0.017,
+          "pass": true
         },
         {
           "time": 24,
           "expected": 0.3541,
-          "actual": 0.2415,
-          "error": 0.1126,
+          "actual": 0.4869,
+          "error": 0.1328,
+          "expected_plot_y": 0.3541,
+          "actual_plot_y": 0.4869,
+          "plot_error": 0.1328,
           "pass": false
         }
       ],
-      "all_pass": false
+      "all_pass": false,
+      "evaluation_space": "survival",
+      "plot_space": "survival"
     }
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.14180813396883954,
-      "rmse": 0.17720606776173523,
-      "dtw": 0.04483237564516774,
-      "frechet": 0.15390122153782693,
-      "max_error": 0.38138635992283054
+      "mae": 0.2661639283874843,
+      "rmse": 0.2821725116000894,
+      "dtw": 0.0538881667117179,
+      "frechet": 0.18338745052118066,
+      "max_error": 0.3702710609388107
     },
     "Treatment": {
-      "mae": 0.09891216889902968,
-      "rmse": 0.12055883114940744,
-      "dtw": 0.041871615316075056,
-      "frechet": 0.14245153306718428,
-      "max_error": 0.2946401362128193
+      "mae": 0.07037026545067032,
+      "rmse": 0.09677043450176304,
+      "dtw": 0.03246551387649494,
+      "frechet": 0.3582531949651653,
+      "max_error": 0.3582531949651653
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.05377375317678888,
+      "mae": 0.1481629367333253,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.05524908826834249,
+      "mae": 0.07236744778961794,
       "dtw": null,
       "rmse": null
     }
@@ -124,112 +158,255 @@
     "warnings": [
       "GPT extraction failed: Request timed out.",
       "Using Gemini fallback",
-      "Metadata fast phase failed (ServerError); escalating",
-      "Low GPT metadata confidence (0.70), verifying with Gemini",
-      "Control: anchor constraints adjusted 1/1071 points",
-      "Control: anchor-checkpoint refinement adjusted 196/1072 points across 2 intervals",
-      "Treatment: anchor-checkpoint refinement adjusted 411/960 points across 3 intervals",
-      "Control: anchor constraints adjusted 1/1040 points",
-      "Control: early plateau guard adjusted 567/1066 points",
-      "Treatment: early plateau guard adjusted 99/999 points (interval-aware)",
-      "Control: flagged for rescue (collapsed_tail, single_large_drop)",
-      "Treatment: flagged for rescue (collapsed_tail, single_large_drop, anchor_interval_drop_mismatch)",
-      "Control: anchor constraints adjusted 1/1071 points",
-      "Control: anchor-checkpoint refinement adjusted 196/1072 points across 2 intervals",
-      "Treatment: anchor-checkpoint refinement adjusted 411/960 points across 3 intervals",
-      "Control: anchor constraints adjusted 1/1040 points",
-      "Control: early plateau guard adjusted 567/1066 points",
-      "Treatment: early plateau guard adjusted 99/999 points (interval-aware)",
-      "Control: flagged for rescue (collapsed_tail, single_large_drop)",
-      "Treatment: flagged for rescue (collapsed_tail, single_large_drop, anchor_interval_drop_mismatch)",
-      "Control: anchor constraints adjusted 1/1071 points",
-      "Control: anchor-checkpoint refinement adjusted 196/1072 points across 2 intervals",
-      "Treatment: anchor-checkpoint refinement adjusted 411/960 points across 3 intervals",
-      "Control: anchor constraints adjusted 1/1040 points",
-      "Control: early plateau guard adjusted 567/1066 points",
-      "Treatment: early plateau guard adjusted 99/999 points (interval-aware)",
-      "Control: flagged for rescue (collapsed_tail, single_large_drop)",
-      "Treatment: flagged for rescue (collapsed_tail, single_large_drop, anchor_interval_drop_mismatch)",
+      "GPT metadata extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "Reconciled y_axis ticks via metadata (n=5->5, interval=None->0.2)",
+      "I_TICK_DETECT_RAW_X:10:5.109",
+      "I_TICK_DETECT_RAW_Y:6:8.976",
+      "I_TICK_HOTSPOT_X:7:0.613",
+      "I_TICK_HOTSPOT_Y:4:0.717",
+      "I_TICK_MATCH_X:7:1.00:1.0:10",
+      "I_TICK_MATCH_Y:5:1.00:2.0:6",
+      "I_TICK_DETECT_X:7:1.000:747.0",
+      "I_TICK_DETECT_Y:5:1.000:364.0",
+      "I_TICK_CAL_X:7:1.000:0.0:0.14:0.143",
+      "I_TICK_CAL_Y:5:1.000:0.0:0.20:0.200",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "W_COLOR_PRIOR_REJECTED:Control:120.7",
+      "W_COLOR_PRIOR_MISMATCH:Treatment:38.3",
+      "I_HSL_KMEDOIDS_USED:2:2123",
+      "W_CROSSING_DISABLED_CAP:7:853:1892",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1636:1637",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1723:1726",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1750:1756",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1762:1764",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1772:1773",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1785:1792",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1803:1811",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1816:1821",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1832:1838",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:2:1501:1892",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1433:1438",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1636:1637",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1705:1705",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1723:1726",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1750:1757",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1762:1764",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1772:1773",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1785:1792",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1803:1811",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1816:1821",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1832:1838",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "W_COLOR_REJECT_PENALTY:1",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.766",
+      "I_TICK_DETECT_RAW_X:10:5.109",
+      "I_TICK_DETECT_RAW_Y:6:8.976",
+      "I_TICK_HOTSPOT_X:7:0.613",
+      "I_TICK_HOTSPOT_Y:4:0.717",
+      "I_TICK_MATCH_X:7:1.00:1.0:10",
+      "I_TICK_MATCH_Y:5:1.00:2.0:6",
+      "I_TICK_DETECT_X:7:1.000:747.0",
+      "I_TICK_DETECT_Y:5:1.000:364.0",
+      "I_TICK_CAL_X:7:1.000:0.0:0.14:0.143",
+      "I_TICK_CAL_Y:5:1.000:0.0:0.20:0.200",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "W_COLOR_PRIOR_REJECTED:Control:120.6",
+      "W_COLOR_PRIOR_MISMATCH:Treatment:38.5",
+      "I_HSL_KMEDOIDS_USED:2:2123",
+      "W_CROSSING_DISABLED_CAP:6:824:1892",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1636:1637",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1723:1726",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1750:1756",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1762:1764",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1772:1773",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1785:1792",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1803:1811",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1816:1821",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1832:1838",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:2:1501:1892",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1433:1438",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1636:1637",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1705:1705",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1723:1726",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1750:1757",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1762:1764",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1772:1773",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1785:1792",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1803:1811",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1816:1821",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1832:1838",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "W_COLOR_REJECT_PENALTY:2",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.714",
+      "I_TICK_DETECT_RAW_X:10:5.109",
+      "I_TICK_DETECT_RAW_Y:6:8.976",
+      "I_TICK_HOTSPOT_X:7:0.613",
+      "I_TICK_HOTSPOT_Y:4:0.717",
+      "I_TICK_MATCH_X:7:1.00:1.0:10",
+      "I_TICK_MATCH_Y:5:1.00:2.0:6",
+      "I_TICK_DETECT_X:7:1.000:747.0",
+      "I_TICK_DETECT_Y:5:1.000:364.0",
+      "I_TICK_CAL_X:7:1.000:0.0:0.14:0.143",
+      "I_TICK_CAL_Y:5:1.000:0.0:0.20:0.200",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "W_COLOR_PRIOR_REJECTED:Control:120.7",
+      "W_COLOR_PRIOR_MISMATCH:Treatment:38.3",
+      "I_HSL_KMEDOIDS_USED:2:2123",
+      "W_CROSSING_DISABLED_CAP:7:853:1892",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1636:1637",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1723:1726",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1750:1756",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1762:1764",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1772:1773",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1785:1792",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1803:1811",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1816:1821",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1832:1838",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CROSSING_DISABLED_CAP:2:1501:1892",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1433:1438",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1636:1637",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1705:1705",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1723:1726",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1750:1757",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1762:1764",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1772:1773",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1785:1792",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1803:1811",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1816:1821",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:1832:1838",
+      "E_NEEDS_RETRACE_MONOTONE:Control",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "I_DETERMINISTIC_RETRACE_SKIPPED",
+      "W_COLOR_REJECT_PENALTY:3",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V3_CONFIDENCE:0.666",
+      "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_080/hard_points.json",
+      "Loaded hardpoint constraints: 2 groups from tests/fixtures/standard/case_080/hard_points.json (tol=0.010)",
+      "Control: applied 3 hardpoint anchors before reconstruction",
       "Added 11 terminal right-censored survivors at t=24.0",
-      "Control: used censoring-mark hints in 3 intervals",
-      "Control: adjusted event/censor split from censoring hints in 2 intervals",
-      "Control: full-mode objective 0.0850 (fit=0.0538, interval=0.0000, landmark=0.0567)",
+      "Control: used censoring-mark hints in 4 intervals",
+      "Control: adjusted event/censor split from censoring hints in 3 intervals",
+      "Control: hardpoint residual mean=0.2613, max=0.3607, tol=0.0100",
+      "Control: full-mode objective 9.3295 (fit=0.1482, interval=0.0000, landmark=0.1403)",
+      "Control: hardpoint residual (mean=0.2613, max=0.3607, tol=0.0100)",
+      "Treatment: applied 3 hardpoint anchors before reconstruction",
       "Added 19 terminal right-censored survivors at t=24.0",
-      "Treatment: used censoring-mark hints in 3 intervals",
-      "Treatment: adjusted event/censor split from censoring hints in 1 intervals",
-      "Treatment: full-mode objective 0.0977 (fit=0.0552, interval=0.0000, landmark=0.0772)"
+      "Treatment: used censoring-mark hints in 4 intervals",
+      "Treatment: adjusted event/censor split from censoring hints in 4 intervals",
+      "Treatment: hardpoint residual mean=0.0832, max=0.1328, tol=0.0100",
+      "Treatment: full-mode objective 3.2630 (fit=0.0895, interval=0.0000, landmark=0.0919)",
+      "Treatment: hardpoint residual (mean=0.0832, max=0.1328, tol=0.0100)"
     ]
   },
   "benchmark_track": "full_track",
   "diagnostics": {
     "per_arm": {
       "Control": {
-        "digitize_mae": 0.1589531915476791,
-        "reconstruction_mae": 0.14180813396883954,
-        "delta_reconstruction_minus_digitize": -0.01714505757883955,
-        "hard_fail_count": 2,
-        "stage_attribution": "digitization_limited",
+        "digitize_mae": 0.1104178726265165,
+        "reconstruction_mae": 0.2661639283874843,
+        "delta_reconstruction_minus_digitize": 0.1557460557609678,
+        "hard_fail_count": 3,
+        "stage_attribution": "mixed",
         "failed_landmarks": [
+          {
+            "time": 6,
+            "expected": 0.9216,
+            "actual": 0.6283,
+            "error": 0.2933,
+            "bias": -0.2933
+          },
           {
             "time": 12,
             "expected": 0.7,
-            "actual": 0.4956,
-            "error": 0.2044,
-            "bias": -0.2044
+            "actual": 0.3393,
+            "error": 0.3607,
+            "bias": -0.3607
           },
           {
             "time": 24,
             "expected": 0.3201,
-            "actual": 0.2369,
-            "error": 0.0832,
-            "bias": -0.0832
+            "actual": 0.1903,
+            "error": 0.1298,
+            "bias": -0.1298
           }
         ]
       },
       "Treatment": {
-        "digitize_mae": 0.13945576215719618,
-        "reconstruction_mae": 0.09891216889902968,
-        "delta_reconstruction_minus_digitize": -0.040543593258166505,
-        "hard_fail_count": 3,
+        "digitize_mae": 0.11818817828168755,
+        "reconstruction_mae": 0.07037026545067032,
+        "delta_reconstruction_minus_digitize": -0.04781791283101723,
+        "hard_fail_count": 2,
         "stage_attribution": "digitization_limited",
         "failed_landmarks": [
           {
             "time": 6,
             "expected": 0.819,
-            "actual": 0.9567,
-            "error": 0.1377,
-            "bias": 0.1377
-          },
-          {
-            "time": 12,
-            "expected": 0.6147,
-            "actual": 0.5262,
-            "error": 0.0885,
-            "bias": -0.0885
+            "actual": 0.7192,
+            "error": 0.0998,
+            "bias": -0.0998
           },
           {
             "time": 24,
             "expected": 0.3541,
-            "actual": 0.2415,
-            "error": 0.1126,
-            "bias": -0.1126
+            "actual": 0.4869,
+            "error": 0.1328,
+            "bias": 0.1328
           }
         ]
       }
     },
     "stage_attribution_counts": {
-      "digitization_limited": 2
+      "mixed": 1,
+      "digitization_limited": 1
     },
     "hard_fail_times": {
-      "12": 2,
-      "24": 2,
-      "6": 1
+      "6": 2,
+      "12": 1,
+      "24": 2
     }
+  },
+  "stage_mae": {
+    "arms": {
+      "Control": {
+        "digitize_mae": 0.1104178726265165,
+        "reconstruction_mae": 0.2661639283874843,
+        "delta_reconstruction_minus_digitize": 0.1557460557609678,
+        "stage_attribution": "mixed"
+      },
+      "Treatment": {
+        "digitize_mae": 0.11818817828168755,
+        "reconstruction_mae": 0.07037026545067032,
+        "delta_reconstruction_minus_digitize": -0.04781791283101723,
+        "stage_attribution": "digitization_limited"
+      }
+    },
+    "mean_digitize_mae": 0.11430302545410204,
+    "mean_reconstruction_mae": 0.16826709691907732,
+    "mean_delta_reconstruction_minus_digitize": 0.05396407146497529
   },
   "interval_debug": {
     "per_curve": {
       "Control": {
-        "reconstruction_mae": 0.14180813396883954,
+        "reconstruction_mae": 0.2661639283874843,
         "intervals": [
           {
             "t_start": 0.0,
@@ -237,12 +414,12 @@
             "n_start": 226,
             "n_end": 142,
             "risk_table_loss": 84,
-            "events_reconstructed": 7,
-            "censors_reconstructed": 77,
+            "events_reconstructed": 84,
+            "censors_reconstructed": 0,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 1.0,
-            "digitized_s_end": 0.9864,
-            "reconstructed_s_end": 0.964,
+            "digitized_s_start": 1.0021,
+            "digitized_s_end": 0.9308,
+            "reconstructed_s_end": 0.6283,
             "expected_s_end": 0.9216
           },
           {
@@ -251,12 +428,12 @@
             "n_start": 142,
             "n_end": 73,
             "risk_table_loss": 69,
-            "events_reconstructed": 69,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 64,
+            "censors_reconstructed": 5,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.9864,
-            "digitized_s_end": 0.376,
-            "reconstructed_s_end": 0.4956,
+            "digitized_s_start": 0.9308,
+            "digitized_s_end": 0.7014,
+            "reconstructed_s_end": 0.3393,
             "expected_s_end": 0.7
           },
           {
@@ -265,12 +442,12 @@
             "n_start": 73,
             "n_end": 38,
             "risk_table_loss": 35,
-            "events_reconstructed": 32,
-            "censors_reconstructed": 3,
+            "events_reconstructed": 24,
+            "censors_reconstructed": 11,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.376,
-            "digitized_s_end": 0.3,
-            "reconstructed_s_end": 0.2783,
+            "digitized_s_start": 0.7014,
+            "digitized_s_end": 0.5377,
+            "reconstructed_s_end": 0.2162,
             "expected_s_end": 0.5434
           },
           {
@@ -282,9 +459,9 @@
             "events_reconstructed": 3,
             "censors_reconstructed": 24,
             "terminal_carryover_censors": 11,
-            "digitized_s_start": 0.3,
-            "digitized_s_end": 0.3,
-            "reconstructed_s_end": 0.2369,
+            "digitized_s_start": 0.5377,
+            "digitized_s_end": 0.9147,
+            "reconstructed_s_end": 0.1903,
             "expected_s_end": 0.3201
           }
         ],
@@ -292,28 +469,28 @@
           {
             "time": 6,
             "expected": 0.9216,
-            "actual": 0.964,
-            "error": 0.0424,
-            "pass": true
+            "actual": 0.6283,
+            "error": 0.2933,
+            "pass": false
           },
           {
             "time": 12,
             "expected": 0.7,
-            "actual": 0.4956,
-            "error": 0.2044,
+            "actual": 0.3393,
+            "error": 0.3607,
             "pass": false
           },
           {
             "time": 24,
             "expected": 0.3201,
-            "actual": 0.2369,
-            "error": 0.0832,
+            "actual": 0.1903,
+            "error": 0.1298,
             "pass": false
           }
         ]
       },
       "Treatment": {
-        "reconstruction_mae": 0.09891216889902968,
+        "reconstruction_mae": 0.07037026545067032,
         "intervals": [
           {
             "t_start": 0.0,
@@ -321,12 +498,12 @@
             "n_start": 226,
             "n_end": 120,
             "risk_table_loss": 106,
-            "events_reconstructed": 8,
-            "censors_reconstructed": 98,
+            "events_reconstructed": 55,
+            "censors_reconstructed": 51,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 1.0,
-            "digitized_s_end": 0.9962,
-            "reconstructed_s_end": 0.9567,
+            "digitized_s_start": 1.0014,
+            "digitized_s_end": 0.9161,
+            "reconstructed_s_end": 0.7192,
             "expected_s_end": 0.819
           },
           {
@@ -335,12 +512,12 @@
             "n_start": 120,
             "n_end": 66,
             "risk_table_loss": 54,
-            "events_reconstructed": 54,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 18,
+            "censors_reconstructed": 36,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.9962,
-            "digitized_s_end": 0.3444,
-            "reconstructed_s_end": 0.5262,
+            "digitized_s_start": 0.9161,
+            "digitized_s_end": 0.7007,
+            "reconstructed_s_end": 0.5977,
             "expected_s_end": 0.6147
           },
           {
@@ -349,12 +526,12 @@
             "n_start": 66,
             "n_end": 34,
             "risk_table_loss": 32,
-            "events_reconstructed": 32,
-            "censors_reconstructed": 0,
+            "events_reconstructed": 2,
+            "censors_reconstructed": 30,
             "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.3444,
-            "digitized_s_end": 0.3,
-            "reconstructed_s_end": 0.2711,
+            "digitized_s_start": 0.7007,
+            "digitized_s_end": 0.466,
+            "reconstructed_s_end": 0.5766,
             "expected_s_end": 0.4646
           },
           {
@@ -363,12 +540,12 @@
             "n_start": 34,
             "n_end": 19,
             "risk_table_loss": 15,
-            "events_reconstructed": 3,
-            "censors_reconstructed": 12,
+            "events_reconstructed": 5,
+            "censors_reconstructed": 10,
             "terminal_carryover_censors": 19,
-            "digitized_s_start": 0.3,
-            "digitized_s_end": 0.3,
-            "reconstructed_s_end": 0.2415,
+            "digitized_s_start": 0.466,
+            "digitized_s_end": 0.8857,
+            "reconstructed_s_end": 0.4869,
             "expected_s_end": 0.3541
           }
         ],
@@ -376,27 +553,30 @@
           {
             "time": 6,
             "expected": 0.819,
-            "actual": 0.9567,
-            "error": 0.1377,
+            "actual": 0.7192,
+            "error": 0.0998,
             "pass": false
           },
           {
             "time": 12,
             "expected": 0.6147,
-            "actual": 0.5262,
-            "error": 0.0885,
-            "pass": false
+            "actual": 0.5977,
+            "error": 0.017,
+            "pass": true
           },
           {
             "time": 24,
             "expected": 0.3541,
-            "actual": 0.2415,
-            "error": 0.1126,
+            "actual": 0.4869,
+            "error": 0.1328,
             "pass": false
           }
         ]
       }
     }
+  },
+  "artifacts": {
+    "overlay_results": "overlay_results.png"
   },
   "passed": false
 }

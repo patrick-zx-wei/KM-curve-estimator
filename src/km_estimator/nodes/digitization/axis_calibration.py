@@ -68,6 +68,120 @@ class AxisMapping:
         return (px, py)
 
 
+def _build_ink_mask(gray: NDArray[np.uint8]) -> NDArray[np.uint8]:
+    """Create a robust dark-ink mask for axis extent refinement."""
+    blur = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, mask_otsu = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, mask_fixed = cv2.threshold(blur, 160, 255, cv2.THRESH_BINARY_INV)
+    mask = cv2.bitwise_or(mask_otsu, mask_fixed)
+    mask = cv2.medianBlur(mask, 3)
+    return mask
+
+
+def _find_axis_segment_1d(
+    signal: NDArray[np.float32],
+    anchor_idx: int,
+    min_len: int,
+) -> tuple[int, int] | None:
+    """
+    Find a dominant active segment in a 1D axis signal.
+
+    Prefer a segment containing the axis anchor; otherwise choose the longest active segment.
+    """
+    n = int(signal.size)
+    if n <= 0:
+        return None
+    q80 = float(np.percentile(signal, 80.0))
+    q90 = float(np.percentile(signal, 90.0))
+    thr = max(0.01, 0.55 * q80, 0.35 * q90)
+    active = (signal >= thr).astype(np.uint8)
+    if np.count_nonzero(active) == 0:
+        return None
+
+    # Bridge short gaps to handle dashed/aliased axis strokes.
+    kernel = np.ones(5, dtype=np.uint8)
+    bridged = np.convolve(active, kernel, mode="same") > 0
+    arr = bridged.astype(np.uint8)
+
+    segments: list[tuple[int, int]] = []
+    start = None
+    for idx, v in enumerate(arr):
+        if v and start is None:
+            start = idx
+        elif not v and start is not None:
+            segments.append((start, idx - 1))
+            start = None
+    if start is not None:
+        segments.append((start, n - 1))
+    if not segments:
+        return None
+
+    filtered = [seg for seg in segments if (seg[1] - seg[0] + 1) >= max(3, int(min_len))]
+    if not filtered:
+        filtered = segments
+
+    anchor = int(np.clip(anchor_idx, 0, n - 1))
+    containing = [seg for seg in filtered if seg[0] <= anchor <= seg[1]]
+    if containing:
+        # Pick the widest segment containing the anchor.
+        containing.sort(key=lambda s: (s[1] - s[0], -s[0]), reverse=True)
+        return containing[0]
+
+    # Fallback: widest segment.
+    filtered.sort(key=lambda s: (s[1] - s[0], -s[0]), reverse=True)
+    return filtered[0]
+
+
+def _refine_plot_extents_from_axis_ink(
+    gray: NDArray[np.uint8],
+    x_axis_y: int,
+    y_axis_x: int,
+    top_border_y: int,
+    right_border_x: int,
+) -> tuple[int, int]:
+    """
+    Refine top/right plot borders using ink continuity along detected axis bands.
+
+    This corrects cases where Hough/projection picks a truncated right/top border.
+    """
+    h, w = gray.shape
+    ink = _build_ink_mask(gray)
+    row_band = max(2, int(round(h * 0.008)))
+    col_band = max(2, int(round(w * 0.008)))
+
+    # Horizontal axis span along x-axis row neighborhood.
+    ry0 = max(0, int(x_axis_y) - row_band)
+    ry1 = min(h, int(x_axis_y) + row_band + 1)
+    row_patch = ink[ry0:ry1, :]
+    if row_patch.size > 0:
+        row_signal = (np.mean(row_patch, axis=0) / 255.0).astype(np.float32, copy=False)
+        seg = _find_axis_segment_1d(
+            row_signal,
+            anchor_idx=int(y_axis_x),
+            min_len=max(8, int(w * 0.28)),
+        )
+        if seg is not None:
+            _, seg_end = seg
+            right_border_x = max(int(right_border_x), int(seg_end))
+
+    # Vertical axis span along y-axis column neighborhood.
+    cx0 = max(0, int(y_axis_x) - col_band)
+    cx1 = min(w, int(y_axis_x) + col_band + 1)
+    col_patch = ink[:, cx0:cx1]
+    if col_patch.size > 0:
+        col_signal = (np.mean(col_patch, axis=1) / 255.0).astype(np.float32, copy=False)
+        seg = _find_axis_segment_1d(
+            col_signal,
+            anchor_idx=int(x_axis_y),
+            min_len=max(8, int(h * 0.28)),
+        )
+        if seg is not None:
+            seg_start, _ = seg
+            top_border_y = min(int(top_border_y), int(seg_start))
+
+    return int(top_border_y), int(right_border_x)
+
+
 def calibrate_axes(
     image: NDArray[np.uint8], meta: PlotMetadata
 ) -> AxisMapping | ProcessingError:
@@ -169,6 +283,15 @@ def calibrate_axes(
         top_border_y = int(h * 0.05)
     if right_border_x is None:
         right_border_x = int(w * 0.95)
+
+    # Refine top/right extents from axis-band ink continuity to avoid truncated plot widths.
+    top_border_y, right_border_x = _refine_plot_extents_from_axis_ink(
+        gray=gray,
+        x_axis_y=int(x_axis_y),
+        y_axis_x=int(y_axis_x),
+        top_border_y=int(top_border_y),
+        right_border_x=int(right_border_x),
+    )
 
     # Sanity clamping to avoid degenerate regions.
     top_border_y = int(np.clip(top_border_y, 0, h - 2))
