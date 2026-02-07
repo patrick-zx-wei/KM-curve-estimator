@@ -148,6 +148,20 @@ def write_debug_artifacts(
         amb_color = _ambiguity_to_color(evidence.ambiguity_map)
         _safe_write(out_dir / f"{prefix}_ambiguity_map.png", amb_color)
 
+        # Text/line penalty maps.
+        text_map = np.clip(evidence.text_penalty_map * 255.0, 0, 255).astype(np.uint8)
+        text_region_map = np.clip(evidence.text_region_penalty_map * 255.0, 0, 255).astype(np.uint8)
+        line_map = np.clip(evidence.line_penalty_map * 255.0, 0, 255).astype(np.uint8)
+        _safe_write(out_dir / f"{prefix}_text_penalty.png", text_map)
+        _safe_write(out_dir / f"{prefix}_text_region_penalty.png", text_region_map)
+        _safe_write(out_dir / f"{prefix}_line_penalty.png", line_map)
+
+        ui_overlay = roi.copy()
+        ui_red = np.zeros_like(roi)
+        ui_red[:, :, 2] = cv2.max(text_map, line_map)
+        ui_overlay = cv2.addWeighted(ui_overlay, 0.78, ui_red, 0.32, 0)
+        _safe_write(out_dir / f"{prefix}_ui_penalty_overlay.png", ui_overlay)
+
         # Tick pixel anchor overlay (full image coordinates).
         tick_overlay = _draw_tick_overlay(image, plot_model)
         _safe_write(out_dir / f"{prefix}_tick_pixel_overlay.png", tick_overlay)

@@ -39,6 +39,10 @@ HARDPOINT_PENALTY_TOL_RATIO = 0.010
 HARDPOINT_PENALTY_RADIUS_RATIO = 0.035
 HARDPOINT_CANDIDATE_RADIUS_RATIO = 0.012
 HARDPOINT_CANDIDATE_BAND_RATIO = 0.045
+HARDPOINT_CORRIDOR_BASE_BAND_RATIO = 0.025
+HARDPOINT_CORRIDOR_EXTRA_BAND_RATIO = 0.040
+HARDPOINT_CORRIDOR_DIST_RATIO = 0.12
+HARDPOINT_CORRIDOR_PENALTY_WEIGHT = 5.5
 
 # Crossing detection caps and locality constraints
 MAX_CROSSING_WINDOWS = 10
@@ -182,6 +186,65 @@ def _hardpoint_penalty(
         d = max(0, abs(int(y) - int(ay)) - tol)
         penalty += HARDPOINT_PENALTY_WEIGHT * decay * (float(d) / float(max(1, height)))
     return float(penalty)
+
+
+def _build_hardpoint_corridor(
+    width: int,
+    height: int,
+    hardpoints: tuple[tuple[int, int], ...] | None,
+) -> tuple[NDArray[np.float32] | None, NDArray[np.float32] | None]:
+    """
+    Build a per-column soft corridor from hardpoint anchors.
+
+    Returns:
+      target_y_by_x, half_band_by_x
+    """
+    if not hardpoints or len(hardpoints) < 2:
+        return None, None
+
+    by_col: dict[int, list[int]] = {}
+    for x, y in hardpoints:
+        cx = int(np.clip(int(x), 0, max(0, width - 1)))
+        cy = int(np.clip(int(y), 0, max(0, height - 1)))
+        by_col.setdefault(cx, []).append(cy)
+    if len(by_col) < 2:
+        return None, None
+
+    cols = np.asarray(sorted(by_col), dtype=np.int32)
+    vals = np.asarray(
+        [float(np.median(np.asarray(by_col[c], dtype=np.float32))) for c in cols.tolist()],
+        dtype=np.float32,
+    )
+    xs = np.arange(width, dtype=np.float32)
+    target = np.interp(xs, cols.astype(np.float32), vals, left=float(vals[0]), right=float(vals[-1]))
+
+    nearest = np.min(np.abs(xs[:, None] - cols[None, :].astype(np.float32)), axis=1)
+    base = max(2.0, float(height) * HARDPOINT_CORRIDOR_BASE_BAND_RATIO)
+    extra = max(2.0, float(height) * HARDPOINT_CORRIDOR_EXTRA_BAND_RATIO)
+    dist_scale = max(3.0, float(width) * HARDPOINT_CORRIDOR_DIST_RATIO)
+    grow = np.clip(nearest / dist_scale, 0.0, 1.0)
+    band = base + (grow * extra)
+    return target.astype(np.float32), band.astype(np.float32)
+
+
+def _hardpoint_corridor_penalty(
+    y: int,
+    x: int,
+    height: int,
+    corridor_target: NDArray[np.float32] | None,
+    corridor_band: NDArray[np.float32] | None,
+) -> float:
+    if corridor_target is None or corridor_band is None:
+        return 0.0
+    if x < 0 or x >= int(corridor_target.shape[0]):
+        return 0.0
+    target = float(corridor_target[x])
+    band = max(1.0, float(corridor_band[x]))
+    soft = 0.45 * band
+    over = abs(float(y) - target) - soft
+    if over <= 0.0:
+        return 0.0
+    return float(HARDPOINT_CORRIDOR_PENALTY_WEIGHT * (over / float(max(1, height))))
 
 
 def _column_candidates(
@@ -481,12 +544,24 @@ def _trace_single(
     h, w = score_map.shape
     hp_radius = max(1, int(round(w * HARDPOINT_CANDIDATE_RADIUS_RATIO)))
     hp_band = max(2, int(round(h * HARDPOINT_CANDIDATE_BAND_RATIO)))
+    corridor_target, corridor_band = _build_hardpoint_corridor(
+        width=w,
+        height=h,
+        hardpoints=hardpoint_guides,
+    )
     candidates_by_x: list[list[tuple[int, float]]] = []
     for x in range(w):
         hard = candidate_mask[:, x] if candidate_mask is not None else None
         hp_y = _nearest_hardpoint_y(x, hardpoint_guides, hp_radius)
+        ys = np.arange(h, dtype=np.int32)
+        if corridor_target is not None and corridor_band is not None:
+            band = max(2.0, float(corridor_band[x]))
+            corridor_mask = np.abs(ys.astype(np.float32) - float(corridor_target[x])) <= band
+            if hard is not None and hard.shape[0] == h:
+                hard = np.logical_and(hard, corridor_mask)
+            else:
+                hard = corridor_mask
         if hp_y is not None:
-            ys = np.arange(h, dtype=np.int32)
             hp_mask = np.abs(ys - int(hp_y)) <= hp_band
             if hard is not None and hard.shape[0] == h:
                 hard = np.logical_and(hard, hp_mask)
@@ -517,6 +592,13 @@ def _trace_single(
                 else 0.0
             )
             + _hardpoint_penalty(y, 0, w, h, hardpoint_guides)
+            + _hardpoint_corridor_penalty(
+                y=y,
+                x=0,
+                height=h,
+                corridor_target=corridor_target,
+                corridor_band=corridor_band,
+            )
             + (float(occupied_penalty[y, 0]) if occupied_penalty is not None else 0.0)
             for y, score in first
         ],
@@ -545,6 +627,13 @@ def _trace_single(
                     else 0.0
                 )
                 + _hardpoint_penalty(y_cur, x, w, h, hardpoint_guides)
+                + _hardpoint_corridor_penalty(
+                    y=y_cur,
+                    x=x,
+                    height=h,
+                    corridor_target=corridor_target,
+                    corridor_band=corridor_band,
+                )
                 + (float(occupied_penalty[y_cur, x]) if occupied_penalty is not None else 0.0)
             )
             best_value = np.inf
@@ -608,6 +697,16 @@ def _trace_joint_two(
 
     hp_radius = max(1, int(round(w * HARDPOINT_CANDIDATE_RADIUS_RATIO)))
     hp_band = max(2, int(round(h * HARDPOINT_CANDIDATE_BAND_RATIO)))
+    corridor_target_a, corridor_band_a = _build_hardpoint_corridor(
+        width=w,
+        height=h,
+        hardpoints=hardpoint_guides_a,
+    )
+    corridor_target_b, corridor_band_b = _build_hardpoint_corridor(
+        width=w,
+        height=h,
+        hardpoints=hardpoint_guides_b,
+    )
     candidates_a: list[list[tuple[int, float]]] = []
     candidates_b: list[list[tuple[int, float]]] = []
     for x in range(w):
@@ -616,6 +715,20 @@ def _trace_joint_two(
         hp_ya = _nearest_hardpoint_y(x, hardpoint_guides_a, hp_radius)
         hp_yb = _nearest_hardpoint_y(x, hardpoint_guides_b, hp_radius)
         ys = np.arange(h, dtype=np.int32)
+        if corridor_target_a is not None and corridor_band_a is not None:
+            band_a = max(2.0, float(corridor_band_a[x]))
+            corridor_mask_a = np.abs(ys.astype(np.float32) - float(corridor_target_a[x])) <= band_a
+            if hard_a is not None and hard_a.shape[0] == h:
+                hard_a = np.logical_and(hard_a, corridor_mask_a)
+            else:
+                hard_a = corridor_mask_a
+        if corridor_target_b is not None and corridor_band_b is not None:
+            band_b = max(2.0, float(corridor_band_b[x]))
+            corridor_mask_b = np.abs(ys.astype(np.float32) - float(corridor_target_b[x])) <= band_b
+            if hard_b is not None and hard_b.shape[0] == h:
+                hard_b = np.logical_and(hard_b, corridor_mask_b)
+            else:
+                hard_b = corridor_mask_b
         if hp_ya is not None:
             hp_mask_a = np.abs(ys - int(hp_ya)) <= hp_band
             if hard_a is not None and hard_a.shape[0] == h:
@@ -710,6 +823,20 @@ def _trace_joint_two(
                 + _start_anchor_penalty(yb, x, w, h, direction, cfg)
                 + _hardpoint_penalty(ya, x, w, h, hardpoint_guides_a)
                 + _hardpoint_penalty(yb, x, w, h, hardpoint_guides_b)
+                + _hardpoint_corridor_penalty(
+                    y=ya,
+                    x=x,
+                    height=h,
+                    corridor_target=corridor_target_a,
+                    corridor_band=corridor_band_a,
+                )
+                + _hardpoint_corridor_penalty(
+                    y=yb,
+                    x=x,
+                    height=h,
+                    corridor_target=corridor_target_b,
+                    corridor_band=corridor_band_b,
+                )
                 + (
                     OVERLAP_AMBIG_PENALTY
                     * (2.0 - float(overlap_consensus_map[ya, x]) - float(overlap_consensus_map[yb, x]))
@@ -829,6 +956,7 @@ def trace_curves(
     cfg = trace_config or TraceConfig()
     warnings: list[str] = []
     names = sorted(arm_score_maps)
+    warnings.append(f"I_TRACE_ARMS:{len(names)}:{','.join(names)}")
     if not names:
         return TraceResult(
             pixel_curves={},
