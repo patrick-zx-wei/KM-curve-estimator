@@ -100,6 +100,55 @@ class CompressedTimeAxis(Modifier):
     stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
 
 
+@dataclass
+class BackgroundStyle(Modifier):
+    """Plot background/style family.
+
+    - white: white canvas, minimal styling
+    - sas_gray: light-gray panel with white major grid lines
+    - ggplot_gray: darker gray panel with prominent white grid lines
+    """
+
+    style: Literal["white", "sas_gray", "ggplot_gray"] = "white"
+    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
+
+
+@dataclass
+class CurveDirection(Modifier):
+    """Directionality of rendered curves.
+
+    - downward: survival-style decreasing curves
+    - upward: incidence-style increasing curves
+    """
+
+    direction: Literal["downward", "upward"] = "downward"
+    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
+
+
+@dataclass
+class FrameLayout(Modifier):
+    """Axis frame layout.
+
+    - l_axis: only left and bottom spines visible
+    - full_box: all four spines visible
+    """
+
+    layout: Literal["l_axis", "full_box"] = "l_axis"
+    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
+
+
+@dataclass
+class FontTypography(Modifier):
+    """Font family preset.
+
+    - sans: Arial/Helvetica-like sans-serif
+    - serif: Times-like serif
+    """
+
+    family: Literal["sans", "serif"] = "sans"
+    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
+
+
 # --- Post-render modifiers ---
 
 

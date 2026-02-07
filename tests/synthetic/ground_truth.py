@@ -35,7 +35,34 @@ from km_estimator.utils.shape_metrics import (
 )
 
 from .data_gen import SyntheticCurveData, SyntheticTestCase, _compute_greenwood_ci, _km_from_ipd
-from .modifiers import Modifier, get_modifier_names
+from .modifiers import (
+    BackgroundStyle,
+    CurveDirection,
+    FontTypography,
+    FrameLayout,
+    Modifier,
+    get_modifier_names,
+)
+
+
+def _extract_style_profile(modifiers: list[Modifier]) -> dict[str, str]:
+    """Extract style directives from figure modifiers for metadata/debugging."""
+    profile = {
+        "background_style": "white",
+        "curve_direction": "downward",
+        "frame_layout": "full_box",
+        "font_typography": "sans",
+    }
+    for mod in modifiers:
+        if isinstance(mod, BackgroundStyle):
+            profile["background_style"] = mod.style
+        elif isinstance(mod, CurveDirection):
+            profile["curve_direction"] = mod.direction
+        elif isinstance(mod, FrameLayout):
+            profile["frame_layout"] = mod.layout
+        elif isinstance(mod, FontTypography):
+            profile["font_typography"] = mod.family
+    return profile
 
 
 def build_ground_truth_metadata(test_case: SyntheticTestCase) -> PlotMetadata:
@@ -165,6 +192,7 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    style_profile = _extract_style_profile(test_case.modifiers)
     # 1. metadata.json
     metadata = {
         "name": test_case.name,
@@ -179,6 +207,10 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "difficulty": test_case.difficulty,
         "tier": test_case.tier,
         "gap_pattern": test_case.gap_pattern,
+        "background_style": style_profile["background_style"],
+        "curve_direction": style_profile["curve_direction"],
+        "frame_layout": style_profile["frame_layout"],
+        "font_typography": style_profile["font_typography"],
         "dpi": 150,
         "modifiers": get_modifier_names(test_case.modifiers),
         "title": test_case.title,
@@ -385,11 +417,16 @@ def save_manifest(
                 "difficulty": c.difficulty,
                 "tier": c.tier,
                 "gap_pattern": c.gap_pattern,
+                "background_style": style["background_style"],
+                "curve_direction": style["curve_direction"],
+                "frame_layout": style["frame_layout"],
+                "font_typography": style["font_typography"],
                 "modifiers": get_modifier_names(c.modifiers),
                 "n_curves": len(c.curves),
                 "dir": f"{c.name}/",
             }
             for c in cases
+            for style in [_extract_style_profile(c.modifiers)]
         ],
     }
     _write_json(Path(output_dir) / "manifest.json", manifest)

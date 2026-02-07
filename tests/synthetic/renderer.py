@@ -14,8 +14,12 @@ import numpy as np
 from .data_gen import SyntheticTestCase
 from .modifiers import (
     Annotations,
+    BackgroundStyle,
     CensoringMarks,
     CompressedTimeAxis,
+    CurveDirection,
+    FontTypography,
+    FrameLayout,
     GaussianBlur,
     GridLines,
     JPEGArtifacts,
@@ -54,6 +58,76 @@ def _get_survival_at(
     return coords[0][1]
 
 
+def _extract_style_directives(modifiers: list[Modifier]) -> tuple[str, str, str]:
+    """Extract (background_style, direction, frame_layout) directives."""
+    background = "white"
+    direction = "downward"
+    frame_layout = "full_box"
+    for mod in modifiers:
+        if isinstance(mod, BackgroundStyle):
+            background = mod.style
+        elif isinstance(mod, CurveDirection):
+            direction = mod.direction
+        elif isinstance(mod, FrameLayout):
+            frame_layout = mod.layout
+    return background, direction, frame_layout
+
+
+def _apply_font_directive(matplotlib, modifiers: list[Modifier]) -> None:
+    """Apply font family style to matplotlib rcParams for this render."""
+    font_family = "sans"
+    for mod in modifiers:
+        if isinstance(mod, FontTypography):
+            font_family = mod.family
+            break
+
+    if font_family == "serif":
+        matplotlib.rcParams["font.family"] = "serif"
+        matplotlib.rcParams["font.serif"] = ["Times New Roman", "Times", "DejaVu Serif"]
+    else:
+        matplotlib.rcParams["font.family"] = "sans-serif"
+        matplotlib.rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
+
+
+def _apply_background_style(
+    ax,
+    ax_table,
+    style: str,
+    has_explicit_grid: bool,
+) -> None:
+    """Apply panel/canvas style presets."""
+    if style == "sas_gray":
+        ax.figure.patch.set_facecolor("white")
+        ax.set_facecolor("#E5E5E5")
+        if not has_explicit_grid:
+            ax.grid(True, which="major", color="white", linewidth=1.0, alpha=1.0)
+    elif style == "ggplot_gray":
+        ax.figure.patch.set_facecolor("white")
+        ax.set_facecolor("#EBEBEB")
+        if not has_explicit_grid:
+            ax.grid(True, which="major", color="white", linewidth=1.2, alpha=1.0)
+    else:
+        ax.figure.patch.set_facecolor("white")
+        ax.set_facecolor("white")
+
+    if ax_table is not None:
+        ax_table.set_facecolor("white")
+
+
+def _apply_frame_layout(ax, layout: str) -> None:
+    """Apply L-axis vs full-box spine visibility."""
+    if layout == "l_axis":
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(True)
+        ax.spines["bottom"].set_visible(True)
+        ax.tick_params(top=False, right=False)
+    else:
+        for side in ("top", "right", "left", "bottom"):
+            ax.spines[side].set_visible(True)
+        ax.tick_params(top=False, right=False)
+
+
 def render_test_case(
     test_case: SyntheticTestCase,
     output_dir: Path,
@@ -66,6 +140,7 @@ def render_test_case(
     """
     import matplotlib
     matplotlib.use("Agg")
+    _apply_font_directive(matplotlib, test_case.modifiers)
     import matplotlib.pyplot as plt
 
     output_dir = Path(output_dir)
@@ -95,11 +170,16 @@ def render_test_case(
         ax_table = None
 
     linewidth = _get_linewidth(test_case.modifiers)
+    background_style, curve_direction, frame_layout = _extract_style_directives(figure_mods)
+    has_explicit_grid = any(isinstance(m, GridLines) for m in figure_mods)
+    _apply_background_style(ax, ax_table, background_style, has_explicit_grid)
 
     # Plot curves
     for curve in test_case.curves:
         times = [c[0] for c in curve.step_coords]
         survivals = [c[1] for c in curve.step_coords]
+        if curve_direction == "upward":
+            survivals = [1.0 - float(s) for s in survivals]
 
         ax.step(
             times,
@@ -141,6 +221,8 @@ def render_test_case(
                         _get_survival_at(curve.step_coords, t)
                         for t in curve.censoring_times
                     ]
+                    if curve_direction == "upward":
+                        censor_survivals = [1.0 - float(s) for s in censor_survivals]
                     ax.plot(
                         curve.censoring_times,
                         censor_survivals,
@@ -179,7 +261,12 @@ def render_test_case(
     ax.set_xticks(test_case.x_axis.tick_values)
     ax.set_yticks(test_case.y_axis.tick_values)
     ax.set_xlabel(test_case.x_axis.label or "Time (months)")
-    ax.set_ylabel(test_case.y_axis.label or "Survival Probability")
+    y_label = test_case.y_axis.label or "Survival Probability"
+    if curve_direction == "upward" and "survival" in y_label.lower():
+        y_label = "Cumulative Incidence"
+        test_case.y_axis = test_case.y_axis.model_copy(update={"label": y_label})
+    ax.set_ylabel(y_label)
+    _apply_frame_layout(ax, frame_layout)
 
     if test_case.title:
         ax.set_title(test_case.title)
