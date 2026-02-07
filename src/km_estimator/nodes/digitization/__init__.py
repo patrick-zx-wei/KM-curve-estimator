@@ -35,6 +35,7 @@ CATASTROPHIC_CURVE_SCORE = 3.0
 CATASTROPHIC_IMPROVEMENT_MARGIN = 0.6
 DUAL_PATH_AMBIGUITY_THRESHOLD = 0.35
 DUAL_PATH_SELECTION_MARGIN = 0.12
+DUAL_PATH_REAL_SCORE_WEIGHT = 1.8
 OVERLAP_COLLAPSE_PX = 2
 
 
@@ -448,6 +449,76 @@ def _pixel_curve_set_score(
     return float(score)
 
 
+def _project_pixel_curves_to_survival(
+    pixel_curves: dict[str, list[tuple[int, int]]],
+    mapping: AxisMapping,
+    curve_direction: str,
+    y_start: float,
+    y_end: float,
+) -> dict[str, list[tuple[float, float]]]:
+    """Project pixel curves into survival-space coordinates for quality scoring."""
+    projected: dict[str, list[tuple[float, float]]] = {}
+    for name, pixels in pixel_curves.items():
+        real_coords = [mapping.px_to_real(px, py) for px, py in pixels]
+        directed_coords = enforce_step_function(real_coords, direction=curve_direction)
+        survival_coords = _to_survival_space(
+            directed_coords,
+            y_start=y_start,
+            y_end=y_end,
+            curve_direction=curve_direction,
+        )
+        projected[name] = enforce_step_function(survival_coords, direction="downward")
+    return projected
+
+
+def _overlap_candidate_score(
+    pixel_curves: dict[str, list[tuple[int, int]]],
+    mapping: AxisMapping,
+    image: np.ndarray,
+    curve_order: list[str],
+    expected_colors: dict[str, tuple[float, float, float] | None],
+    anchors: dict[str, list[tuple[float, float]]],
+    curve_direction: str,
+    x_start: float,
+    x_end: float,
+    y_start: float,
+    y_end: float,
+) -> tuple[float, float, float]:
+    """
+    Composite candidate score for overlap-path selection.
+
+    Returns (composite_score, pixel_score, real_score); lower is better.
+    """
+    pixel_score = _pixel_curve_set_score(pixel_curves, mapping)
+    projected = _project_pixel_curves_to_survival(
+        pixel_curves,
+        mapping=mapping,
+        curve_direction=curve_direction,
+        y_start=y_start,
+        y_end=y_end,
+    )
+    projected, _, _ = _optimize_curve_identity_assignment(
+        digitized_curves=projected,
+        pixel_curves=pixel_curves,
+        image=image,
+        curve_order=curve_order,
+        expected_colors=expected_colors,
+        anchors=anchors,
+        y_max=y_end,
+    )
+    projected, _, _ = _postprocess_digitized_curves(
+        projected,
+        anchors=anchors,
+        x_start=x_start,
+        x_end=x_end,
+        y_start=y_start,
+        y_max=y_end,
+    )
+    real_score = _global_curve_set_score(projected, anchors, y_max=y_end)
+    composite = pixel_score + DUAL_PATH_REAL_SCORE_WEIGHT * real_score
+    return float(composite), float(pixel_score), float(real_score)
+
+
 def _sample_curve_rgb(
     image: np.ndarray,
     pixel_points: list[tuple[int, int]],
@@ -794,8 +865,8 @@ def digitize(state: PipelineState) -> PipelineState:
     if ambiguity_score >= DUAL_PATH_AMBIGUITY_THRESHOLD:
         candidate_paths: list[tuple[str, dict[str, list[tuple[int, int]]], float]] = []
         baseline_name = "color-prior" if has_color_priors else "default"
-        color_score = _pixel_curve_set_score(clean_curves, mapping)
-        candidate_paths.append((baseline_name, clean_curves, color_score))
+        baseline_score = _pixel_curve_set_score(clean_curves, mapping)
+        candidate_paths.append((baseline_name, clean_curves, baseline_score))
 
         if has_color_priors:
             neutral_clean_curves = resolve_overlaps(
@@ -820,18 +891,46 @@ def digitize(state: PipelineState) -> PipelineState:
         crossing_score = _pixel_curve_set_score(crossing_clean_curves, mapping)
         candidate_paths.append(("crossing-relaxed", crossing_clean_curves, crossing_score))
 
-        best_name, best_curves, best_score = min(candidate_paths, key=lambda item: item[2])
+        candidate_composite: dict[str, tuple[float, float, float]] = {}
+        for name, curves_candidate, _ in candidate_paths:
+            candidate_composite[name] = _overlap_candidate_score(
+                curves_candidate,
+                mapping=mapping,
+                image=image,
+                curve_order=curve_names,
+                expected_colors=expected_colors,
+                anchors=anchors,
+                curve_direction=curve_direction_runtime,
+                x_start=state.plot_metadata.x_axis.start,
+                x_end=state.plot_metadata.x_axis.end,
+                y_start=effective_y_start,
+                y_end=effective_y_end,
+            )
+
+        best_name = min(candidate_paths, key=lambda item: candidate_composite[item[0]][0])[0]
+        best_curves = next(curves for name, curves, _ in candidate_paths if name == best_name)
+        baseline_composite = candidate_composite[baseline_name][0]
+        best_composite = candidate_composite[best_name][0]
+
         if best_name != baseline_name and (
-            best_score + DUAL_PATH_SELECTION_MARGIN < color_score
+            best_composite + DUAL_PATH_SELECTION_MARGIN < baseline_composite
         ):
             clean_curves = best_curves
+            best_pixel, best_real = candidate_composite[best_name][1], candidate_composite[best_name][2]
+            base_pixel, base_real = candidate_composite[baseline_name][1], candidate_composite[baseline_name][2]
             dual_path_warnings.append(
                 "Ambiguous overlap: selected "
-                f"{best_name} tracing (score {color_score:.2f} -> {best_score:.2f})"
+                f"{best_name} tracing (composite {baseline_composite:.2f} -> {best_composite:.2f}; "
+                f"pixel {base_pixel:.2f}->{best_pixel:.2f}, real {base_real:.2f}->{best_real:.2f})"
             )
         else:
             score_summary = ", ".join(
-                f"{name}={score:.2f}" for name, _, score in candidate_paths
+                (
+                    f"{name}=C{candidate_composite[name][0]:.2f}"
+                    f"/P{candidate_composite[name][1]:.2f}"
+                    f"/R{candidate_composite[name][2]:.2f}"
+                )
+                for name, _, _ in candidate_paths
             )
             dual_path_warnings.append(
                 f"Ambiguous overlap: kept {baseline_name} tracing "
