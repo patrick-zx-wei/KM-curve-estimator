@@ -1,18 +1,17 @@
 {
   "name": "case_075",
-  "seed": 1226,
-  "n_groups": 3,
+  "seed": 1174,
+  "n_groups": 2,
   "n_patients_per_arm": 324,
   "groups": [
     "Control",
-    "Treatment A",
-    "Treatment B"
+    "Treatment"
   ],
   "max_time": 36.0,
   "y_axis_start": 0.0,
-  "difficulty": 4,
+  "difficulty": 2,
   "tier": "standard",
-  "gap_pattern": "crossover",
+  "gap_pattern": "diverging",
   "background_style": "white",
   "curve_direction": "downward",
   "frame_layout": "full_box",
@@ -26,7 +25,7 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "Annotations",
-    "ThinLines",
+    "ThickLines",
     "LowResolution",
     "JPEGArtifacts"
   ],
@@ -63,6 +62,6 @@
     ],
     "scale": "linear"
   },
-  "total_patients": 972,
-  "total_events": 124
+  "total_patients": 648,
+  "total_events": 57
 }

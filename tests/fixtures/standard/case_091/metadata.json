@@ -25,6 +25,7 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "GridLines",
+    "ThickLines",
     "LowResolution",
     "JPEGArtifacts",
     "NoisyBackground"

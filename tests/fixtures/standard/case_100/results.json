@@ -1,292 +1,608 @@
 {
   "case_name": "case_100",
   "difficulty": 4,
-  "n_curves": 5,
+  "n_curves": 3,
   "pipeline_errors": [],
   "mmpu": {
     "x_axis_start_error": 0.0,
-    "x_axis_end_error": 2.0,
+    "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
-    "n_curves_detected": 5,
-    "n_curves_expected": 5,
+    "n_curves_detected": 3,
+    "n_curves_expected": 3,
     "curves_match": true,
+    "curve_direction_detected": "upward",
+    "curve_direction_expected": "upward",
+    "curve_direction_match": true,
     "risk_table_detected": true,
     "risk_table_expected": true
   },
   "digitize": {
-    "Arm A": {
-      "mae": 0.028919882678094266,
-      "rmse": 0.03874005372814665,
-      "dtw": 0.005383990820453554,
-      "frechet": 0.07127793239112024,
-      "max_error": 0.11119262420194231
+    "Control": {
+      "mae": 0.0706307727351648,
+      "rmse": 0.11029253439080659,
+      "dtw": 0.040111987947138585,
+      "frechet": 0.11179039301310045,
+      "max_error": 0.3851528384279477
     },
-    "Arm B": {
-      "mae": 0.021283160848743342,
-      "rmse": 0.02665971981104123,
-      "dtw": 0.0028718208997687562,
-      "frechet": 0.07025030476933458,
-      "max_error": 0.07077597220662979
+    "Treatment A": {
+      "mae": 0.09612964884413404,
+      "rmse": 0.11099628931239533,
+      "dtw": 0.044367316404569535,
+      "frechet": 0.34069119975012224,
+      "max_error": 0.24795508845948472
     },
-    "Arm C": {
-      "mae": 0.21646379533641857,
-      "rmse": 0.22806727210924582,
-      "dtw": 0.06433197448514491,
-      "frechet": 0.1262482552595216,
-      "max_error": 0.30813570041844685
-    },
-    "Arm D": {
-      "mae": 0.021167129550523526,
-      "rmse": 0.02528647649503877,
-      "dtw": 0.006966806691757417,
-      "frechet": 0.029317118650732166,
-      "max_error": 0.05558999106535345
-    },
-    "Arm E": {
-      "mae": 0.01913742943363679,
-      "rmse": 0.024357213094225127,
-      "dtw": 0.013438411024197421,
-      "frechet": 0.07793977336441468,
-      "max_error": 0.08209409623761746
+    "Treatment B": {
+      "mae": 0.03622829549021986,
+      "rmse": 0.04645146593417678,
+      "dtw": 0.11924605781553667,
+      "frechet": 0.4618432697068323,
+      "max_error": 0.10797432083191705
     }
   },
   "hard_points": {
-    "Arm A": {
+    "Control": {
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.8292,
-          "actual": 0.7106,
-          "error": 0.1186,
-          "pass": false
+          "expected": 0.8148,
+          "actual": 0.7687,
+          "error": 0.0461,
+          "pass": true
         },
         {
           "time": 12,
-          "expected": 0.631,
-          "actual": 0.6098,
-          "error": 0.0212,
+          "expected": 0.6527,
+          "actual": 0.6567,
+          "error": 0.004,
           "pass": true
         },
         {
           "time": 24,
-          "expected": 0.4499,
-          "actual": 0.3415,
-          "error": 0.1084,
+          "expected": 0.4599,
+          "actual": 0.4741,
+          "error": 0.0142,
+          "pass": true
+        }
+      ],
+      "all_pass": true
+    },
+    "Treatment A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.7156,
+          "actual": 0.8044,
+          "error": 0.0888,
           "pass": false
         },
         {
-          "time": 36,
-          "expected": 0.2828,
-          "actual": 0.2809,
-          "error": 0.0019,
+          "time": 12,
+          "expected": 0.5944,
+          "actual": 0.6033,
+          "error": 0.0089,
           "pass": true
         }
       ],
       "all_pass": false
     },
-    "Arm B": {
+    "Treatment B": {
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.8661,
-          "actual": 0.8618,
-          "error": 0.0043,
+          "expected": 0.8323,
+          "actual": 0.8147,
+          "error": 0.0176,
           "pass": true
         },
         {
           "time": 12,
-          "expected": 0.7464,
-          "actual": 0.7056,
-          "error": 0.0408,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.5038,
-          "actual": 0.4698,
-          "error": 0.034,
-          "pass": true
-        },
-        {
-          "time": 36,
-          "expected": 0.2952,
-          "actual": 0.243,
-          "error": 0.0522,
-          "pass": false
-        }
-      ],
-      "all_pass": false
-    },
-    "Arm C": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.9122,
-          "actual": 0.7638,
-          "error": 0.1484,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.7617,
-          "actual": 0.4882,
-          "error": 0.2735,
-          "pass": false
-        },
-        {
-          "time": 24,
-          "expected": 0.3903,
-          "actual": 0.1339,
-          "error": 0.2564,
-          "pass": false
-        },
-        {
-          "time": 36,
-          "expected": 0.2542,
-          "actual": 0.0157,
-          "error": 0.2385,
-          "pass": false
-        }
-      ],
-      "all_pass": false
-    },
-    "Arm D": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.9121,
-          "actual": 0.8588,
-          "error": 0.0533,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.7415,
-          "actual": 0.7146,
-          "error": 0.0269,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.5446,
-          "actual": 0.404,
-          "error": 0.1406,
-          "pass": false
-        },
-        {
-          "time": 36,
-          "expected": 0.3695,
-          "actual": 0.3315,
-          "error": 0.038,
-          "pass": true
-        },
-        {
-          "time": 48,
-          "expected": 0.1232,
-          "actual": 0.0947,
-          "error": 0.0285,
+          "expected": 0.712,
+          "actual": 0.7189,
+          "error": 0.0069,
           "pass": true
         }
       ],
-      "all_pass": false
-    },
-    "Arm E": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.7823,
-          "actual": 0.8041,
-          "error": 0.0218,
-          "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.6021,
-          "actual": 0.6113,
-          "error": 0.0092,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.3612,
-          "actual": 0.3262,
-          "error": 0.035,
-          "pass": true
-        },
-        {
-          "time": 36,
-          "expected": 0.2739,
-          "actual": 0.2061,
-          "error": 0.0678,
-          "pass": false
-        }
-      ],
-      "all_pass": false
+      "all_pass": true
     }
   },
   "reconstruction": {
-    "Arm A": {
-      "mae": 0.05036063743936241,
-      "rmse": 0.059469874353723716,
-      "dtw": 0.0137084537154241,
-      "frechet": 0.07244719945625377,
-      "max_error": 0.12296879280197048
+    "Control": {
+      "mae": 0.04575913973212329,
+      "rmse": 0.06916213106715768,
+      "dtw": 0.014411020837986325,
+      "frechet": 0.2370328301758534,
+      "max_error": 0.2370328301758534
     },
-    "Arm B": {
-      "mae": 0.025641778972491376,
-      "rmse": 0.03128637814686273,
-      "dtw": 0.004857288105089889,
-      "frechet": 0.021401255736061303,
-      "max_error": 0.06792870725285827
+    "Treatment A": {
+      "mae": 0.08071509697163744,
+      "rmse": 0.09518833624094512,
+      "dtw": 0.020105935405655945,
+      "frechet": 0.08835294755949669,
+      "max_error": 0.18223296480445378
     },
-    "Arm C": {
-      "mae": 0.18867438157371863,
-      "rmse": 0.201912145992188,
-      "dtw": 0.015992616778548824,
-      "frechet": 0.12709499531032603,
-      "max_error": 0.31982934115295686
-    },
-    "Arm D": {
-      "mae": 0.02745819784577923,
-      "rmse": 0.03771499508661887,
-      "dtw": 0.0068473214743633316,
-      "frechet": 0.02845640396448873,
-      "max_error": 0.10430963796169201
-    },
-    "Arm E": {
-      "mae": 0.022347545287976542,
-      "rmse": 0.025894201868498928,
-      "dtw": 0.00603868132460195,
-      "frechet": 0.08217347361843672,
-      "max_error": 0.06780233650742568
+    "Treatment B": {
+      "mae": 0.02041671893311984,
+      "rmse": 0.02522125774884009,
+      "dtw": 0.01617726545797527,
+      "frechet": 0.17438839551868401,
+      "max_error": 0.056103740285535664
     }
   },
   "validation": {
-    "Arm A": {
-      "mae": 0.05086920724784479,
+    "Control": {
+      "mae": 0.1070296794309293,
       "dtw": null,
       "rmse": null
     },
-    "Arm B": {
-      "mae": 0.04212914946238749,
+    "Treatment A": {
+      "mae": 0.02993186680800954,
       "dtw": null,
       "rmse": null
     },
-    "Arm C": {
-      "mae": 0.01854027530413256,
+    "Treatment B": {
+      "mae": 0.0707626680721998,
       "dtw": null,
       "rmse": null
+    }
+  },
+  "reconstruction_meta": {
+    "mode": "full",
+    "patient_counts": {
+      "Control": 127,
+      "Treatment A": 127,
+      "Treatment B": 127
     },
-    "Arm D": {
-      "mae": 0.05414452230272044,
-      "dtw": null,
-      "rmse": null
+    "warnings": [
+      "GPT extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "Metadata fast phase failed (ServerError); escalating",
+      "Low GPT metadata confidence (0.70), verifying with Gemini",
+      "Treatment A: anchor constraints adjusted 14/1122 points",
+      "Treatment B: anchor constraints adjusted 346/1349 points",
+      "Treatment B: applied color-guided rescue (score 2.05 -> 0.00)",
+      "Rescue accepted by global score gate (2.06 -> 0.01)",
+      "Converted upward cumulative-incidence curves into survival space before reconstruction",
+      "Treatment A: anchor constraints adjusted 14/1122 points",
+      "Treatment B: anchor constraints adjusted 346/1349 points",
+      "Treatment B: applied color-guided rescue (score 2.05 -> 0.00)",
+      "Rescue accepted by global score gate (2.06 -> 0.01)",
+      "Converted upward cumulative-incidence curves into survival space before reconstruction",
+      "Treatment A: anchor constraints adjusted 14/1122 points",
+      "Treatment B: anchor constraints adjusted 346/1349 points",
+      "Treatment B: applied color-guided rescue (score 2.05 -> 0.00)",
+      "Rescue accepted by global score gate (2.06 -> 0.01)",
+      "Converted upward cumulative-incidence curves into survival space before reconstruction"
+    ]
+  },
+  "diagnostics": {
+    "per_arm": {
+      "Control": {
+        "digitize_mae": 0.0706307727351648,
+        "reconstruction_mae": 0.04575913973212329,
+        "delta_reconstruction_minus_digitize": -0.02487163300304151,
+        "hard_fail_count": 0,
+        "stage_attribution": "digitization_warning",
+        "failed_landmarks": []
+      },
+      "Treatment A": {
+        "digitize_mae": 0.09612964884413404,
+        "reconstruction_mae": 0.08071509697163744,
+        "delta_reconstruction_minus_digitize": -0.015414551872496601,
+        "hard_fail_count": 1,
+        "stage_attribution": "digitization_limited",
+        "failed_landmarks": [
+          {
+            "time": 6,
+            "expected": 0.7156,
+            "actual": 0.8044,
+            "error": 0.0888,
+            "bias": 0.0888
+          }
+        ]
+      },
+      "Treatment B": {
+        "digitize_mae": 0.03622829549021986,
+        "reconstruction_mae": 0.02041671893311984,
+        "delta_reconstruction_minus_digitize": -0.01581157655710002,
+        "hard_fail_count": 0,
+        "stage_attribution": "clean",
+        "failed_landmarks": []
+      }
     },
-    "Arm E": {
-      "mae": 0.04008303845737973,
-      "dtw": null,
-      "rmse": null
+    "stage_attribution_counts": {
+      "digitization_warning": 1,
+      "digitization_limited": 1,
+      "clean": 1
+    },
+    "hard_fail_times": {
+      "6": 1
+    }
+  },
+  "interval_debug": {
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.04575913973212329,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 127,
+            "n_end": 22,
+            "risk_table_loss": 105,
+            "events_reconstructed": 29,
+            "censors_reconstructed": 76,
+            "digitized_s_start": 1.0,
+            "digitized_s_end": 0.7712,
+            "reconstructed_s_end": 0.6567,
+            "expected_s_end": 0.7197
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 22,
+            "n_end": 3,
+            "risk_table_loss": 19,
+            "events_reconstructed": 3,
+            "censors_reconstructed": 16,
+            "digitized_s_start": 0.7712,
+            "digitized_s_end": 0.6026,
+            "reconstructed_s_end": 0.4741,
+            "expected_s_end": 0.4599
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 3,
+            "n_end": 1,
+            "risk_table_loss": 2,
+            "events_reconstructed": 1,
+            "censors_reconstructed": 1,
+            "digitized_s_start": 0.6026,
+            "digitized_s_end": 0.3852,
+            "reconstructed_s_end": 0.237,
+            "expected_s_end": 0.2299
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 1,
+            "n_end": 0,
+            "risk_table_loss": 1,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 1,
+            "digitized_s_start": 0.3852,
+            "digitized_s_end": 0.3799,
+            "reconstructed_s_end": 0.237,
+            "expected_s_end": 0.0
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.3799,
+            "digitized_s_end": 0.124,
+            "reconstructed_s_end": 0.237,
+            "expected_s_end": 0.0
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.124,
+            "digitized_s_end": 0.062,
+            "reconstructed_s_end": 0.237,
+            "expected_s_end": 0.0
+          },
+          {
+            "t_start": 60.0,
+            "t_end": 70.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.062,
+            "digitized_s_end": 0.062,
+            "reconstructed_s_end": 0.237,
+            "expected_s_end": 0.0
+          },
+          {
+            "t_start": 70.0,
+            "t_end": 72.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.062,
+            "digitized_s_end": 0.0358,
+            "reconstructed_s_end": 0.237,
+            "expected_s_end": 0.0
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.8148,
+            "actual": 0.7687,
+            "error": 0.0461,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.6527,
+            "actual": 0.6567,
+            "error": 0.004,
+            "pass": true
+          },
+          {
+            "time": 24,
+            "expected": 0.4599,
+            "actual": 0.4741,
+            "error": 0.0142,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment A": {
+        "reconstruction_mae": 0.08071509697163744,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 127,
+            "n_end": 28,
+            "risk_table_loss": 99,
+            "events_reconstructed": 36,
+            "censors_reconstructed": 63,
+            "digitized_s_start": 0.9991,
+            "digitized_s_end": 0.7127,
+            "reconstructed_s_end": 0.6033,
+            "expected_s_end": 0.6463
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 28,
+            "n_end": 6,
+            "risk_table_loss": 22,
+            "events_reconstructed": 2,
+            "censors_reconstructed": 20,
+            "digitized_s_start": 0.7127,
+            "digitized_s_end": 0.5319,
+            "reconstructed_s_end": 0.5323,
+            "expected_s_end": 0.421
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 6,
+            "n_end": 3,
+            "risk_table_loss": 3,
+            "events_reconstructed": 2,
+            "censors_reconstructed": 1,
+            "digitized_s_start": 0.5319,
+            "digitized_s_end": 0.3406,
+            "reconstructed_s_end": 0.3327,
+            "expected_s_end": 0.421
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 3,
+            "n_end": 1,
+            "risk_table_loss": 2,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 2,
+            "digitized_s_start": 0.3406,
+            "digitized_s_end": 0.3406,
+            "reconstructed_s_end": 0.3327,
+            "expected_s_end": 0.421
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 1,
+            "n_end": 0,
+            "risk_table_loss": 1,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 1,
+            "digitized_s_start": 0.3406,
+            "digitized_s_end": 0.3406,
+            "reconstructed_s_end": 0.3327,
+            "expected_s_end": 0.421
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.3406,
+            "digitized_s_end": 0.3406,
+            "reconstructed_s_end": 0.3327,
+            "expected_s_end": 0.421
+          },
+          {
+            "t_start": 60.0,
+            "t_end": 70.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.3406,
+            "digitized_s_end": 0.3406,
+            "reconstructed_s_end": 0.3327,
+            "expected_s_end": 0.421
+          },
+          {
+            "t_start": 70.0,
+            "t_end": 72.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.3406,
+            "digitized_s_end": 0.0803,
+            "reconstructed_s_end": 0.3327,
+            "expected_s_end": 0.421
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.7156,
+            "actual": 0.8044,
+            "error": 0.0888,
+            "pass": false
+          },
+          {
+            "time": 12,
+            "expected": 0.5944,
+            "actual": 0.6033,
+            "error": 0.0089,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment B": {
+        "reconstruction_mae": 0.02041671893311984,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 10.0,
+            "n_start": 127,
+            "n_end": 27,
+            "risk_table_loss": 100,
+            "events_reconstructed": 25,
+            "censors_reconstructed": 75,
+            "digitized_s_start": 0.9991,
+            "digitized_s_end": 0.8017,
+            "reconstructed_s_end": 0.7189,
+            "expected_s_end": 0.712
+          },
+          {
+            "t_start": 10.0,
+            "t_end": 20.0,
+            "n_start": 27,
+            "n_end": 6,
+            "risk_table_loss": 21,
+            "events_reconstructed": 4,
+            "censors_reconstructed": 17,
+            "digitized_s_start": 0.8017,
+            "digitized_s_end": 0.5974,
+            "reconstructed_s_end": 0.5216,
+            "expected_s_end": 0.6526
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 30.0,
+            "n_start": 6,
+            "n_end": 0,
+            "risk_table_loss": 6,
+            "events_reconstructed": 1,
+            "censors_reconstructed": 5,
+            "digitized_s_start": 0.5974,
+            "digitized_s_end": 0.3764,
+            "reconstructed_s_end": 0.3477,
+            "expected_s_end": 0.5221
+          },
+          {
+            "t_start": 30.0,
+            "t_end": 40.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.3764,
+            "digitized_s_end": 0.3764,
+            "reconstructed_s_end": 0.3477,
+            "expected_s_end": 0.5221
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 50.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.3764,
+            "digitized_s_end": 0.1249,
+            "reconstructed_s_end": 0.3477,
+            "expected_s_end": 0.5221
+          },
+          {
+            "t_start": 50.0,
+            "t_end": 60.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.1249,
+            "digitized_s_end": 0.0603,
+            "reconstructed_s_end": 0.3477,
+            "expected_s_end": 0.5221
+          },
+          {
+            "t_start": 60.0,
+            "t_end": 70.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.0603,
+            "digitized_s_end": 0.0603,
+            "reconstructed_s_end": 0.3477,
+            "expected_s_end": 0.5221
+          },
+          {
+            "t_start": 70.0,
+            "t_end": 72.0,
+            "n_start": 0,
+            "n_end": 0,
+            "risk_table_loss": 0,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 0,
+            "digitized_s_start": 0.0603,
+            "digitized_s_end": 0.0603,
+            "reconstructed_s_end": 0.3477,
+            "expected_s_end": 0.5221
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.8323,
+            "actual": 0.8147,
+            "error": 0.0176,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.712,
+            "actual": 0.7189,
+            "error": 0.0069,
+            "pass": true
+          }
+        ]
+      }
     }
   },
   "passed": false

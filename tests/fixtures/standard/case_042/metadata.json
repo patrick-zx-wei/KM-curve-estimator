@@ -24,7 +24,8 @@
     "FontTypography",
     "CensoringMarks",
     "RiskTableDisplay",
-    "Annotations"
+    "Annotations",
+    "ThickLines"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],
@@ -62,5 +63,5 @@
     "scale": "linear"
   },
   "total_patients": 194,
-  "total_events": 77
+  "total_events": 76
 }

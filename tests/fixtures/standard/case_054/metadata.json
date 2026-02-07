@@ -1,6 +1,6 @@
 {
   "name": "case_054",
-  "seed": 1192,
+  "seed": 1179,
   "n_groups": 2,
   "n_patients_per_arm": 260,
   "groups": [
@@ -23,6 +23,7 @@
     "FrameLayout",
     "FontTypography",
     "CensoringMarks",
+    "RiskTableDisplay",
     "Annotations",
     "JPEGArtifacts"
   ],
@@ -60,5 +61,5 @@
     "scale": "linear"
   },
   "total_patients": 520,
-  "total_events": 107
+  "total_events": 139
 }

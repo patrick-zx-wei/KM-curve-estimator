@@ -1,5 +1,5 @@
 {
-  "Arm A": {
+  "Control": {
     "landmarks": [
       {
         "time": 6,
@@ -24,7 +24,7 @@
       "75pct": 23.54
     }
   },
-  "Arm B": {
+  "Treatment A": {
     "landmarks": [
       {
         "time": 6,
@@ -47,7 +47,7 @@
       "25pct": 17.88
     }
   },
-  "Arm C": {
+  "Treatment B": {
     "landmarks": [
       {
         "time": 6,
@@ -69,30 +69,6 @@
     "quartiles": {
       "25pct": 8.62,
       "50pct": 17.15
-    }
-  },
-  "Arm D": {
-    "landmarks": [
-      {
-        "time": 6,
-        "survival": 0.8803,
-        "description": "6-month survival"
-      },
-      {
-        "time": 12,
-        "survival": 0.7023,
-        "description": "1-year survival"
-      },
-      {
-        "time": 24,
-        "survival": 0.3876,
-        "description": "2-year survival"
-      }
-    ],
-    "median_survival": 18.73,
-    "quartiles": {
-      "25pct": 10.33,
-      "50pct": 18.73
     }
   }
 }

@@ -23,6 +23,7 @@
     "FrameLayout",
     "FontTypography",
     "CensoringMarks",
+    "RiskTableDisplay",
     "Annotations",
     "JPEGArtifacts"
   ],
@@ -60,5 +61,5 @@
     "scale": "linear"
   },
   "total_patients": 672,
-  "total_events": 258
+  "total_events": 272
 }

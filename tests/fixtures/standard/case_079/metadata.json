@@ -1,11 +1,10 @@
 {
   "name": "case_079",
   "seed": 1178,
-  "n_groups": 2,
+  "n_groups": 1,
   "n_patients_per_arm": 387,
   "groups": [
-    "Control",
-    "Treatment"
+    "Control"
   ],
   "max_time": 60.0,
   "y_axis_start": 0.0,
@@ -25,7 +24,7 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "GridLines",
-    "ThinLines",
+    "ThickLines",
     "LowResolution",
     "JPEGArtifacts"
   ],
@@ -62,6 +61,6 @@
     ],
     "scale": "linear"
   },
-  "total_patients": 774,
-  "total_events": 225
+  "total_patients": 387,
+  "total_events": 130
 }

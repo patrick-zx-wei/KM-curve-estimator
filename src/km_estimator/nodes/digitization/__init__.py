@@ -37,6 +37,22 @@ DUAL_PATH_AMBIGUITY_THRESHOLD = 0.35
 DUAL_PATH_SELECTION_MARGIN = 0.12
 DUAL_PATH_REAL_SCORE_WEIGHT = 1.8
 OVERLAP_COLLAPSE_PX = 2
+EARLY_PLATEAU_WINDOW_RATIO = 0.30
+EARLY_PLATEAU_MIN_EXPECTED_DROP = 0.05
+EARLY_PLATEAU_OBSERVED_DROP_RATIO = 0.45
+EARLY_PLATEAU_MAX_SPAN = 0.012
+EARLY_PLATEAU_ANCHOR_MARGIN = 0.06
+EARLY_PLATEAU_INTERVAL_COUNT = 2
+EARLY_PLATEAU_INTERVAL_MIN_EXPECTED_DROP = 0.04
+EARLY_PLATEAU_INTERVAL_OBSERVED_DROP_RATIO = 0.55
+EARLY_PLATEAU_INTERVAL_ANCHOR_MARGIN = 0.05
+ANCHOR_LOW_CONF_VIOLATION_RATIO = 0.82
+ANCHOR_LOW_CONF_Q90_GAP = 0.12
+ANCHOR_LOW_CONF_MIN_OBSERVED_DROP = 0.03
+ANCHOR_LOW_CONF_ANCHOR_DROP_RATIO = 0.35
+ANCHOR_ADAPTIVE_TOLERANCE_VIOLATION_RATIO = 0.55
+ANCHOR_ADAPTIVE_TOLERANCE_Q90_GAP = 0.06
+ANCHOR_ADAPTIVE_TOLERANCE_MAX = 0.05
 
 
 def _resolved_curve_direction(raw_direction: str | None) -> str:
@@ -216,6 +232,126 @@ def _anchor_lower_bound(
     return float(s0 + ratio * (s1 - s0))
 
 
+def _step_survival_at(points: list[tuple[float, float]], t: float) -> float:
+    """Evaluate step-function survival at time t."""
+    if not points:
+        return 1.0
+    ordered = sorted(points, key=lambda p: p[0])
+    if t <= ordered[0][0]:
+        return float(ordered[0][1])
+    for i in range(len(ordered) - 1, -1, -1):
+        if ordered[i][0] <= t:
+            return float(ordered[i][1])
+    return float(ordered[0][1])
+
+
+def _apply_early_plateau_guard(
+    digitized_curves: dict[str, list[tuple[float, float]]],
+    anchors: dict[str, list[tuple[float, float]]],
+    x_start: float,
+    x_end: float,
+    y_start: float,
+    y_max: float,
+) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
+    """
+    Suppress implausible early flat plateaus against risk-table anchors.
+
+    This runs in survival space, so it is direction-safe even when original
+    plot direction is upward (converted earlier via 1 - incidence).
+    """
+    adjusted_curves: dict[str, list[tuple[float, float]]] = {}
+    warnings: list[str] = []
+    x_range = max(1e-6, x_end - x_start)
+    early_end = x_start + EARLY_PLATEAU_WINDOW_RATIO * x_range
+
+    for curve_name, points in digitized_curves.items():
+        anchor_points = anchors.get(curve_name)
+        if not points or not anchor_points or len(anchor_points) < 2:
+            adjusted_curves[curve_name] = points
+            continue
+
+        ordered = sorted(points, key=lambda p: p[0])
+        early_idx = [i for i, (t, _) in enumerate(ordered) if t <= early_end]
+
+        # Window-level plateau detector in the first portion of the curve.
+        window_trigger = False
+        expected_drop = 0.0
+        observed_drop = 0.0
+        early_span = 0.0
+        if len(early_idx) >= 4:
+            early_vals = [float(ordered[i][1]) for i in early_idx]
+            observed_drop = max(0.0, early_vals[0] - min(early_vals))
+            early_span = max(early_vals) - min(early_vals)
+            anchor_start = _anchor_lower_bound(anchor_points, ordered[early_idx[0]][0])
+            anchor_early = _anchor_lower_bound(anchor_points, early_end)
+            expected_drop = max(0.0, anchor_start - anchor_early)
+            window_trigger = (
+                expected_drop >= EARLY_PLATEAU_MIN_EXPECTED_DROP
+                and observed_drop < expected_drop * EARLY_PLATEAU_OBSERVED_DROP_RATIO
+                and early_span <= EARLY_PLATEAU_MAX_SPAN
+            )
+
+        # Interval-aware detector for the first risk-table intervals.
+        anchor_points_sorted = sorted(anchor_points, key=lambda p: p[0])
+        interval_caps: list[tuple[float, float]] = []
+        max_intervals = min(EARLY_PLATEAU_INTERVAL_COUNT, len(anchor_points_sorted) - 1)
+        for idx in range(max_intervals):
+            t0, a0 = anchor_points_sorted[idx]
+            t1, a1 = anchor_points_sorted[idx + 1]
+            if t1 <= t0:
+                continue
+            expected_interval_drop = max(0.0, float(a0 - a1))
+            if expected_interval_drop < EARLY_PLATEAU_INTERVAL_MIN_EXPECTED_DROP:
+                continue
+            observed_start = _step_survival_at(ordered, t0)
+            observed_end = _step_survival_at(ordered, t1)
+            observed_interval_drop = max(0.0, observed_start - observed_end)
+            if (
+                observed_interval_drop
+                < expected_interval_drop * EARLY_PLATEAU_INTERVAL_OBSERVED_DROP_RATIO
+            ):
+                interval_caps.append((float(t1), EARLY_PLATEAU_INTERVAL_ANCHOR_MARGIN))
+
+        if not window_trigger and not interval_caps:
+            adjusted_curves[curve_name] = ordered
+            continue
+
+        changed = 0
+        updated: list[tuple[float, float]] = []
+        for i, (t, s) in enumerate(ordered):
+            cap_margin: float | None = None
+            if window_trigger and i in early_idx:
+                cap_margin = EARLY_PLATEAU_ANCHOR_MARGIN
+
+            for interval_end, interval_margin in interval_caps:
+                if float(t) <= interval_end + 1e-9:
+                    cap_margin = (
+                        interval_margin
+                        if cap_margin is None
+                        else min(cap_margin, interval_margin)
+                    )
+
+            if cap_margin is None:
+                updated.append((float(t), float(s)))
+                continue
+
+            anchor_floor = _anchor_lower_bound(anchor_points, t)
+            upper = min(y_max, max(y_start, anchor_floor + cap_margin))
+            new_s = min(float(s), float(upper))
+            if abs(new_s - s) > 1e-6:
+                changed += 1
+            updated.append((float(t), float(new_s)))
+
+        adjusted_curves[curve_name] = enforce_step_function(updated)
+        if changed > 0:
+            warning = f"{curve_name}: early plateau guard adjusted {changed}/{len(ordered)} points"
+            if interval_caps and not window_trigger:
+                warning += " (interval-aware)"
+            warnings.append(warning)
+
+    return adjusted_curves, warnings
+
+
 def _apply_anchor_constraints(
     digitized_curves: dict[str, list[tuple[float, float]]],
     anchors: dict[str, list[tuple[float, float]]],
@@ -237,10 +373,49 @@ def _apply_anchor_constraints(
             adjusted_curves[curve_name] = points
             continue
 
+        ordered_points = sorted((float(t), float(s)) for t, s in points)
+        anchor_sorted = sorted(anchor_points, key=lambda p: p[0])
+        anchor_drop = max(0.0, float(anchor_sorted[0][1] - anchor_sorted[-1][1]))
+        observed_drop = max(0.0, float(ordered_points[0][1] - min(s for _, s in ordered_points)))
+        gaps = [
+            max(0.0, _anchor_lower_bound(anchor_sorted, t) - s)
+            for t, s in ordered_points
+        ]
+        violation_ratio = float(
+            sum(1 for gap in gaps if gap > tolerance + 1e-9) / max(1, len(gaps))
+        )
+        q90_gap = float(np.quantile(np.asarray(gaps, dtype=np.float64), 0.9)) if gaps else 0.0
+
+        if (
+            violation_ratio >= ANCHOR_LOW_CONF_VIOLATION_RATIO
+            and q90_gap >= ANCHOR_LOW_CONF_Q90_GAP
+            and observed_drop
+            <= max(
+                ANCHOR_LOW_CONF_MIN_OBSERVED_DROP,
+                anchor_drop * ANCHOR_LOW_CONF_ANCHOR_DROP_RATIO,
+            )
+        ):
+            adjusted_curves[curve_name] = ordered_points
+            warnings.append(
+                f"{curve_name}: skipped anchor projection (low confidence; "
+                f"viol={violation_ratio:.2f}, q90_gap={q90_gap:.3f})"
+            )
+            continue
+
+        adaptive_tolerance = tolerance
+        if (
+            violation_ratio >= ANCHOR_ADAPTIVE_TOLERANCE_VIOLATION_RATIO
+            and q90_gap >= ANCHOR_ADAPTIVE_TOLERANCE_Q90_GAP
+        ):
+            adaptive_tolerance = min(
+                ANCHOR_ADAPTIVE_TOLERANCE_MAX,
+                tolerance + 0.35 * q90_gap,
+            )
+
         adjusted: list[list[float]] = []
         changed = 0
-        for t, s in points:
-            lower = _anchor_lower_bound(anchor_points, t) - tolerance
+        for t, s in ordered_points:
+            lower = _anchor_lower_bound(anchor_sorted, t) - adaptive_tolerance
             new_s = max(s, lower)
             new_s = min(max(new_s, 0.0), 1.0)
             if abs(new_s - s) > 1e-6:
@@ -254,9 +429,10 @@ def _apply_anchor_constraints(
 
         adjusted_curves[curve_name] = [(float(t), float(s)) for t, s in adjusted]
         if changed > 0:
-            warnings.append(
-                f"{curve_name}: anchor constraints adjusted {changed}/{len(points)} points"
-            )
+            warning = f"{curve_name}: anchor constraints adjusted {changed}/{len(points)} points"
+            if adaptive_tolerance > tolerance + 1e-9:
+                warning += f" (adaptive tolerance {adaptive_tolerance:.3f})"
+            warnings.append(warning)
 
     return adjusted_curves, warnings
 
@@ -705,6 +881,17 @@ def _postprocess_digitized_curves(
         (curves, anchor_constraint_warnings, origin_warnings)
     """
     curves = dict(digitized_curves)
+    plateau_warnings: list[str] = []
+    if anchors:
+        curves, plateau_warnings = _apply_early_plateau_guard(
+            curves,
+            anchors=anchors,
+            x_start=x_start,
+            x_end=x_end,
+            y_start=y_start,
+            y_max=y_max,
+        )
+
     anchor_constraint_warnings: list[str] = []
     if anchors:
         curves, anchor_constraint_warnings = _apply_anchor_constraints(curves, anchors)
@@ -755,6 +942,7 @@ def _postprocess_digitized_curves(
         curves[curve_name] = enforce_step_function(ordered)
 
     origin_warnings.extend(tail_warnings)
+    origin_warnings = plateau_warnings + origin_warnings
     return curves, anchor_constraint_warnings, origin_warnings
 
 

@@ -1,11 +1,10 @@
 {
   "name": "case_022",
-  "seed": 1134,
-  "n_groups": 2,
+  "seed": 1121,
+  "n_groups": 1,
   "n_patients_per_arm": 206,
   "groups": [
-    "Control",
-    "Treatment"
+    "Control"
   ],
   "max_time": 72.0,
   "y_axis_start": 0.0,
@@ -60,6 +59,6 @@
     ],
     "scale": "linear"
   },
-  "total_patients": 412,
-  "total_events": 221
+  "total_patients": 206,
+  "total_events": 106
 }

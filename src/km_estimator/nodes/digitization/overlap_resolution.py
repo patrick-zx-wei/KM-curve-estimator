@@ -17,12 +17,12 @@ CurveDirection = Literal["downward", "upward"]
 
 MAX_CANDIDATES_PER_CURVE = 3
 MAX_STATES_PER_X = 128
-MAX_STATES_PER_X_HIGH_AMBIGUITY = 224
-MAX_CANDIDATES_PER_CURVE_AMBIGUOUS = 7
+MAX_STATES_PER_X_HIGH_AMBIGUITY = 320
+MAX_CANDIDATES_PER_CURVE_AMBIGUOUS = 9
 MAX_CANDIDATES_PER_CURVE_MODERATE = 5
 MIN_DIVERSE_STATES_PER_SIGNATURE = 2
 MAX_DIVERSE_STATES_PER_SIGNATURE = 8
-MAX_STATE_COMBINATIONS_PER_X = 1000
+MAX_STATE_COMBINATIONS_PER_X = 1800
 
 MEDIAN_ATTRACTION_WEIGHT = 0.08
 MISSING_COLUMN_PENALTY = 0.45
@@ -51,6 +51,11 @@ AMBIGUITY_MODERATE_THRESHOLD = 0.5
 AMBIGUITY_HIGH_THRESHOLD = 0.85
 CROSSING_RELAXED_SWAP_FACTOR = 0.35
 CROSSING_LOCKED_SWAP_FACTOR = 1.25
+EARLY_ENVELOPE_REF_QUANTILE = 0.18
+EARLY_ENVELOPE_MIN_SPAN_PX = 8
+EARLY_ENVELOPE_MIN_DELTA_PX = 2.0
+EARLY_ENVELOPE_TOLERANCE_PX = 2.0
+EARLY_ENVELOPE_PENALTY = 0.07
 
 
 def _column_stats(
@@ -247,13 +252,13 @@ def _adaptive_candidate_limit(ambiguity: float, n_curves: int) -> int:
     """Scale per-curve candidate count by local ambiguity."""
     if n_curves >= 4:
         if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
-            return min(MAX_CANDIDATES_PER_CURVE_AMBIGUOUS, 5)
+            return min(MAX_CANDIDATES_PER_CURVE_AMBIGUOUS, 6)
         if ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
-            return min(MAX_CANDIDATES_PER_CURVE_MODERATE, 4)
+            return MAX_CANDIDATES_PER_CURVE_MODERATE
         return MAX_CANDIDATES_PER_CURVE
     if n_curves == 3:
         if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
-            return min(MAX_CANDIDATES_PER_CURVE_AMBIGUOUS, 7)
+            return min(MAX_CANDIDATES_PER_CURVE_AMBIGUOUS, 8)
         if ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
             return min(MAX_CANDIDATES_PER_CURVE_MODERATE, 5)
         return MAX_CANDIDATES_PER_CURVE
@@ -271,9 +276,9 @@ def _adaptive_state_beam(ambiguity: float, n_curves: int) -> int:
     if n_curves >= 4:
         beam += 16
     if ambiguity >= AMBIGUITY_HIGH_THRESHOLD:
-        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 64)
+        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 96)
     elif ambiguity >= AMBIGUITY_MODERATE_THRESHOLD:
-        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 32)
+        beam = min(MAX_STATES_PER_X_HIGH_AMBIGUITY, beam + 48)
     return beam
 
 
@@ -589,6 +594,8 @@ def _curve_candidates_for_x(
     expected_lab: tuple[float, float, float] | None,
     max_fallback_gap_px: int,
     n_curves: int,
+    curve_direction: CurveDirection,
+    early_envelope: tuple[int, int, float, float] | None,
 ) -> tuple[list[int | None], list[float], float]:
     """Generate y-candidates and local costs for one curve at one x."""
     ys = x_map.get(x)
@@ -610,6 +617,38 @@ def _curve_candidates_for_x(
             for c in candidates
         ]
     else:
+        # If this x is left of the first observed evidence, prefer a missing state
+        # over hard-imputing from the first detected column.
+        if sorted_keys and x < sorted_keys[0]:
+            nearest_x = sorted_keys[0]
+            nearest_gap = abs(nearest_x - x)
+            if nearest_gap > max_fallback_gap_px:
+                return [None], [MISSING_COLUMN_PENALTY * 2.0], 0.35
+            gap_ratio = nearest_gap / max(1, max_fallback_gap_px)
+            nearest_ys = x_map[nearest_x]
+            nearest_y = int(np.median(nearest_ys))
+            candidates = [None, nearest_y]
+            base_costs = [
+                MISSING_COLUMN_PENALTY * (0.85 + 0.35 * gap_ratio),
+                MISSING_COLUMN_PENALTY * (1.6 + 0.9 * gap_ratio),
+            ]
+            ambiguity = 0.55
+            if color_maps is None or expected_lab is None:
+                return candidates, base_costs, ambiguity
+            costs = []
+            for candidate_y, base in zip(candidates, base_costs):
+                if candidate_y is None:
+                    costs.append(base)
+                    continue
+                lab, sat_confidence = _sample_color_prior(color_maps, x, candidate_y)
+                color_dist = float(np.sqrt(sum((a - b) ** 2 for a, b in zip(lab, expected_lab))))
+                color_dist /= LAB_DISTANCE_NORMALIZER
+                color_weight = COLOR_PRIOR_WEIGHT * (
+                    MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
+                )
+                costs.append(base + color_dist * color_weight)
+            return candidates, costs, ambiguity
+
         nearest_x = _find_nearest_x(sorted_keys, x)
         if nearest_x is None or abs(nearest_x - x) > max_fallback_gap_px:
             # No reliable nearby evidence for this x-column.
@@ -628,6 +667,13 @@ def _curve_candidates_for_x(
         ambiguity = 0.6 if in_span else 0.35
 
     if color_maps is None or expected_lab is None:
+        if early_envelope is not None:
+            base_costs = [
+                cost + _early_envelope_penalty(y, x, early_envelope, curve_direction)
+                if y is not None
+                else cost
+                for y, cost in zip(candidates, base_costs)
+            ]
         return candidates, base_costs, ambiguity
 
     costs = []
@@ -641,8 +687,64 @@ def _curve_candidates_for_x(
         color_weight = COLOR_PRIOR_WEIGHT * (
             MIN_COLOR_WEIGHT_FACTOR + (1.0 - MIN_COLOR_WEIGHT_FACTOR) * sat_confidence
         )
-        costs.append(base + color_dist * color_weight)
+        penalty = 0.0
+        if early_envelope is not None:
+            penalty = _early_envelope_penalty(candidate_y, x, early_envelope, curve_direction)
+        costs.append(base + color_dist * color_weight + penalty)
     return candidates, costs, ambiguity
+
+
+def _build_early_envelope(
+    x_map: dict[int, list[int]],
+    sorted_keys: list[int],
+    curve_direction: CurveDirection,
+) -> tuple[int, int, float, float] | None:
+    """Build a soft early-time envelope from observed pixels, if trend is informative."""
+    if len(sorted_keys) < 6:
+        return None
+    first_x = int(sorted_keys[0])
+    ref_idx = min(
+        len(sorted_keys) - 1,
+        max(2, int(round(len(sorted_keys) * EARLY_ENVELOPE_REF_QUANTILE))),
+    )
+    ref_x = int(sorted_keys[ref_idx])
+    if ref_x - first_x < EARLY_ENVELOPE_MIN_SPAN_PX:
+        return None
+
+    first_y = float(np.median(x_map[first_x]))
+    ref_y = float(np.median(x_map[ref_x]))
+    if curve_direction == "downward":
+        delta = ref_y - first_y
+    else:
+        delta = first_y - ref_y
+    if delta < EARLY_ENVELOPE_MIN_DELTA_PX:
+        return None
+
+    slope = float(delta / max(1, ref_x - first_x))
+    return (first_x, ref_x, first_y, slope)
+
+
+def _early_envelope_penalty(
+    y_val: int,
+    x: int,
+    envelope: tuple[int, int, float, float],
+    curve_direction: CurveDirection,
+) -> float:
+    """Penalize implausible upper-envelope excursions in early ambiguous columns."""
+    start_x, end_x, start_y, slope = envelope
+    if x < start_x or x > end_x:
+        return 0.0
+
+    if curve_direction == "downward":
+        expected_y = start_y + slope * float(x - start_x)
+        violation = (expected_y - EARLY_ENVELOPE_TOLERANCE_PX) - float(y_val)
+    else:
+        expected_y = start_y - slope * float(x - start_x)
+        violation = float(y_val) - (expected_y + EARLY_ENVELOPE_TOLERANCE_PX)
+
+    if violation <= 0.0:
+        return 0.0
+    return float(violation * EARLY_ENVELOPE_PENALTY)
 
 
 def _precompute_identity_refs(
@@ -807,6 +909,14 @@ def _trace_curves_joint(
         )
         for name in curve_names
     }
+    early_envelopes: dict[str, tuple[int, int, float, float] | None] = {
+        name: _build_early_envelope(
+            x_map=x_maps[name],
+            sorted_keys=sorted_keys[name],
+            curve_direction=curve_direction,
+        )
+        for name in curve_names
+    }
 
     states_by_x: list[list[tuple[tuple[int | None, ...], float]]] = []
     state_y_by_x: list[NDArray[np.float32]] = []
@@ -828,6 +938,8 @@ def _trace_curves_joint(
                 expected_lab,
                 max_fallback_gap_px,
                 n_curves=n_curves,
+                curve_direction=curve_direction,
+                early_envelope=early_envelopes.get(name),
             )
             curve_candidates.append(candidates)
             curve_costs.append(costs)

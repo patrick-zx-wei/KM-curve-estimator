@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-06T20:12:43.412054",
+  "generated_at": "2026-02-06T23:41:51.428240",
   "n_cases": 100,
   "cases": [
     {
@@ -27,7 +27,7 @@
     },
     {
       "name": "case_002",
-      "seed": 1101,
+      "seed": 1127,
       "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "converging",
@@ -43,15 +43,15 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_002/"
     },
     {
       "name": "case_003",
-      "seed": 1128,
-      "difficulty": 2,
+      "seed": 1102,
+      "difficulty": 1,
       "tier": "pristine",
-      "gap_pattern": "parallel",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "upward",
       "frame_layout": "l_axis",
@@ -62,14 +62,15 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "ThickLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_003/"
     },
     {
       "name": "case_004",
-      "seed": 1116,
+      "seed": 1103,
       "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "diverging",
@@ -83,6 +84,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines"
       ],
       "n_curves": 2,
@@ -90,7 +92,7 @@
     },
     {
       "name": "case_005",
-      "seed": 1130,
+      "seed": 1104,
       "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "converging",
@@ -105,15 +107,15 @@
         "FontTypography",
         "CensoringMarks",
         "RiskTableDisplay",
-        "ThinLines"
+        "ThickLines"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_005/"
     },
     {
       "name": "case_006",
       "seed": 1131,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -128,13 +130,13 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_006/"
     },
     {
       "name": "case_007",
       "seed": 1119,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "converging",
       "background_style": "white",
@@ -148,13 +150,13 @@
         "FontTypography",
         "CensoringMarks"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_007/"
     },
     {
       "name": "case_008",
-      "seed": 1120,
-      "difficulty": 2,
+      "seed": 1107,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -169,7 +171,7 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_008/"
     },
     {
@@ -196,7 +198,7 @@
     },
     {
       "name": "case_010",
-      "seed": 1148,
+      "seed": 1109,
       "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "diverging",
@@ -242,7 +244,7 @@
     {
       "name": "case_012",
       "seed": 1124,
-      "difficulty": 4,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -257,13 +259,13 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_012/"
     },
     {
       "name": "case_013",
-      "seed": 1112,
-      "difficulty": 2,
+      "seed": 1125,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -278,13 +280,13 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_013/"
     },
     {
       "name": "case_014",
-      "seed": 1113,
-      "difficulty": 3,
+      "seed": 1139,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -299,15 +301,15 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_014/"
     },
     {
       "name": "case_015",
-      "seed": 1127,
+      "seed": 1192,
       "difficulty": 1,
       "tier": "pristine",
-      "gap_pattern": "parallel",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -317,7 +319,8 @@
         "CurveDirection",
         "FrameLayout",
         "FontTypography",
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay"
       ],
       "n_curves": 2,
       "dir": "case_015/"
@@ -347,7 +350,7 @@
     {
       "name": "case_017",
       "seed": 1129,
-      "difficulty": 4,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -362,15 +365,15 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_017/"
     },
     {
       "name": "case_018",
-      "seed": 1143,
-      "difficulty": 2,
+      "seed": 1182,
+      "difficulty": 1,
       "tier": "pristine",
-      "gap_pattern": "parallel",
+      "gap_pattern": "diverging",
       "background_style": "sas_gray",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -381,10 +384,11 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines",
-        "ThinLines"
+        "ThickLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_018/"
     },
     {
@@ -403,6 +407,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "TruncatedYAxis",
         "GridLines"
       ],
@@ -411,10 +416,10 @@
     },
     {
       "name": "case_020",
-      "seed": 1119,
-      "difficulty": 2,
+      "seed": 1132,
+      "difficulty": 1,
       "tier": "pristine",
-      "gap_pattern": "diverging",
+      "gap_pattern": "parallel",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -425,9 +430,11 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
-        "GridLines"
+        "RiskTableDisplay",
+        "GridLines",
+        "ThickLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_020/"
     },
     {
@@ -454,7 +461,7 @@
     },
     {
       "name": "case_022",
-      "seed": 1134,
+      "seed": 1121,
       "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
@@ -470,13 +477,13 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_022/"
     },
     {
       "name": "case_023",
       "seed": 1122,
-      "difficulty": 3,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -492,7 +499,7 @@
         "RiskTableDisplay",
         "GridLines"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_023/"
     },
     {
@@ -513,7 +520,7 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "Annotations",
-        "ThinLines"
+        "ThickLines"
       ],
       "n_curves": 2,
       "dir": "case_024/"
@@ -544,7 +551,7 @@
     {
       "name": "case_026",
       "seed": 1151,
-      "difficulty": 3,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -558,14 +565,15 @@
         "FontTypography",
         "CensoringMarks",
         "RiskTableDisplay",
-        "Annotations"
+        "Annotations",
+        "ThickLines"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_026/"
     },
     {
       "name": "case_027",
-      "seed": 1126,
+      "seed": 1139,
       "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "diverging",
@@ -578,15 +586,17 @@
         "CurveDirection",
         "FrameLayout",
         "FontTypography",
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "ThickLines"
       ],
       "n_curves": 2,
       "dir": "case_027/"
     },
     {
       "name": "case_028",
-      "seed": 1127,
-      "difficulty": 4,
+      "seed": 1140,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -602,9 +612,9 @@
         "RiskTableDisplay",
         "TruncatedYAxis",
         "Annotations",
-        "ThinLines"
+        "ThickLines"
       ],
-      "n_curves": 4,
+      "n_curves": 2,
       "dir": "case_028/"
     },
     {
@@ -624,17 +634,18 @@
         "FontTypography",
         "CensoringMarks",
         "RiskTableDisplay",
-        "GridLines"
+        "GridLines",
+        "ThickLines"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_029/"
     },
     {
       "name": "case_030",
-      "seed": 1142,
-      "difficulty": 1,
+      "seed": 1155,
+      "difficulty": 2,
       "tier": "pristine",
-      "gap_pattern": "parallel",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -644,7 +655,9 @@
         "CurveDirection",
         "FrameLayout",
         "FontTypography",
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay",
+        "ThickLines"
       ],
       "n_curves": 2,
       "dir": "case_030/"
@@ -673,8 +686,8 @@
     },
     {
       "name": "case_032",
-      "seed": 1157,
-      "difficulty": 2,
+      "seed": 1131,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -690,12 +703,12 @@
         "RiskTableDisplay",
         "GridLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_032/"
     },
     {
       "name": "case_033",
-      "seed": 1171,
+      "seed": 1132,
       "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
@@ -712,7 +725,7 @@
         "RiskTableDisplay",
         "Annotations"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_033/"
     },
     {
@@ -739,7 +752,7 @@
     {
       "name": "case_035",
       "seed": 1134,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "sas_gray",
@@ -754,15 +767,15 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "TruncatedYAxis",
-        "ThinLines"
+        "ThickLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_035/"
     },
     {
       "name": "case_036",
       "seed": 1135,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "sas_gray",
@@ -777,13 +790,13 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_036/"
     },
     {
       "name": "case_037",
       "seed": 1136,
-      "difficulty": 3,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "converging",
       "background_style": "white",
@@ -798,7 +811,7 @@
         "CensoringMarks",
         "RiskTableDisplay"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_037/"
     },
     {
@@ -817,6 +830,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "Annotations"
       ],
       "n_curves": 2,
@@ -825,7 +839,7 @@
     {
       "name": "case_039",
       "seed": 1138,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -842,13 +856,13 @@
         "GridLines",
         "Annotations"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_039/"
     },
     {
       "name": "case_040",
       "seed": 1152,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -864,7 +878,7 @@
         "RiskTableDisplay",
         "GridLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_040/"
     },
     {
@@ -883,9 +897,10 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "ThickLines"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_041/"
     },
     {
@@ -905,17 +920,18 @@
         "FontTypography",
         "CensoringMarks",
         "RiskTableDisplay",
-        "Annotations"
+        "Annotations",
+        "ThickLines"
       ],
       "n_curves": 2,
       "dir": "case_042/"
     },
     {
       "name": "case_043",
-      "seed": 1155,
+      "seed": 1142,
       "difficulty": 1,
       "tier": "pristine",
-      "gap_pattern": "diverging",
+      "gap_pattern": "converging",
       "background_style": "sas_gray",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -926,15 +942,16 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
-        "RiskTableDisplay"
+        "RiskTableDisplay",
+        "ThickLines"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_043/"
     },
     {
       "name": "case_044",
       "seed": 1156,
-      "difficulty": 3,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -949,15 +966,16 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "TruncatedYAxis",
-        "Annotations"
+        "Annotations",
+        "ThickLines"
       ],
-      "n_curves": 4,
+      "n_curves": 2,
       "dir": "case_044/"
     },
     {
       "name": "case_045",
-      "seed": 1196,
-      "difficulty": 2,
+      "seed": 1144,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -973,7 +991,7 @@
         "RiskTableDisplay",
         "Annotations"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_045/"
     },
     {
@@ -1021,7 +1039,7 @@
     {
       "name": "case_048",
       "seed": 1147,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -1034,15 +1052,16 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_048/"
     },
     {
       "name": "case_049",
-      "seed": 1187,
-      "difficulty": 3,
+      "seed": 1200,
+      "difficulty": 2,
       "tier": "pristine",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -1058,13 +1077,13 @@
         "RiskTableDisplay",
         "Annotations"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_049/"
     },
     {
       "name": "case_050",
       "seed": 1149,
-      "difficulty": 2,
+      "difficulty": 1,
       "tier": "pristine",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -1076,14 +1095,15 @@
         "CurveDirection",
         "FrameLayout",
         "FontTypography",
-        "CensoringMarks"
+        "CensoringMarks",
+        "RiskTableDisplay"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_050/"
     },
     {
       "name": "case_051",
-      "seed": 1163,
+      "seed": 1176,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
@@ -1099,7 +1119,7 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "Annotations",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts"
       ],
@@ -1108,7 +1128,7 @@
     },
     {
       "name": "case_052",
-      "seed": 1164,
+      "seed": 1151,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1124,18 +1144,18 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
-        "ThinLines",
+        "ThickLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_052/"
     },
     {
       "name": "case_053",
-      "seed": 1217,
+      "seed": 1204,
       "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "diverging",
+      "gap_pattern": "parallel",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -1156,7 +1176,7 @@
     },
     {
       "name": "case_054",
-      "seed": 1192,
+      "seed": 1179,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
@@ -1170,6 +1190,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "Annotations",
         "JPEGArtifacts"
       ],
@@ -1194,7 +1215,7 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
-        "ThinLines",
+        "ThickLines",
         "JPEGArtifacts"
       ],
       "n_curves": 2,
@@ -1216,6 +1237,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "Annotations",
         "JPEGArtifacts"
       ],
@@ -1225,7 +1247,7 @@
     {
       "name": "case_057",
       "seed": 1156,
-      "difficulty": 4,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
       "background_style": "white",
@@ -1243,13 +1265,13 @@
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 4,
+      "n_curves": 2,
       "dir": "case_057/"
     },
     {
       "name": "case_058",
       "seed": 1183,
-      "difficulty": 4,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "converging",
       "background_style": "sas_gray",
@@ -1262,20 +1284,21 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_058/"
     },
     {
       "name": "case_059",
-      "seed": 1236,
-      "difficulty": 3,
+      "seed": 1158,
+      "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "converging",
+      "gap_pattern": "crossover",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -1291,13 +1314,13 @@
         "Annotations",
         "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_059/"
     },
     {
       "name": "case_060",
       "seed": 1211,
-      "difficulty": 4,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -1313,7 +1336,7 @@
         "RiskTableDisplay",
         "JPEGArtifacts"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_060/"
     },
     {
@@ -1342,7 +1365,7 @@
     },
     {
       "name": "case_062",
-      "seed": 1174,
+      "seed": 1161,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1360,12 +1383,12 @@
         "GridLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_062/"
     },
     {
       "name": "case_063",
-      "seed": 1214,
+      "seed": 1240,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1381,7 +1404,7 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts"
       ],
@@ -1390,7 +1413,7 @@
     },
     {
       "name": "case_064",
-      "seed": 1176,
+      "seed": 1163,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
@@ -1404,6 +1427,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines",
         "JPEGArtifacts"
       ],
@@ -1412,7 +1436,7 @@
     },
     {
       "name": "case_065",
-      "seed": 1203,
+      "seed": 1242,
       "difficulty": 4,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1432,13 +1456,13 @@
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_065/"
     },
     {
       "name": "case_066",
-      "seed": 1178,
-      "difficulty": 4,
+      "seed": 1204,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
       "background_style": "ggplot_gray",
@@ -1454,16 +1478,16 @@
         "RiskTableDisplay",
         "GridLines",
         "Annotations",
-        "LowResolution",
+        "ThickLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_066/"
     },
     {
       "name": "case_067",
-      "seed": 1166,
-      "difficulty": 4,
+      "seed": 1179,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
       "background_style": "sas_gray",
@@ -1477,17 +1501,17 @@
         "FontTypography",
         "CensoringMarks",
         "RiskTableDisplay",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_067/"
     },
     {
       "name": "case_068",
-      "seed": 1206,
-      "difficulty": 4,
+      "seed": 1180,
+      "difficulty": 3,
       "tier": "standard",
       "gap_pattern": "diverging",
       "background_style": "white",
@@ -1504,7 +1528,7 @@
         "GridLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_068/"
     },
     {
@@ -1534,7 +1558,7 @@
     },
     {
       "name": "case_070",
-      "seed": 1247,
+      "seed": 1208,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
@@ -1549,7 +1573,7 @@
         "FontTypography",
         "CensoringMarks",
         "GridLines",
-        "LowResolution",
+        "ThickLines",
         "JPEGArtifacts"
       ],
       "n_curves": 2,
@@ -1557,7 +1581,7 @@
     },
     {
       "name": "case_071",
-      "seed": 1196,
+      "seed": 1170,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1582,10 +1606,10 @@
     },
     {
       "name": "case_072",
-      "seed": 1197,
+      "seed": 1236,
       "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "diverging",
+      "gap_pattern": "parallel",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -1600,12 +1624,12 @@
         "GridLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_072/"
     },
     {
       "name": "case_073",
-      "seed": 1185,
+      "seed": 1172,
       "difficulty": 4,
       "tier": "standard",
       "gap_pattern": "parallel",
@@ -1625,15 +1649,15 @@
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_073/"
     },
     {
       "name": "case_074",
-      "seed": 1199,
-      "difficulty": 4,
+      "seed": 1225,
+      "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "converging",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -1650,15 +1674,15 @@
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_074/"
     },
     {
       "name": "case_075",
-      "seed": 1226,
-      "difficulty": 4,
+      "seed": 1174,
+      "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "crossover",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -1671,17 +1695,17 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "Annotations",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_075/"
     },
     {
       "name": "case_076",
       "seed": 1175,
-      "difficulty": 4,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
       "background_style": "sas_gray",
@@ -1695,16 +1719,16 @@
         "FontTypography",
         "CensoringMarks",
         "RiskTableDisplay",
-        "LowResolution",
+        "ThickLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_076/"
     },
     {
       "name": "case_077",
-      "seed": 1189,
-      "difficulty": 4,
+      "seed": 1228,
+      "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
       "background_style": "sas_gray",
@@ -1723,12 +1747,12 @@
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 4,
+      "n_curves": 2,
       "dir": "case_077/"
     },
     {
       "name": "case_078",
-      "seed": 1177,
+      "seed": 1190,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1769,11 +1793,11 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_079/"
     },
     {
@@ -1804,7 +1828,7 @@
     },
     {
       "name": "case_081",
-      "seed": 1180,
+      "seed": 1232,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "diverging",
@@ -1818,15 +1842,16 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "Annotations",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_081/"
     },
     {
       "name": "case_082",
-      "seed": 1181,
+      "seed": 1207,
       "difficulty": 2,
       "tier": "standard",
       "gap_pattern": "parallel",
@@ -1840,6 +1865,7 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "TruncatedYAxis",
         "Annotations",
         "ThinLines",
@@ -1851,10 +1877,10 @@
     },
     {
       "name": "case_083",
-      "seed": 1195,
-      "difficulty": 4,
+      "seed": 1182,
+      "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "parallel",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -1869,15 +1895,15 @@
         "Annotations",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_083/"
     },
     {
       "name": "case_084",
-      "seed": 1222,
+      "seed": 1248,
       "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "parallel",
+      "gap_pattern": "diverging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "full_box",
@@ -1890,6 +1916,8 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
+        "ThickLines",
+        "LowResolution",
         "JPEGArtifacts"
       ],
       "n_curves": 2,
@@ -1900,7 +1928,7 @@
       "seed": 1184,
       "difficulty": 2,
       "tier": "standard",
-      "gap_pattern": "converging",
+      "gap_pattern": "parallel",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -1911,9 +1939,11 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
+        "ThickLines",
         "JPEGArtifacts"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_085/"
     },
     {
@@ -1939,12 +1969,12 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_086/"
     },
     {
       "name": "case_087",
-      "seed": 1186,
+      "seed": 1199,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "parallel",
@@ -1966,13 +1996,13 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_087/"
     },
     {
       "name": "case_088",
-      "seed": 1265,
-      "difficulty": 5,
+      "seed": 1187,
+      "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "converging",
       "background_style": "white",
@@ -1987,17 +2017,17 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "TruncatedYAxis",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 4,
+      "n_curves": 2,
       "dir": "case_088/"
     },
     {
       "name": "case_089",
-      "seed": 1188,
+      "seed": 1227,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "parallel",
@@ -2045,7 +2075,7 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 4,
+      "n_curves": 2,
       "dir": "case_090/"
     },
     {
@@ -2066,6 +2096,7 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
@@ -2075,7 +2106,7 @@
     },
     {
       "name": "case_092",
-      "seed": 1217,
+      "seed": 1191,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "parallel",
@@ -2096,12 +2127,12 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_092/"
     },
     {
       "name": "case_093",
-      "seed": 1257,
+      "seed": 1192,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "parallel",
@@ -2115,18 +2146,19 @@
         "FrameLayout",
         "FontTypography",
         "CensoringMarks",
+        "RiskTableDisplay",
         "GridLines",
         "Annotations",
         "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 4,
+      "n_curves": 3,
       "dir": "case_093/"
     },
     {
       "name": "case_094",
-      "seed": 1193,
+      "seed": 1232,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "converging",
@@ -2144,7 +2176,7 @@
         "TruncatedYAxis",
         "GridLines",
         "Annotations",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
@@ -2154,7 +2186,7 @@
     },
     {
       "name": "case_095",
-      "seed": 1272,
+      "seed": 1220,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "parallel",
@@ -2170,7 +2202,7 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "GridLines",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
@@ -2180,7 +2212,7 @@
     },
     {
       "name": "case_096",
-      "seed": 1208,
+      "seed": 1195,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "diverging",
@@ -2201,7 +2233,7 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_096/"
     },
     {
@@ -2209,7 +2241,7 @@
       "seed": 1196,
       "difficulty": 4,
       "tier": "legacy",
-      "gap_pattern": "diverging",
+      "gap_pattern": "crossover",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -2228,15 +2260,15 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 2,
+      "n_curves": 1,
       "dir": "case_097/"
     },
     {
       "name": "case_098",
-      "seed": 1223,
+      "seed": 1236,
       "difficulty": 4,
       "tier": "legacy",
-      "gap_pattern": "crossover",
+      "gap_pattern": "converging",
       "background_style": "white",
       "curve_direction": "downward",
       "frame_layout": "l_axis",
@@ -2255,12 +2287,12 @@
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 3,
+      "n_curves": 2,
       "dir": "case_098/"
     },
     {
       "name": "case_099",
-      "seed": 1211,
+      "seed": 1198,
       "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "parallel",
@@ -2285,8 +2317,8 @@
     },
     {
       "name": "case_100",
-      "seed": 1199,
-      "difficulty": 5,
+      "seed": 1264,
+      "difficulty": 4,
       "tier": "legacy",
       "gap_pattern": "diverging",
       "background_style": "sas_gray",
@@ -2301,12 +2333,12 @@
         "CensoringMarks",
         "RiskTableDisplay",
         "Annotations",
-        "ThinLines",
+        "ThickLines",
         "LowResolution",
         "JPEGArtifacts",
         "NoisyBackground"
       ],
-      "n_curves": 5,
+      "n_curves": 3,
       "dir": "case_100/"
     }
   ]

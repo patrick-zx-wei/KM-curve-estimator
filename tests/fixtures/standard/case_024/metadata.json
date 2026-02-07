@@ -25,7 +25,7 @@
     "CensoringMarks",
     "RiskTableDisplay",
     "Annotations",
-    "ThinLines"
+    "ThickLines"
   ],
   "title": "Kaplan-Meier Survival Curve",
   "annotations": [],

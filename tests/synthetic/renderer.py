@@ -36,13 +36,13 @@ from .modifiers import (
 
 
 def _get_linewidth(modifiers: list[Modifier]) -> float:
-    """Get line width from modifiers, defaulting to 2.0."""
+    """Get line width from modifiers, defaulting to 2.6."""
     for m in modifiers:
         if isinstance(m, ThickLines):
             return m.linewidth
         if isinstance(m, ThinLines):
             return m.linewidth
-    return 2.0
+    return 2.6
 
 
 def _get_survival_at(
