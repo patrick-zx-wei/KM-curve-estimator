@@ -1280,6 +1280,11 @@ def digitize(state: PipelineState) -> PipelineState:
 
     digitizer = os.getenv("KM_DIGITIZER", "").strip().lower()
 
+    if digitizer in {"v5", "5", "digitization_5"}:
+        from km_estimator.nodes.digitization_5 import digitize_v5
+
+        return digitize_v5(state)
+
     if digitizer in {"v4", "4", "digitization_4"}:
         from km_estimator.nodes.digitization_4 import digitize_v4
 

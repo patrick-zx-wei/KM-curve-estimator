@@ -1,4 +1,4 @@
-"""Digitization v4 pipeline.
+"""Digitization v5 pipeline.
 
 Design goals:
 - single shared PlotModel (no downstream axis guessing)
@@ -311,14 +311,14 @@ def _build_hardpoint_guides(
     return guides, warnings
 
 
-def digitize_v4(state: PipelineState) -> PipelineState:
-    """Run the new digitization_4 pipeline."""
+def digitize_v5(state: PipelineState) -> PipelineState:
+    """Run the new digitization_5 pipeline."""
     if state.plot_metadata is None:
         err = ProcessingError(
             stage=ProcessingStage.DIGITIZE,
             error_type="no_metadata",
             recoverable=False,
-            message="PlotMetadata required for digitization_v4",
+            message="PlotMetadata required for digitization_v5",
         )
         return state.model_copy(update={"errors": state.errors + [err]})
 
@@ -338,13 +338,11 @@ def digitize_v4(state: PipelineState) -> PipelineState:
         return state.model_copy(update={"errors": state.errors + [plot_model]})
     all_warnings.extend(plot_model.warning_codes)
 
-    hardpoint_constraints, hardpoint_warnings = _build_risk_table_constraints(state)
+    # Keep risk-table hardpoint extraction for diagnostics only.
+    # Do not guide tracing with these points: n(t)/n0 are lower bounds, not exact curve points.
+    _hardpoint_constraints, hardpoint_warnings = _build_risk_table_constraints(state)
     all_warnings.extend(hardpoint_warnings)
-    hardpoint_guides, guide_warnings = _build_hardpoint_guides(
-        plot_model=plot_model,
-        hardpoints=hardpoint_constraints,
-    )
-    all_warnings.extend(guide_warnings)
+    all_warnings.append("I_HARDPOINT_GUIDANCE_DISABLED_FOR_TRACING")
 
     color_models, color_warnings = build_color_models(image, state.plot_metadata, plot_model)
     all_warnings.extend(color_warnings)
@@ -353,7 +351,7 @@ def digitize_v4(state: PipelineState) -> PipelineState:
         image=image,
         plot_model=plot_model,
         color_models=color_models,
-        hardpoint_guides=hardpoint_guides,
+        hardpoint_guides=None,
     )
     all_warnings.extend(evidence.warning_codes)
 
@@ -367,7 +365,7 @@ def digitize_v4(state: PipelineState) -> PipelineState:
         y0=y0,
         candidate_mask=evidence.candidate_mask,
         arm_candidate_masks=evidence.arm_candidate_masks,
-        hardpoint_guides=hardpoint_guides,
+        hardpoint_guides=None,
     )
     all_warnings.extend(trace.warning_codes)
 
@@ -410,7 +408,7 @@ def digitize_v4(state: PipelineState) -> PipelineState:
             ),
             candidate_mask=evidence.candidate_mask,
             arm_candidate_masks=evidence.arm_candidate_masks,
-            hardpoint_guides=hardpoint_guides,
+            hardpoint_guides=None,
         )
         all_warnings.extend(retrace.warning_codes)
         retrace_curves, retrace_post_warnings = convert_pixel_curves_to_survival(
@@ -443,7 +441,7 @@ def digitize_v4(state: PipelineState) -> PipelineState:
             stage=ProcessingStage.DIGITIZE,
             error_type="digitization_low_confidence",
             recoverable=True,
-            message=f"digitization_v4 confidence too low ({final_conf:.3f})",
+            message=f"digitization_v5 confidence too low ({final_conf:.3f})",
             details={"confidence": final_conf},
         )
         return state.model_copy(
@@ -467,7 +465,7 @@ def digitize_v4(state: PipelineState) -> PipelineState:
         all_warnings.append(f"W_CENSORING_DETECTION_UNAVAILABLE:{exc}")
 
     # Optional debug artifacts.
-    debug_enabled = os.getenv("KM_DIGITIZER_V4_DEBUG", "").lower() in {"1", "true", "yes"}
+    debug_enabled = os.getenv("KM_DIGITIZER_V5_DEBUG", "").lower() in {"1", "true", "yes"}
     if not debug_enabled:
         debug_enabled = os.getenv("KM_DIGITIZER_V3_DEBUG", "").lower() in {"1", "true", "yes"}
     if not debug_enabled:
@@ -475,10 +473,13 @@ def digitize_v4(state: PipelineState) -> PipelineState:
     if debug_enabled:
         out_dir = Path(
             os.getenv(
-                "KM_DIGITIZER_V4_DEBUG_DIR",
+                "KM_DIGITIZER_V5_DEBUG_DIR",
                 os.getenv(
+                    "KM_DIGITIZER_V4_DEBUG_DIR",
+                    os.getenv(
                     "KM_DIGITIZER_V3_DEBUG_DIR",
-                    os.getenv("KM_DIGITIZER_V2_DEBUG_DIR", "/tmp/km_digitization_v4"),
+                    os.getenv("KM_DIGITIZER_V2_DEBUG_DIR", "/tmp/km_digitization_v5"),
+                    ),
                 ),
             )
         )
@@ -495,7 +496,7 @@ def digitize_v4(state: PipelineState) -> PipelineState:
         )
 
     flagged = state.flagged_for_review or (final_conf < LOW_CONFIDENCE_REVIEW_THRESHOLD)
-    all_warnings.append(f"I_DIGITIZATION_V4_CONFIDENCE:{final_conf:.3f}")
+    all_warnings.append(f"I_DIGITIZATION_V5_CONFIDENCE:{final_conf:.3f}")
     all_warnings = _dedupe_ordered(all_warnings)
     return state.model_copy(
         update={
@@ -508,4 +509,4 @@ def digitize_v4(state: PipelineState) -> PipelineState:
     )
 
 
-__all__ = ["digitize_v4"]
+__all__ = ["digitize_v5"]

@@ -1,9 +1,7 @@
 """IPD reconstruction and validation nodes."""
 
 from bisect import bisect_right
-import json
 import os
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -69,15 +67,7 @@ CENSOR_HINT_BLEND_BASE = 0.25
 CENSOR_HINT_BLEND_SCALE = 0.45
 MAX_TERMINAL_CENSOR_FRACTION = 0.30
 TERMINAL_CENSOR_SURVIVAL_MARGIN = 0.03
-HARDPOINT_ENABLE_ENV = "KM_RECON_HARDPOINTS_ENABLE"
-HARDPOINT_PATH_ENV = "KM_RECON_HARDPOINTS_PATH"
-HARDPOINT_TOL_ENV = "KM_RECON_HARDPOINT_TOL"
 HARDPOINT_DEFAULT_TOL = 0.01
-
-
-def _env_bool(name: str, default: bool = False) -> bool:
-    raw = str(os.environ.get(name, "1" if default else "0")).strip().lower()
-    return raw in {"1", "true", "yes", "on"}
 
 
 def _estimate_interval_end_survival(
@@ -908,69 +898,63 @@ def _reconstruction_objective(
     )
 
 
-def _load_hardpoint_constraints(
+def _build_risk_table_hardpoint_constraints(
     state: PipelineState,
 ) -> tuple[dict[str, list[tuple[float, float]]], float, list[str]]:
-    """Load optional hardpoint constraints for benchmark mode."""
+    """Build hardpoint constraints from extracted risk table only."""
     warnings: list[str] = []
-    enabled = _env_bool(HARDPOINT_ENABLE_ENV, default=False)
-
     tol = HARDPOINT_DEFAULT_TOL
-    raw_tol = os.environ.get(HARDPOINT_TOL_ENV)
-    if raw_tol is not None:
-        try:
-            tol = float(np.clip(float(raw_tol), 0.0, 0.2))
-        except ValueError:
-            warnings.append(f"Invalid {HARDPOINT_TOL_ENV}='{raw_tol}', using {tol:.3f}")
-
-    env_path = os.environ.get(HARDPOINT_PATH_ENV)
-    if env_path:
-        hp_path = Path(env_path)
-    else:
-        hp_path = Path(state.image_path).with_name("hard_points.json")
-    if not enabled and not hp_path.exists():
-        return {}, tol, warnings
-    if not hp_path.exists():
-        warnings.append(f"Hardpoint constraints enabled but file missing: {hp_path}")
-        return {}, tol, warnings
-    if not enabled:
-        warnings.append(
-            f"Auto-enabled hardpoint constraints from sibling file: {hp_path}"
-        )
-
-    try:
-        payload = json.loads(hp_path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        warnings.append(f"Failed to read hardpoint constraints ({hp_path}): {exc}")
+    meta = state.plot_metadata
+    if meta is None or meta.risk_table is None:
+        warnings.append("I_HARDPOINT_SOURCE_RISK_TABLE:none")
         return {}, tol, warnings
 
-    if not isinstance(payload, dict):
-        warnings.append(f"Hardpoint payload must be a JSON object: {hp_path}")
+    risk_table = meta.risk_table
+    if not risk_table.time_points or not risk_table.groups:
+        warnings.append("W_HARDPOINT_SOURCE_RISK_TABLE_EMPTY")
         return {}, tol, warnings
 
     constraints: dict[str, list[tuple[float, float]]] = {}
-    for group_name, group_payload in payload.items():
-        if not isinstance(group_name, str) or not isinstance(group_payload, dict):
+    unmatched: list[str] = []
+    invalid_groups = 0
+    for curve in meta.curves:
+        curve_name = curve.name
+        risk_group = _find_matching_risk_group(risk_table, curve_name)
+        if risk_group is None:
+            unmatched.append(curve_name)
             continue
-        landmarks = group_payload.get("landmarks", [])
-        if not isinstance(landmarks, list):
+
+        counts = list(risk_group.counts)
+        if (
+            len(counts) != len(risk_table.time_points)
+            or not counts
+            or int(counts[0]) <= 0
+        ):
+            invalid_groups += 1
+            warnings.append(
+                f"W_HARDPOINT_RISK_GROUP_INVALID:{curve_name}:{risk_group.name}:"
+                f"{len(counts)}vs{len(risk_table.time_points)}"
+            )
             continue
+
+        n0 = float(counts[0])
         points: list[tuple[float, float]] = []
-        for lm in landmarks:
-            if not isinstance(lm, dict):
+        for t, count in zip(risk_table.time_points, counts):
+            if not isinstance(t, (int, float)) or not isinstance(count, (int, float)):
                 continue
-            t = lm.get("time")
-            s = lm.get("survival")
-            if not isinstance(t, (int, float)) or not isinstance(s, (int, float)):
-                continue
-            points.append((float(t), float(np.clip(float(s), 0.0, 1.0))))
+            s_floor = float(np.clip(float(count) / n0, 0.0, 1.0))
+            points.append((float(t), s_floor))
         if points:
             points.sort(key=lambda p: p[0])
-            constraints[group_name] = points
+            constraints[curve_name] = points
 
     warnings.append(
-        f"Loaded hardpoint constraints: {len(constraints)} groups from {hp_path} (tol={tol:.3f})"
+        f"I_HARDPOINT_SOURCE_RISK_TABLE:groups={len(constraints)}"
     )
+    if unmatched:
+        warnings.append("W_HARDPOINT_RISK_GROUP_MISSING:" + ",".join(sorted(unmatched)))
+    if invalid_groups > 0:
+        warnings.append(f"W_HARDPOINT_RISK_GROUP_INVALID_COUNT:{invalid_groups}")
     return constraints, tol, warnings
 
 
@@ -981,7 +965,7 @@ def _apply_hardpoint_curve_constraints(
     """
     Project observed curve onto hardpoint anchors before IPD reconstruction.
 
-    This is benchmark-only behavior and is opt-in via environment variable.
+    Hardpoints are derived from the extracted risk table only.
     """
     if not base_curve or not hardpoints:
         return _normalize_step_coords(base_curve)
@@ -1581,7 +1565,9 @@ def reconstruct(state: PipelineState) -> PipelineState:
 
     curves = []
     all_warnings: list[str] = []
-    hardpoint_constraints, hardpoint_tolerance, hardpoint_warnings = _load_hardpoint_constraints(state)
+    hardpoint_constraints, hardpoint_tolerance, hardpoint_warnings = (
+        _build_risk_table_hardpoint_constraints(state)
+    )
     all_warnings.extend(hardpoint_warnings)
     curve_direction = (
         state.plot_metadata.curve_direction
@@ -1751,7 +1737,7 @@ def reconstruct(state: PipelineState) -> PipelineState:
             ):
                 choose_alt = True
 
-            # In hardpoint-constrained benchmark mode, prefer candidates that satisfy anchors.
+            # When risk-table-derived hardpoints exist, prefer candidates that satisfy anchors.
             if curve_hardpoints:
                 full_hardpoint_ok = full_hardpoint_max <= hardpoint_tolerance
                 alt_hardpoint_ok = alt_hardpoint_max <= hardpoint_tolerance
