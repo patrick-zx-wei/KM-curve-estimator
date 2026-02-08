@@ -176,9 +176,7 @@
       "Treatment": 211
     },
     "warnings": [
-      "GPT extraction failed: Request timed out.",
-      "Using Gemini fallback",
-      "Metadata fast phase failed (ServerError); escalating",
+      "OCR fast phase failed (ServerError); escalating",
       "Low GPT metadata confidence (0.70), verifying with Gemini",
       "I_TICK_DETECT_RAW_X:7:4.738",
       "I_TICK_DETECT_RAW_Y:7:7.910",
@@ -209,6 +207,8 @@
       "W_COLOR_STRICT_SPARSE_SKIP:Treatment:0.0000:0.002:0.750",
       "I_CURVE_COMPONENT_PRUNE:Treatment:2:304",
       "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Treatment",
+      "W_ARM_EXCLUSIVE_SPARSE:Control:0.0001:0.031:0.060",
+      "W_ARM_EXCLUSIVE_SPARSE:Treatment:0.0000:0.000:0.060",
       "I_TRACE_ARMS:2:Control,Treatment",
       "W_CROSSING_DISABLED_CAP:39:106:1742",
       "W_CLOSE_PARALLEL_AMBIGUOUS:283:284",

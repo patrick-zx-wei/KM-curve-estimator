@@ -8,26 +8,41 @@
     "x_axis_end_error": 0.0,
     "y_axis_start_error": 0.0,
     "y_axis_end_error": 0.0,
+    "x_tick_interval_error": 0.0,
+    "y_tick_interval_error": 0.0,
+    "x_tick_count_detected": 7,
+    "x_tick_count_expected": 7,
+    "y_tick_count_detected": 6,
+    "y_tick_count_expected": 6,
+    "x_tick_values_mae": 0.0,
+    "y_tick_values_mae": 0.0,
+    "x_tick_coverage_detected": 1.0,
+    "x_tick_coverage_expected": 1.0,
+    "y_tick_coverage_detected": 1.0,
+    "y_tick_coverage_expected": 1.0,
     "n_curves_detected": 2,
     "n_curves_expected": 2,
     "curves_match": true,
+    "curve_direction_detected": "upward",
+    "curve_direction_expected": "upward",
+    "curve_direction_match": true,
     "risk_table_detected": true,
     "risk_table_expected": true
   },
   "digitize": {
     "Control": {
-      "mae": 0.027628299602408913,
-      "rmse": 0.04331662829344229,
-      "dtw": 0.004312163619292441,
-      "frechet": 0.07878552130062244,
-      "max_error": 0.1718583358525455
+      "mae": 0.019971400896273177,
+      "rmse": 0.021114330735770032,
+      "dtw": 0.38742653083770323,
+      "frechet": 0.451930552460029,
+      "max_error": 0.025668442249298096
     },
     "Treatment": {
-      "mae": 0.018187371899106887,
-      "rmse": 0.025403111010780043,
-      "dtw": 0.05447329476712635,
-      "frechet": 0.08724807791663125,
-      "max_error": 0.08003901509479805
+      "mae": 0.017486370426584772,
+      "rmse": 0.021868467870542578,
+      "dtw": 0.23251457392948643,
+      "frechet": 0.2777568318964615,
+      "max_error": 0.05219037231070478
     }
   },
   "hard_points": {
@@ -35,117 +50,294 @@
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.9701,
-          "actual": 0.9706,
-          "error": 0.0005,
+          "expected": 0.9493,
+          "actual": 0.9515,
+          "error": 0.0022,
+          "expected_plot_y": 0.0507,
+          "actual_plot_y": 0.0485,
+          "plot_error": 0.0022,
           "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.9479,
-          "actual": 0.9359,
-          "error": 0.012,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.8317,
-          "actual": 0.7592,
-          "error": 0.0725,
-          "pass": false
-        },
-        {
-          "time": 36,
-          "expected": 0.7521,
-          "actual": 0.7049,
-          "error": 0.0472,
-          "pass": true
-        },
-        {
-          "time": 48,
-          "expected": 0.673,
-          "actual": 0.6554,
-          "error": 0.0176,
-          "pass": true
-        },
-        {
-          "time": 60,
-          "expected": 0.673,
-          "actual": 0.5864,
-          "error": 0.0866,
-          "pass": false
         }
       ],
-      "all_pass": false
+      "all_pass": true,
+      "evaluation_space": "survival",
+      "plot_space": "incidence"
     },
     "Treatment": {
       "landmarks": [
         {
           "time": 6,
-          "expected": 0.9692,
-          "actual": 0.9585,
-          "error": 0.0107,
+          "expected": 0.9198,
+          "actual": 0.907,
+          "error": 0.0128,
+          "expected_plot_y": 0.0802,
+          "actual_plot_y": 0.093,
+          "plot_error": 0.0128,
           "pass": true
         },
         {
           "time": 12,
-          "expected": 0.9309,
-          "actual": 0.9307,
-          "error": 0.0002,
+          "expected": 0.8526,
+          "actual": 0.8453,
+          "error": 0.0073,
+          "expected_plot_y": 0.1474,
+          "actual_plot_y": 0.1547,
+          "plot_error": 0.0073,
           "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.867,
-          "actual": 0.7707,
-          "error": 0.0963,
-          "pass": false
-        },
-        {
-          "time": 36,
-          "expected": 0.8243,
-          "actual": 0.7108,
-          "error": 0.1135,
-          "pass": false
-        },
-        {
-          "time": 48,
-          "expected": 0.8243,
-          "actual": 0.6148,
-          "error": 0.2095,
-          "pass": false
         }
       ],
-      "all_pass": false
+      "all_pass": true,
+      "evaluation_space": "survival",
+      "plot_space": "incidence"
     }
   },
   "reconstruction": {
     "Control": {
-      "mae": 0.024244912733591303,
-      "rmse": 0.03302436765759414,
-      "dtw": 0.010712142092115799,
-      "frechet": 0.08161830572062234,
-      "max_error": 0.08161830572062234
+      "mae": 0.009111038207019953,
+      "rmse": 0.01135480943578208,
+      "dtw": 0.10837208617441574,
+      "frechet": 0.4505832349867211,
+      "max_error": 0.02128136200716846
     },
     "Treatment": {
-      "mae": 0.0361889752035284,
-      "rmse": 0.06110476012288093,
-      "dtw": 0.02549477136005435,
-      "frechet": 0.17921752583752237,
-      "max_error": 0.17921752583752237
+      "mae": 0.010030019614600982,
+      "rmse": 0.014633305931552258,
+      "dtw": 0.02425008470138452,
+      "frechet": 0.2795168612811865,
+      "max_error": 0.0421548252505366
     }
   },
   "validation": {
     "Control": {
-      "mae": 0.07038281191851217,
+      "mae": 0.0012979435210880934,
       "dtw": null,
       "rmse": null
     },
     "Treatment": {
-      "mae": 0.07686906451263273,
+      "mae": 0.0016502366287107406,
       "dtw": null,
       "rmse": null
     }
   },
-  "passed": false
+  "reconstruction_meta": {
+    "mode": "full",
+    "patient_counts": {
+      "Control": 248,
+      "Treatment": 248
+    },
+    "warnings": [
+      "Metadata fast phase failed (ServerError); escalating",
+      "Low GPT metadata confidence (0.70), verifying with Gemini",
+      "GPT extraction failed: Request timed out.",
+      "Gemini fallback also failed",
+      "Cropped risk-table OCR could not be parsed into structured table",
+      "I_TICK_DETECT_RAW_X:9:4.811",
+      "I_TICK_DETECT_RAW_Y:6:22.778",
+      "I_TICK_HOTSPOT_X:6:0.750",
+      "I_TICK_HOTSPOT_Y:6:0.528",
+      "I_TICK_X_CLIPPED_TO_AXIS:9->7",
+      "I_TICK_Y_CLIPPED_TO_AXIS:6->5",
+      "I_TICK_MATCH_X:7:1.00:1.0:7",
+      "I_TICK_MATCH_Y:6:1.00:2.0:5",
+      "I_TICK_DETECT_Y:6:0.881:567.0",
+      "I_TICK_CAL_X:7:0.286:0.0:0.00:0.143",
+      "I_TICK_CAL_Y:6:0.966:1.0:0.00:0.396",
+      "I_TICK_CAL_SOURCE:independent_detect",
+      "I_HARDPOINT_SOURCE_RISK_TABLE:groups=2",
+      "I_HARDPOINT_GUIDANCE_DISABLED_FOR_TRACING",
+      "W_COLOR_PRIOR_REJECTED:Control:111.5",
+      "W_COLOR_PRIOR_MISMATCH:Treatment:43.2",
+      "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "W_RIDGE_CANDIDATES_SPARSE:0.0004",
+      "I_RIDGE_CANDIDATES_RELAXED:0.0018",
+      "I_HSL_KMEDOIDS_USED:2:2226",
+      "I_FRAME_PENALTY_APPLIED:1:1",
+      "I_STRAIGHT_LINE_PENALTY:6:0.0106",
+      "I_COLOR_RMSE_RELAX:Control:14.15:0.089:50",
+      "I_HSV_STRICT_LOCK:Control:0.0003:0.0009:0.058:0.149:104.0:4.00:53:0.00:0.540:56.0",
+      "W_HSV_STRICT_HUE_SPARSE:Control:0.0003:0.058",
+      "W_COLOR_STRICT_SPARSE_SKIP:Control:0.0000:0.002:0.732",
+      "I_CURVE_COMPONENT_PRUNE:Control:6:70",
+      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Control",
+      "I_COLOR_RMSE_RELAX:Treatment:6.63:0.000:68",
+      "I_HSV_STRICT_LOCK:Treatment:0.0006:0.0009:0.141:0.149:13.0:4.00:73:0.00:0.540:56.0",
+      "W_COLOR_STRICT_SPARSE_SKIP:Treatment:0.0000:0.001:0.750",
+      "W_COLOR_HARD_LOCK_SPARSE:Treatment:0.0000:0.001:0.700:0.080",
+      "I_CURVE_COMPONENT_PRUNE:Treatment:2:70",
+      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Treatment",
+      "I_ARM_EXCLUSIVE_LOCK:Control:0.0003:0.084:0.060",
+      "W_ARM_EXCLUSIVE_SPARSE:Treatment:0.0001:0.037:0.060",
+      "I_TRACE_ARMS:2:Control,Treatment",
+      "W_CROSSING_DISABLED_CAP:13:65:1734",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:77:77",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:86:86",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:276:277",
+      "W_LOCAL_CARRY_JOINT:134",
+      "W_LOCAL_CARRY_JOINT:146",
+      "W_LOCAL_CARRY_JOINT:207",
+      "W_LOCAL_CARRY_JOINT:213",
+      "W_LOCAL_CARRY_JOINT:285",
+      "W_LOCAL_CARRY_JOINT:286",
+      "W_LOCAL_CARRY_JOINT:287",
+      "W_LOCAL_CARRY_JOINT:1722",
+      "W_LOCAL_CARRY_JOINT:1723",
+      "W_LOCAL_CARRY_JOINT:1724",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1725",
+      "W_LOCAL_CARRY_JOINT:1725",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1726",
+      "W_LOCAL_CARRY_JOINT:1726",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1727",
+      "W_LOCAL_CARRY_JOINT:1727",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1728",
+      "W_LOCAL_CARRY_JOINT:1728",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1729",
+      "W_LOCAL_CARRY_JOINT:1729",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1730",
+      "W_LOCAL_CARRY_JOINT:1730",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1731",
+      "W_LOCAL_CARRY_JOINT:1731",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1732",
+      "W_LOCAL_CARRY_JOINT:1732",
+      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1733",
+      "W_LOCAL_CARRY_JOINT:1733",
+      "I_LOCAL_CARRY_FRAC:Control:0.011",
+      "I_LOCAL_RETRY_FRAC:Control:0.012",
+      "I_LOCAL_RESEED_FRAC:Control:0.004",
+      "I_LOCAL_CARRY_BREAK_FRAC:Control:0.005",
+      "I_LOCAL_CARRY_FRAC:Treatment:0.011",
+      "I_LOCAL_RETRY_FRAC:Treatment:0.012",
+      "I_LOCAL_RESEED_FRAC:Treatment:0.004",
+      "I_LOCAL_CARRY_BREAK_FRAC:Treatment:0.005",
+      "W_SOFT_MONOTONE_ADJUST:Control:12",
+      "E_NEEDS_RETRACE_MONOTONE:Treatment",
+      "W_UPWARD_REFLECTED_TO_SURVIVAL",
+      "I_DETERMINISTIC_RETRACE_TRIGGERED",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:143:151",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:155:158",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:169:176",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:181:188",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:196:200",
+      "W_CLOSE_PARALLEL_AMBIGUOUS:212:212",
+      "W_CROSSING_AMBIGUOUS:33:33",
+      "W_CROSSING_AMBIGUOUS:40:40",
+      "W_CROSSING_AMBIGUOUS:47:89",
+      "W_LOCAL_CARRY_JOINT:121",
+      "W_LOCAL_CARRY_JOINT:133",
+      "I_LOCAL_CARRY_FRAC:Control:0.008",
+      "I_LOCAL_RETRY_FRAC:Control:0.010",
+      "I_LOCAL_RESEED_FRAC:Control:0.008",
+      "I_LOCAL_CARRY_BREAK_FRAC:Control:0.001",
+      "I_LOCAL_CARRY_FRAC:Treatment:0.008",
+      "I_LOCAL_RETRY_FRAC:Treatment:0.010",
+      "I_LOCAL_RESEED_FRAC:Treatment:0.008",
+      "I_LOCAL_CARRY_BREAK_FRAC:Treatment:0.001",
+      "W_SOFT_MONOTONE_ADJUST:Control:9",
+      "W_SOFT_MONOTONE_ADJUST:Treatment:15",
+      "I_DETERMINISTIC_RETRACE_ACCEPTED",
+      "W_COLOR_REJECT_PENALTY:1",
+      "E_HARD_FAIL_CROSSING_OVERFIRE",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "I_DIGITIZATION_V5_CONFIDENCE:0.896",
+      "I_HARDPOINT_SOURCE_RISK_TABLE:groups=2",
+      "Control: applied 1 hardpoint anchors before reconstruction",
+      "Using estimated mode without risk table (configured N=184, derived N=248).",
+      "Added 121 terminal censored patients to match cohort size",
+      "Control: switched to estimated reconstruction (objective 0.4386 -> 0.0013)",
+      "Control: estimated fallback checks (n=248, interval_mismatch=0.000)",
+      "Control: landmark proxy improved (0.0000 -> 0.0000)",
+      "Control: hardpoint residual improved (max 0.0000 -> 0.0000)",
+      "Treatment: applied 1 hardpoint anchors before reconstruction",
+      "Using estimated mode without risk table (configured N=184, derived N=248).",
+      "Added 114 terminal censored patients to match cohort size",
+      "Treatment: switched to estimated reconstruction (objective 0.4412 -> 0.0016)",
+      "Treatment: estimated fallback checks (n=248, interval_mismatch=0.000)",
+      "Treatment: landmark proxy improved (0.0000 -> 0.0000)",
+      "Treatment: hardpoint residual improved (max 0.0000 -> 0.0000)"
+    ]
+  },
+  "benchmark_track": "full_track",
+  "diagnostics": {
+    "per_arm": {
+      "Control": {
+        "digitize_mae": 0.019971400896273177,
+        "reconstruction_mae": 0.009111038207019953,
+        "delta_reconstruction_minus_digitize": -0.010860362689253224,
+        "hard_fail_count": 0,
+        "stage_attribution": "clean",
+        "failed_landmarks": []
+      },
+      "Treatment": {
+        "digitize_mae": 0.017486370426584772,
+        "reconstruction_mae": 0.010030019614600982,
+        "delta_reconstruction_minus_digitize": -0.00745635081198379,
+        "hard_fail_count": 0,
+        "stage_attribution": "clean",
+        "failed_landmarks": []
+      }
+    },
+    "stage_attribution_counts": {
+      "clean": 2
+    },
+    "hard_fail_times": {}
+  },
+  "stage_mae": {
+    "arms": {
+      "Control": {
+        "digitize_mae": 0.019971400896273177,
+        "reconstruction_mae": 0.009111038207019953,
+        "delta_reconstruction_minus_digitize": -0.010860362689253224,
+        "stage_attribution": "clean"
+      },
+      "Treatment": {
+        "digitize_mae": 0.017486370426584772,
+        "reconstruction_mae": 0.010030019614600982,
+        "delta_reconstruction_minus_digitize": -0.00745635081198379,
+        "stage_attribution": "clean"
+      }
+    },
+    "mean_digitize_mae": 0.018728885661428975,
+    "mean_reconstruction_mae": 0.009570528910810467,
+    "mean_delta_reconstruction_minus_digitize": -0.009158356750618508
+  },
+  "interval_debug": {
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.009111038207019953,
+        "intervals": [],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9493,
+            "actual": 0.9515,
+            "error": 0.0022,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment": {
+        "reconstruction_mae": 0.010030019614600982,
+        "intervals": [],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9198,
+            "actual": 0.907,
+            "error": 0.0128,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.8526,
+            "actual": 0.8453,
+            "error": 0.0073,
+            "pass": true
+          }
+        ]
+      }
+    }
+  },
+  "artifacts": {
+    "overlay_results": "overlay_results.png"
+  },
+  "passed": true
 }

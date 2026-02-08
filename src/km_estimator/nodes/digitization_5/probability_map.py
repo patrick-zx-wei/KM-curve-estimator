@@ -91,6 +91,9 @@ HARDPOINT_WINDOW_OFF_PENALTY = 2.40
 LOCAL_COLOR_KERNEL = 3
 LOCAL_COLOR_BLEND_WEIGHT = 0.80
 MIN_CANDIDATE_SATURATION = 18.0
+ARM_EXCLUSIVE_MIN_MARGIN = 0.06
+ARM_EXCLUSIVE_MIN_DENSITY = 0.00012
+ARM_EXCLUSIVE_MIN_COLUMN_COVERAGE = 0.08
 
 
 def _normalize01(arr: NDArray[np.float32]) -> NDArray[np.float32]:
@@ -1239,6 +1242,44 @@ def build_evidence_cube(
         arm_candidate_masks[arm_name] = arm_mask.astype(np.bool_)
         if model.reliability <= 0.05:
             warnings.append(f"W_ARM_COLOR_UNINFORMATIVE:{arm_name}")
+
+    # Enforce exclusive per-pixel ownership across arms when evidence margin is strong.
+    # This prevents multiple arms from sharing the same candidate band and collapsing
+    # onto a single traced line.
+    if len(arm_maps) >= 2:
+        stack_names = sorted(arm_maps)
+        stack = np.stack([arm_maps[name] for name in stack_names], axis=0).astype(np.float32)
+        best_idx = np.argmax(stack, axis=0)
+        best = np.max(stack, axis=0)
+        second = np.partition(stack, kth=-2, axis=0)[-2]
+        margin = (best - second).astype(np.float32)
+        owned_any = candidate_mask & (margin >= ARM_EXCLUSIVE_MIN_MARGIN)
+
+        for i, arm_name in enumerate(stack_names):
+            owned = owned_any & (best_idx == i)
+            base_mask = arm_candidate_masks.get(arm_name, candidate_mask)
+            exclusive_mask = np.logical_and(base_mask, owned)
+            ex_density = float(np.mean(exclusive_mask))
+            ex_cov = _mask_column_coverage(exclusive_mask.astype(np.bool_))
+            if (
+                ex_density >= ARM_EXCLUSIVE_MIN_DENSITY
+                and ex_cov >= ARM_EXCLUSIVE_MIN_COLUMN_COVERAGE
+            ):
+                arm_candidate_masks[arm_name] = exclusive_mask.astype(np.bool_)
+                owned_other = owned_any & (best_idx != i)
+                adjusted = np.where(
+                    owned_other,
+                    arm_maps[arm_name] - 0.35,
+                    arm_maps[arm_name],
+                ).astype(np.float32)
+                arm_maps[arm_name] = _normalize01(adjusted)
+                warnings.append(
+                    f"I_ARM_EXCLUSIVE_LOCK:{arm_name}:{ex_density:.4f}:{ex_cov:.3f}:{ARM_EXCLUSIVE_MIN_MARGIN:.3f}"
+                )
+            else:
+                warnings.append(
+                    f"W_ARM_EXCLUSIVE_SPARSE:{arm_name}:{ex_density:.4f}:{ex_cov:.3f}:{ARM_EXCLUSIVE_MIN_MARGIN:.3f}"
+                )
 
     if not arm_maps:
         warnings.append("W_NO_ARM_SCORE_MAPS")
