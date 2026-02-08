@@ -1,6 +1,6 @@
 {
   "name": "case_100",
-  "seed": 1264,
+  "seed": 1277,
   "n_groups": 3,
   "n_patients_per_arm": 127,
   "groups": [
@@ -31,7 +31,7 @@
     "JPEGArtifacts",
     "NoisyBackground"
   ],
-  "title": "Kaplan-Meier Survival Curve",
+  "title": "Cumulative Incidence Curve",
   "annotations": [],
   "x_axis": {
     "label": "Time (months)",
@@ -67,5 +67,7 @@
     "scale": "linear"
   },
   "total_patients": 381,
-  "total_events": 22
+  "total_events": 18,
+  "hard_points_space": "survival",
+  "plot_space_for_upward": "incidence"
 }

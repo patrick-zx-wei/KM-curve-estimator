@@ -24,7 +24,7 @@
     "CensoringMarks",
     "RiskTableDisplay"
   ],
-  "title": "Kaplan-Meier Survival Curve",
+  "title": "Cumulative Incidence Curve",
   "annotations": [],
   "x_axis": {
     "label": "Time (months)",
@@ -60,5 +60,7 @@
     "scale": "linear"
   },
   "total_patients": 206,
-  "total_events": 82
+  "total_events": 82,
+  "hard_points_space": "survival",
+  "plot_space_for_upward": "incidence"
 }

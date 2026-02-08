@@ -3,55 +3,70 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8533,
-        "description": "6-month survival"
+        "survival": 0.9312,
+        "plot_y": 0.0688,
+        "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.8249,
-        "description": "1-year survival"
+        "survival": 0.8381,
+        "plot_y": 0.1619,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.2794,
+        "plot_y": 0.7206,
+        "description": "2-year value"
       }
     ],
-    "median_survival": 16.93,
+    "median_survival": 22.5,
     "quartiles": {
-      "25pct": 16.93,
-      "50pct": 16.93,
-      "75pct": 16.93
-    }
+      "25pct": 19.05,
+      "50pct": 22.5
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
   },
   "Treatment A": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.961,
-        "description": "6-month survival"
+        "survival": 0.9363,
+        "plot_y": 0.0637,
+        "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.9045,
-        "description": "1-year survival"
-      },
-      {
-        "time": 24,
-        "survival": 0.3392,
-        "description": "2-year survival"
+        "survival": 0.9363,
+        "plot_y": 0.0637,
+        "description": "1-year value"
       }
     ],
-    "median_survival": 22.68,
+    "median_survival": 17.61,
     "quartiles": {
-      "25pct": 15.6,
-      "50pct": 22.68
-    }
+      "25pct": 17.61,
+      "50pct": 17.61,
+      "75pct": 17.61
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
   },
   "Treatment B": {
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9101,
-        "description": "6-month survival"
+        "survival": 0.9875,
+        "plot_y": 0.0125,
+        "description": "6-month value"
       }
     ],
     "median_survival": null,
-    "quartiles": {}
+    "quartiles": {},
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
   }
 }

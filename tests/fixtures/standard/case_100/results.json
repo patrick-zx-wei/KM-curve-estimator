@@ -2,15 +2,7 @@
   "case_name": "case_100",
   "difficulty": 4,
   "n_curves": 3,
-  "pipeline_errors": [
-    {
-      "stage": "digitize",
-      "message": "digitization_v3 confidence too low (0.000)",
-      "details": {
-        "confidence": 0.0
-      }
-    }
-  ],
+  "pipeline_errors": [],
   "mmpu": {
     "x_axis_start_error": 0.0,
     "x_axis_end_error": 0.0,
@@ -38,125 +30,419 @@
     "risk_table_expected": true
   },
   "digitize": {
-    "error": "no digitized_curves produced"
+    "Control": {
+      "mae": 0.08353746263378026,
+      "rmse": 0.17692679748417747,
+      "dtw": 0.033023735403389584,
+      "frechet": 0.5563894374806551,
+      "max_error": 0.5198787315327791
+    },
+    "Treatment A": {
+      "mae": 0.14436466879738274,
+      "rmse": 0.3527170379670251,
+      "dtw": 0.015884579393872177,
+      "frechet": 0.9977186322212219,
+      "max_error": 0.9323194026947021
+    },
+    "Treatment B": {
+      "mae": 0.02158505779573283,
+      "rmse": 0.02478474563743197,
+      "dtw": 0.006123356956035581,
+      "frechet": 0.045030852021842094,
+      "max_error": 0.03362395352330694
+    }
   },
   "hard_points": {
-    "error": "no pipeline output"
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9312,
+          "actual": 0.8963,
+          "error": 0.0349,
+          "expected_plot_y": 0.0688,
+          "actual_plot_y": 0.1037,
+          "plot_error": 0.0349,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.8381,
+          "actual": 0.8231,
+          "error": 0.015,
+          "expected_plot_y": 0.1619,
+          "actual_plot_y": 0.1769,
+          "plot_error": 0.015,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.2794,
+          "actual": 0.2548,
+          "error": 0.0246,
+          "expected_plot_y": 0.7206,
+          "actual_plot_y": 0.7452,
+          "plot_error": 0.0246,
+          "pass": true
+        }
+      ],
+      "all_pass": true,
+      "evaluation_space": "survival",
+      "plot_space": "incidence"
+    },
+    "Treatment A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9363,
+          "actual": 0.9468,
+          "error": 0.0105,
+          "expected_plot_y": 0.0637,
+          "actual_plot_y": 0.0532,
+          "plot_error": 0.0105,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.9363,
+          "actual": 0.9468,
+          "error": 0.0105,
+          "expected_plot_y": 0.0637,
+          "actual_plot_y": 0.0532,
+          "plot_error": 0.0105,
+          "pass": true
+        }
+      ],
+      "all_pass": true,
+      "evaluation_space": "survival",
+      "plot_space": "incidence"
+    },
+    "Treatment B": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.9875,
+          "actual": 1.0,
+          "error": 0.0125,
+          "expected_plot_y": 0.0125,
+          "actual_plot_y": 0.0,
+          "plot_error": 0.0125,
+          "pass": true
+        }
+      ],
+      "all_pass": true,
+      "evaluation_space": "survival",
+      "plot_space": "incidence"
+    }
   },
   "reconstruction": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.04614488246928019,
+      "rmse": 0.08789012516780811,
+      "dtw": 0.058589291564273116,
+      "frechet": 0.1389272531408312,
+      "max_error": 0.27555158096435173
+    },
+    "Treatment A": {
+      "mae": 0.14671893227886548,
+      "rmse": 0.35824706271612033,
+      "dtw": 0.12182643670247392,
+      "frechet": 0.9468360772524795,
+      "max_error": 0.9468360772524795
+    },
+    "Treatment B": {
+      "mae": 0.019683908045976972,
+      "rmse": 0.027828720297647075,
+      "dtw": 0.006839482356723714,
+      "frechet": 0.02207619966240648,
+      "max_error": 0.04655172413793096
+    }
   },
   "validation": {
-    "error": "no pipeline output"
+    "Control": {
+      "mae": 0.3730955565923173,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment A": {
+      "mae": 0.02028088205955136,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment B": {
+      "mae": 0.027779082343663396,
+      "dtw": null,
+      "rmse": null
+    }
   },
   "reconstruction_meta": {
-    "error": "no pipeline output",
+    "mode": "full",
+    "patient_counts": {
+      "Control": 127,
+      "Treatment A": 171,
+      "Treatment B": 171
+    },
     "warnings": [
       "GPT extraction failed: Request timed out.",
       "Using Gemini fallback",
-      "GPT metadata extraction failed: Request timed out.",
-      "Reconciled x_axis ticks via metadata (n=9->9, interval=None->10.0)",
-      "W_DIRECTION_AMBIGUOUS_TEXT",
-      "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:16:13.392",
-      "I_TICK_DETECT_RAW_Y:5:0.000",
+      "Metadata fast phase failed (ServerError); escalating",
+      "Low GPT metadata confidence (0.70), verifying with Gemini",
+      "I_TICK_DETECT_RAW_X:13:18.172",
+      "I_TICK_DETECT_RAW_Y:6:13.200",
       "I_TICK_HOTSPOT_X:6:0.550",
-      "I_TICK_HOTSPOT_Y:5:0.498",
-      "I_TICK_X_CLIPPED_TO_AXIS:16->15",
-      "I_TICK_MATCH_X:9:1.00:1.0:15",
-      "I_TICK_MATCH_Y:6:1.00:2.5:5",
+      "I_TICK_HOTSPOT_Y:5:0.502",
+      "I_TICK_X_CLIPPED_TO_AXIS:13->12",
+      "I_TICK_MATCH_X:9:1.00:1.0:12",
+      "I_TICK_MATCH_Y:6:1.00:2.5:6",
       "I_TICK_DETECT_X:9:1.000:995.0",
       "I_TICK_DETECT_Y:6:1.000:532.5",
       "I_TICK_CAL_X:9:1.000:0.0:0.22:0.000",
       "I_TICK_CAL_Y:6:1.000:0.0:0.17:0.167",
       "I_TICK_CAL_SOURCE:independent_detect",
-      "W_COLOR_PRIOR_REJECTED:Control:121.5",
-      "W_COLOR_PRIOR_MISMATCH:Treatment A:53.3",
-      "W_COLOR_PRIOR_MISMATCH:Treatment B:35.4",
-      "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "W_RIDGE_CANDIDATES_SPARSE:0.0001",
-      "I_RIDGE_CANDIDATES_RELAXED:0.0011",
-      "I_HSL_KMEDOIDS_USED:3:1684",
-      "I_STRAIGHT_LINE_PENALTY:7:0.0048",
-      "I_GRAY_DYNAMIC_LOCK:Control:0.0002:89.0:7.00:206:2.00:0.720",
-      "W_COLOR_STRICT_SPARSE_SKIP:Control:0.0001:0.700",
-      "W_CURVE_COMPONENT_PRUNE_EMPTY:Control:128",
-      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Control",
-      "I_GRAY_DYNAMIC_LOCK:Treatment A:0.0000:181.0:5.00:1:0.00:0.720",
-      "W_GRAY_DYNAMIC_SPARSE:Treatment A:0.0000:5.00",
-      "W_COLOR_STRICT_SPARSE_SKIP:Treatment A:0.0000:0.700",
-      "W_COLOR_HARD_LOCK_SPARSE:Treatment A:0.0000:0.650",
-      "W_CURVE_COMPONENT_PRUNE_EMPTY:Treatment A:36",
-      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Treatment A",
-      "I_GRAY_DYNAMIC_LOCK:Treatment B:0.0002:223.0:7.00:40:2.00:0.620",
-      "W_GRAY_DYNAMIC_SPARSE:Treatment B:0.0002:7.00",
-      "W_COLOR_STRICT_SPARSE_SKIP:Treatment B:0.0000:0.700",
-      "W_COLOR_HARD_LOCK_SPARSE:Treatment B:0.0000:0.650",
-      "W_CURVE_COMPONENT_PRUNE_EMPTY:Treatment B:115",
-      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Treatment B",
       "I_HARDPOINT_AUTO_ENABLED:tests/fixtures/standard/case_100/hard_points.json",
       "I_HARDPOINT_LOADED_GROUPS:3",
-      "I_HARDPOINT_GUIDE:Control:2",
-      "I_HARDPOINT_GUIDE:Treatment A:3",
+      "I_HARDPOINT_GUIDE:Control:3",
+      "I_HARDPOINT_GUIDE:Treatment A:2",
       "I_HARDPOINT_GUIDE:Treatment B:1",
+      "I_HARDPOINT_COLOR_HINT:Control:486",
+      "I_HARDPOINT_COLOR_HINT:Treatment A:225",
+      "W_COLOR_PRIOR_REJECTED:Control:123.7",
+      "W_COLOR_PRIOR_MISMATCH:Treatment A:34.9",
+      "W_COLOR_PRIOR_REJECTED:Treatment B:86.9",
+      "I_AXIS_PENALTY_SOFTENED_UPWARD",
+      "W_RIDGE_CANDIDATES_SPARSE:0.0000",
+      "I_RIDGE_CANDIDATES_RELAXED:0.0008",
+      "W_RIDGE_CANDIDATES_FALLBACK:0.0723",
+      "I_HSL_KMEDOIDS_USED:3:2597",
+      "I_STRAIGHT_LINE_PENALTY:5:0.0020",
+      "I_HSV_STRICT_LOCK:Control:0.0074:0.0155:0.371:0.417:102.0:4.90:3282:1.00:0.620:56.0",
+      "I_COLOR_STRICT_LOCK:Control:0.0017:0.719:0.700",
+      "I_COLOR_HARD_LOCK:Control:0.0070:0.984:0.650",
+      "I_HARDPOINT_WINDOW_LOCK:Control:0.0052:0.841",
+      "I_CURVE_COMPONENT_PRUNE:Control:2:9463",
+      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Control",
+      "I_HSV_STRICT_LOCK:Treatment A:0.0060:0.0155:0.318:0.417:14.0:4.90:492:1.00:0.620:56.0",
+      "W_COLOR_STRICT_SPARSE_SKIP:Treatment A:0.0001:0.045:0.700",
+      "W_COLOR_HARD_LOCK_SPARSE:Treatment A:0.0001:0.070:0.650",
+      "I_HARDPOINT_WINDOW_LOCK:Treatment A:0.0060:0.318",
+      "I_CURVE_COMPONENT_PRUNE:Treatment A:2:106",
+      "I_PRIMARY_COMPONENT_LOCK:Treatment A:0.084",
+      "I_HSV_STRICT_LOCK:Treatment B:0.0013:0.0155:0.143:0.417:68.0:16.00:7:20.00:0.540:56.0",
+      "W_COLOR_STRICT_SPARSE_SKIP:Treatment B:0.0000:0.018:0.700",
+      "I_CURVE_COMPONENT_PRUNE:Treatment B:3:13",
+      "I_PRIMARY_COMPONENT_LOCK:Treatment B:0.064",
       "I_TRACE_ARMS:3:Control,Treatment A,Treatment B",
-      "W_LOW_ARM_CONFIDENCE:Control:0.091",
-      "W_AXIS_CAPTURE_HIGH:Control:0.502",
-      "W_EXTREME_JUMP_FRAC:Control:0.0655",
-      "W_MAX_JUMP_RATIO:Control:0.993",
-      "W_LOW_ARM_CONFIDENCE:Treatment A:0.196",
-      "W_AXIS_CAPTURE_HIGH:Treatment A:0.262",
-      "W_EXTREME_JUMP_FRAC:Treatment A:0.1464",
-      "W_MAX_JUMP_RATIO:Treatment A:0.916",
-      "W_LOW_ARM_CONFIDENCE:Treatment B:0.394",
-      "W_AXIS_CAPTURE_HIGH:Treatment B:0.343",
-      "W_EXTREME_JUMP_FRAC:Treatment B:0.0108",
-      "W_MAX_JUMP_RATIO:Treatment B:0.800",
+      "I_LOCAL_CARRY_FRAC:Control:0.361",
+      "W_LOCAL_CARRY_HIGH:Control:0.361",
+      "I_LOCAL_RETRY_FRAC:Control:0.386",
+      "W_LOCAL_RETRY_HIGH:Control:0.386",
+      "I_LOCAL_CARRY_BREAK_FRAC:Control:0.105",
+      "W_AXIS_CAPTURE_HIGH:Treatment A:0.735",
+      "I_LOCAL_CARRY_FRAC:Treatment A:0.039",
+      "I_LOCAL_RETRY_FRAC:Treatment A:0.040",
+      "I_LOCAL_CARRY_BREAK_FRAC:Treatment A:0.009",
+      "W_AXIS_CAPTURE_HIGH:Treatment B:0.838",
+      "I_LOCAL_CARRY_FRAC:Treatment B:0.028",
+      "I_LOCAL_RETRY_FRAC:Treatment B:0.029",
+      "I_LOCAL_CARRY_BREAK_FRAC:Treatment B:0.023",
       "E_NEEDS_RETRACE_MONOTONE:Control",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment A",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment B",
+      "W_SOFT_MONOTONE_ADJUST:Treatment A:13",
+      "W_SOFT_MONOTONE_ADJUST:Treatment B:6",
       "W_UPWARD_REFLECTED_TO_SURVIVAL",
       "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "W_LOW_ARM_CONFIDENCE:Control:0.137",
-      "W_AXIS_CAPTURE_HIGH:Control:0.511",
-      "W_EXTREME_JUMP_FRAC:Control:0.0676",
-      "W_MAX_JUMP_RATIO:Control:0.992",
-      "W_LOW_ARM_CONFIDENCE:Treatment A:0.124",
-      "W_AXIS_CAPTURE_HIGH:Treatment A:0.261",
-      "W_EXTREME_JUMP_FRAC:Treatment A:0.1877",
-      "W_MAX_JUMP_RATIO:Treatment A:0.994",
-      "W_LOW_ARM_CONFIDENCE:Treatment B:0.136",
-      "W_AXIS_CAPTURE_HIGH:Treatment B:0.664",
-      "W_EXTREME_JUMP_FRAC:Treatment B:0.0067",
-      "W_MAX_JUMP_RATIO:Treatment B:0.992",
+      "W_AXIS_CAPTURE_HIGH:Control:0.687",
+      "I_LOCAL_CARRY_FRAC:Control:0.052",
+      "I_LOCAL_RETRY_FRAC:Control:0.054",
+      "I_LOCAL_CARRY_BREAK_FRAC:Control:0.020",
+      "W_AXIS_CAPTURE_HIGH:Treatment A:0.825",
+      "I_LOCAL_CARRY_FRAC:Treatment A:0.003",
+      "I_LOCAL_RETRY_FRAC:Treatment A:0.003",
+      "W_AXIS_CAPTURE_HIGH:Treatment B:0.829",
+      "W_SOFT_MONOTONE_ADJUST:Control:10",
+      "W_SOFT_MONOTONE_ADJUST:Treatment A:8",
       "I_DETERMINISTIC_RETRACE_SKIPPED",
-      "E_HARD_FAIL_AXIS_CAPTURE:Control:0.502",
-      "E_HARD_FAIL_EXTREME_JUMP:Control:0.0655:0.993",
-      "E_HARD_FAIL_AXIS_CAPTURE:Treatment A:0.262",
-      "E_HARD_FAIL_EXTREME_JUMP:Treatment A:0.1464:0.916",
-      "E_HARD_FAIL_AXIS_CAPTURE:Treatment B:0.343",
-      "E_HARD_FAIL_EXTREME_JUMP:Treatment B:0.0108:0.800",
-      "W_COLOR_REJECT_PENALTY:1",
-      "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "W_LOW_ARM_CONFIDENCE_SET:Control,Treatment A,Treatment B",
-      "W_NEEDS_MANUAL_REVIEW:0.000"
-    ],
-    "flagged_for_review": true
+      "E_HARD_FAIL_AXIS_CAPTURE:Treatment A:0.735",
+      "E_HARD_FAIL_AXIS_CAPTURE:Treatment B:0.838",
+      "W_COLOR_REJECT_PENALTY:2",
+      "W_HARD_FAIL_REVIEW_ONLY",
+      "W_NEEDS_MANUAL_REVIEW:0.220",
+      "I_DIGITIZATION_V4_CONFIDENCE:0.220",
+      "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_100/hard_points.json",
+      "Loaded hardpoint constraints: 3 groups from tests/fixtures/standard/case_100/hard_points.json (tol=0.010)",
+      "Control: applied 3 hardpoint anchors before reconstruction",
+      "Added 2 terminal right-censored survivors at t=40.0",
+      "Control: used censoring-mark hints in 2 intervals",
+      "Control: adjusted event/censor split from censoring hints in 2 intervals",
+      "Control: hardpoint residual mean=0.0248, max=0.0349, tol=0.0100",
+      "Control: full-mode objective 0.8091 (fit=0.0563, interval=0.0000, landmark=0.1035)",
+      "Control: hardpoint residual (mean=0.0248, max=0.0349, tol=0.0100)",
+      "Treatment A: applied 2 hardpoint anchors before reconstruction",
+      "Using estimated mode without risk table (configured N=127, derived N=171).",
+      "Added 111 terminal censored patients to match cohort size",
+      "Treatment A: switched to estimated reconstruction (objective 1.6959 -> 0.1266)",
+      "Treatment A: estimated fallback checks (n=171, interval_mismatch=0.000)",
+      "Treatment A: landmark proxy improved (0.0738 -> 0.0206)",
+      "Treatment A: hardpoint residual improved (max 0.0637 -> 0.0105)",
+      "Treatment B: applied 1 hardpoint anchors before reconstruction",
+      "Using estimated mode without risk table (configured N=127, derived N=171).",
+      "Added 144 terminal censored patients to match cohort size",
+      "Treatment B: switched to estimated reconstruction (objective 0.2287 -> 0.1932)",
+      "Treatment B: estimated fallback checks (n=171, interval_mismatch=0.000)",
+      "Treatment B: landmark proxy improved (0.0525 -> 0.0280)",
+      "Treatment B: hardpoint residual improved (max 0.0125 -> 0.0125)"
+    ]
   },
-  "benchmark_track": "cv_only_track",
+  "benchmark_track": "full_track",
   "diagnostics": {
-    "per_arm": {},
-    "stage_attribution_counts": {},
+    "per_arm": {
+      "Control": {
+        "digitize_mae": 0.08353746263378026,
+        "reconstruction_mae": 0.04614488246928019,
+        "delta_reconstruction_minus_digitize": -0.03739258016450007,
+        "hard_fail_count": 0,
+        "stage_attribution": "digitization_warning",
+        "failed_landmarks": []
+      },
+      "Treatment A": {
+        "digitize_mae": 0.14436466879738274,
+        "reconstruction_mae": 0.14671893227886548,
+        "delta_reconstruction_minus_digitize": 0.002354263481482738,
+        "hard_fail_count": 0,
+        "stage_attribution": "digitization_warning",
+        "failed_landmarks": []
+      },
+      "Treatment B": {
+        "digitize_mae": 0.02158505779573283,
+        "reconstruction_mae": 0.019683908045976972,
+        "delta_reconstruction_minus_digitize": -0.0019011497497558594,
+        "hard_fail_count": 0,
+        "stage_attribution": "clean",
+        "failed_landmarks": []
+      }
+    },
+    "stage_attribution_counts": {
+      "digitization_warning": 2,
+      "clean": 1
+    },
     "hard_fail_times": {}
   },
   "stage_mae": {
-    "arms": {},
-    "mean_digitize_mae": null,
-    "mean_reconstruction_mae": null,
-    "mean_delta_reconstruction_minus_digitize": null
+    "arms": {
+      "Control": {
+        "digitize_mae": 0.08353746263378026,
+        "reconstruction_mae": 0.04614488246928019,
+        "delta_reconstruction_minus_digitize": -0.03739258016450007,
+        "stage_attribution": "digitization_warning"
+      },
+      "Treatment A": {
+        "digitize_mae": 0.14436466879738274,
+        "reconstruction_mae": 0.14671893227886548,
+        "delta_reconstruction_minus_digitize": 0.002354263481482738,
+        "stage_attribution": "digitization_warning"
+      },
+      "Treatment B": {
+        "digitize_mae": 0.02158505779573283,
+        "reconstruction_mae": 0.019683908045976972,
+        "delta_reconstruction_minus_digitize": -0.0019011497497558594,
+        "stage_attribution": "clean"
+      }
+    },
+    "mean_digitize_mae": 0.08316239640896528,
+    "mean_reconstruction_mae": 0.07084924093137422,
+    "mean_delta_reconstruction_minus_digitize": -0.012313155477591063
   },
   "interval_debug": {
-    "error": "no pipeline output"
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.04614488246928019,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 20.0,
+            "n_start": 127,
+            "n_end": 11,
+            "risk_table_loss": 116,
+            "events_reconstructed": 72,
+            "censors_reconstructed": 44,
+            "terminal_carryover_censors": 0,
+            "digitized_s_start": 0.9992,
+            "digitized_s_end": 0.7938,
+            "reconstructed_s_end": 0.2832,
+            "expected_s_end": 0.5587
+          },
+          {
+            "t_start": 20.0,
+            "t_end": 40.0,
+            "n_start": 11,
+            "n_end": 2,
+            "risk_table_loss": 9,
+            "events_reconstructed": 1,
+            "censors_reconstructed": 8,
+            "terminal_carryover_censors": 2,
+            "digitized_s_start": 0.7938,
+            "digitized_s_end": 0.7962,
+            "reconstructed_s_end": 0.2548,
+            "expected_s_end": 0.2794
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9312,
+            "actual": 0.8963,
+            "error": 0.0349,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.8381,
+            "actual": 0.8231,
+            "error": 0.015,
+            "pass": true
+          },
+          {
+            "time": 24,
+            "expected": 0.2794,
+            "actual": 0.2548,
+            "error": 0.0246,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment A": {
+        "reconstruction_mae": 0.14671893227886548,
+        "intervals": [],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9363,
+            "actual": 0.9468,
+            "error": 0.0105,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.9363,
+            "actual": 0.9468,
+            "error": 0.0105,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment B": {
+        "reconstruction_mae": 0.019683908045976972,
+        "intervals": [],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.9875,
+            "actual": 1.0,
+            "error": 0.0125,
+            "pass": true
+          }
+        ]
+      }
+    }
   },
   "artifacts": {
     "overlay_results": "overlay_results.png"

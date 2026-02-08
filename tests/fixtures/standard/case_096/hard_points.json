@@ -4,17 +4,20 @@
       {
         "time": 6,
         "survival": 0.7699,
-        "description": "6-month survival"
+        "plot_y": 0.7699,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.4086,
-        "description": "1-year survival"
+        "plot_y": 0.4086,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.0809,
-        "description": "2-year survival"
+        "plot_y": 0.0809,
+        "description": "2-year value"
       }
     ],
     "median_survival": 10.17,
@@ -22,19 +25,24 @@
       "25pct": 6.6,
       "50pct": 10.17,
       "75pct": 15.66
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   },
   "Treatment A": {
     "landmarks": [
       {
         "time": 6,
         "survival": 0.6685,
-        "description": "6-month survival"
+        "plot_y": 0.6685,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.4439,
-        "description": "1-year survival"
+        "plot_y": 0.4439,
+        "description": "1-year value"
       }
     ],
     "median_survival": 10.52,
@@ -42,24 +50,30 @@
       "25pct": 4.68,
       "50pct": 10.52,
       "75pct": 19.6
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   },
   "Treatment B": {
     "landmarks": [
       {
         "time": 6,
         "survival": 0.7264,
-        "description": "6-month survival"
+        "plot_y": 0.7264,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.5105,
-        "description": "1-year survival"
+        "plot_y": 0.5105,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.1981,
-        "description": "2-year survival"
+        "plot_y": 0.1981,
+        "description": "2-year value"
       }
     ],
     "median_survival": 12.12,
@@ -67,6 +81,9 @@
       "25pct": 5.47,
       "50pct": 12.12,
       "75pct": 21.92
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   }
 }

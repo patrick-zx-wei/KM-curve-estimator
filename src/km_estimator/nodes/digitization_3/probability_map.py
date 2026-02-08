@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 
 import cv2
 import numpy as np
@@ -43,6 +44,16 @@ GRAY_DYNAMIC_SEED_MIN = 18
 GRAY_DYNAMIC_SEED_QUANTILE = 90.0
 GRAY_DYNAMIC_SEED_MIN_SCORE = 0.72
 GRAY_DYNAMIC_MIN_DENSITY = 0.0002
+APPLY_DYNAMIC_GRAY_GATE_DEFAULT = False
+HSV_SAT_MIN = 56.0
+HSV_SAT_MIN_LOW_RELIABILITY = 46.0
+HSV_STRICT_MIN_DENSITY = 0.00025
+HSV_HUE_MIN_THR = 4.0
+HSV_HUE_MAX_THR = 16.0
+HSV_HUE_MAX_THR_LOW_RELIABILITY = 22.0
+HSV_HUE_SEED_MIN = 18
+HSV_HUE_SEED_QUANTILE = 88.0
+HSV_HUE_SEED_MIN_SCORE = 0.62
 CANDIDATE_AXIS_THRESH = 0.25
 CANDIDATE_AXIS_THRESH_UPWARD = 0.55
 CANDIDATE_AXIS_THRESH_UNKNOWN = 0.40
@@ -73,6 +84,13 @@ def _normalize01(arr: NDArray[np.float32]) -> NDArray[np.float32]:
     if hi <= lo + 1e-9:
         return np.zeros_like(arr, dtype=np.float32)
     return (arr - lo) / (hi - lo)
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _ridge_response(gray: NDArray[np.uint8]) -> NDArray[np.float32]:
@@ -428,6 +446,84 @@ def _reference_gray_from_lab(reference_lab: tuple[float, float, float] | None) -
     return float(gray[0, 0])
 
 
+def _reference_hsv_from_lab(
+    reference_lab: tuple[float, float, float] | None,
+) -> tuple[float, float, float] | None:
+    if reference_lab is None:
+        return None
+    lab = np.asarray(
+        [[[
+            int(np.clip(round(reference_lab[0]), 0, 255)),
+            int(np.clip(round(reference_lab[1]), 0, 255)),
+            int(np.clip(round(reference_lab[2]), 0, 255)),
+        ]]],
+        dtype=np.uint8,
+    )
+    bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    h, s, v = hsv[0, 0].tolist()
+    return float(h), float(s), float(v)
+
+
+def _hue_distance(
+    h_channel: NDArray[np.float32],
+    center: float,
+) -> NDArray[np.float32]:
+    diff = np.abs(h_channel - float(center))
+    return np.minimum(diff, 180.0 - diff).astype(np.float32)
+
+
+def _dynamic_hue_gate(
+    hue_channel: NDArray[np.float32],
+    sat_channel: NDArray[np.float32],
+    candidate_mask: NDArray[np.bool_],
+    color_mix: NDArray[np.float32],
+    ref_hue: float | None,
+    reliability: float,
+) -> tuple[float | None, float, int, float, float]:
+    """
+    Compute dynamic hue center/threshold from high-confidence color seeds.
+
+    Returns:
+      center_hue, threshold, seed_count, hue_mad, seed_score_threshold
+    """
+    if ref_hue is None:
+        return None, HSV_HUE_MIN_THR, 0, 0.0, HSV_HUE_SEED_MIN_SCORE
+
+    sat_min = HSV_SAT_MIN if reliability >= COLOR_STRICT_RELIABILITY else HSV_SAT_MIN_LOW_RELIABILITY
+    seed_cand = candidate_mask & (sat_channel >= sat_min)
+    seed_scores = color_mix[seed_cand]
+    if seed_scores.size <= 0:
+        cap = HSV_HUE_MAX_THR if reliability >= COLOR_STRICT_RELIABILITY else HSV_HUE_MAX_THR_LOW_RELIABILITY
+        return float(ref_hue), float(cap), 0, 0.0, HSV_HUE_SEED_MIN_SCORE
+
+    q = float(np.percentile(seed_scores, HSV_HUE_SEED_QUANTILE))
+    seed_thr = max(HSV_HUE_SEED_MIN_SCORE, q)
+    seed_mask = seed_cand & (color_mix >= seed_thr)
+    seed_hue = hue_channel[seed_mask]
+
+    if seed_hue.size < HSV_HUE_SEED_MIN:
+        alt_thr = max(0.54, float(np.percentile(seed_scores, 78.0)))
+        alt_mask = seed_cand & (color_mix >= alt_thr)
+        alt_h = hue_channel[alt_mask]
+        if alt_h.size > seed_hue.size:
+            seed_hue = alt_h
+            seed_thr = alt_thr
+
+    seed_n = int(seed_hue.size)
+    if seed_n <= 0:
+        cap = HSV_HUE_MAX_THR if reliability >= COLOR_STRICT_RELIABILITY else HSV_HUE_MAX_THR_LOW_RELIABILITY
+        return float(ref_hue), float(cap), seed_n, 0.0, seed_thr
+
+    deltas = ((seed_hue - float(ref_hue) + 90.0) % 180.0) - 90.0
+    center_delta = float(np.median(deltas))
+    center = (float(ref_hue) + center_delta) % 180.0
+    mad = float(np.median(np.abs(deltas - center_delta)))
+    cap = HSV_HUE_MAX_THR if reliability >= COLOR_STRICT_RELIABILITY else HSV_HUE_MAX_THR_LOW_RELIABILITY
+    thr = float(np.clip((1.9 * mad) + 3.0, HSV_HUE_MIN_THR, cap))
+    return float(center), thr, seed_n, mad, seed_thr
+
+
 def _dynamic_gray_gate(
     gray_f: NDArray[np.float32],
     candidate_mask: NDArray[np.bool_],
@@ -697,6 +793,9 @@ def build_evidence_cube(
     roi = image[y0:y1, x0:x1]
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     gray_f = gray.astype(np.float32)
+    roi_hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV).astype(np.float32)
+    hue_chan = roi_hsv[:, :, 0]
+    sat_chan = roi_hsv[:, :, 1]
     roi_lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB).astype(np.float32)
 
     ridge = _ridge_response(gray)
@@ -833,26 +932,64 @@ def build_evidence_cube(
         # keep candidates near the arm's color signature and demote off-color pixels.
         arm_mask = candidate_mask.copy()
 
-        ref_gray = _reference_gray_from_lab(model.reference_lab())
-        gray_center, gray_thr, gray_seed_n, gray_mad, gray_seed_thr = _dynamic_gray_gate(
-            gray_f=gray_f,
-            candidate_mask=candidate_mask,
-            color_mix=color_mix,
-            ref_gray=ref_gray,
-            reliability=float(model.reliability),
-        )
-        if gray_center is not None:
-            gray_mask = np.abs(gray_f - float(gray_center)) <= float(gray_thr)
-            gray_density = float(np.mean(gray_mask & candidate_mask))
-            warnings.append(
-                f"I_GRAY_DYNAMIC_LOCK:{arm_name}:{gray_density:.4f}:{gray_center:.1f}:{gray_thr:.2f}:{gray_seed_n}:{gray_mad:.2f}:{gray_seed_thr:.3f}"
+        # Color-first lock for synthetic benchmark: strict saturation + hue gating.
+        ref_hsv = _reference_hsv_from_lab(model.reference_lab())
+        if ref_hsv is not None:
+            ref_h, _, _ = ref_hsv
+            sat_min = HSV_SAT_MIN if model.reliability >= COLOR_STRICT_RELIABILITY else HSV_SAT_MIN_LOW_RELIABILITY
+            sat_mask = sat_chan >= sat_min
+
+            hue_center, hue_thr, hue_seed_n, hue_mad, hue_seed_thr = _dynamic_hue_gate(
+                hue_channel=hue_chan,
+                sat_channel=sat_chan,
+                candidate_mask=candidate_mask,
+                color_mix=color_mix,
+                ref_hue=ref_h,
+                reliability=float(model.reliability),
             )
-            arm_mask = np.logical_and(arm_mask, gray_mask)
-            base = np.where(gray_mask, base, base - 2.20).astype(np.float32)
-            if gray_density < GRAY_DYNAMIC_MIN_DENSITY:
+            if hue_center is not None:
+                hue_dist = _hue_distance(hue_chan, hue_center)
+                hue_mask = hue_dist <= float(hue_thr)
+                hsv_mask = candidate_mask & sat_mask & hue_mask
+                hsv_density = float(np.mean(hsv_mask))
+                sat_density = float(np.mean(candidate_mask & sat_mask))
                 warnings.append(
-                    f"W_GRAY_DYNAMIC_SPARSE:{arm_name}:{gray_density:.4f}:{gray_thr:.2f}"
+                    f"I_HSV_STRICT_LOCK:{arm_name}:{hsv_density:.4f}:{sat_density:.4f}:{hue_center:.1f}:{hue_thr:.2f}:{hue_seed_n}:{hue_mad:.2f}:{hue_seed_thr:.3f}:{sat_min:.1f}"
                 )
+                if hsv_density >= HSV_STRICT_MIN_DENSITY:
+                    arm_mask = np.logical_and(arm_mask, hsv_mask)
+                    base = np.where(hsv_mask, base, base - 2.80).astype(np.float32)
+                elif sat_density >= HSV_STRICT_MIN_DENSITY:
+                    sat_only = candidate_mask & sat_mask
+                    arm_mask = np.logical_and(arm_mask, sat_only)
+                    base = np.where(sat_only, base, base - 2.10).astype(np.float32)
+                    warnings.append(f"W_HSV_STRICT_HUE_SPARSE:{arm_name}:{hsv_density:.4f}")
+                else:
+                    warnings.append(f"W_HSV_STRICT_SPARSE:{arm_name}:{hsv_density:.4f}:{sat_density:.4f}")
+
+        # Optional grayscale fallback (disabled by default).
+        if _env_bool("KM_DIGITIZER_V3_GRAY_GATE", default=APPLY_DYNAMIC_GRAY_GATE_DEFAULT):
+            ref_gray = _reference_gray_from_lab(model.reference_lab())
+            gray_center, gray_thr, gray_seed_n, gray_mad, gray_seed_thr = _dynamic_gray_gate(
+                gray_f=gray_f,
+                candidate_mask=candidate_mask,
+                color_mix=color_mix,
+                ref_gray=ref_gray,
+                reliability=float(model.reliability),
+            )
+            if gray_center is not None:
+                gray_mask = np.abs(gray_f - float(gray_center)) <= float(gray_thr)
+                gray_density = float(np.mean(gray_mask & candidate_mask))
+                warnings.append(
+                    f"I_GRAY_DYNAMIC_LOCK:{arm_name}:{gray_density:.4f}:{gray_center:.1f}:{gray_thr:.2f}:{gray_seed_n}:{gray_mad:.2f}:{gray_seed_thr:.3f}"
+                )
+                if gray_density >= GRAY_DYNAMIC_MIN_DENSITY:
+                    arm_mask = np.logical_and(arm_mask, gray_mask)
+                    base = np.where(gray_mask, base, base - 2.20).astype(np.float32)
+                else:
+                    warnings.append(
+                        f"W_GRAY_DYNAMIC_SPARSE:{arm_name}:{gray_density:.4f}:{gray_thr:.2f}"
+                    )
 
         if model.reliability >= COLOR_STRICT_RELIABILITY:
             candidate_vals = color_mix[candidate_mask]

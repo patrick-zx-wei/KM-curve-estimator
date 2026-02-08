@@ -4,65 +4,81 @@
       {
         "time": 6,
         "survival": 0.8887,
-        "description": "6-month survival"
+        "plot_y": 0.8887,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.8099,
-        "description": "1-year survival"
+        "plot_y": 0.8099,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.695,
-        "description": "2-year survival"
+        "plot_y": 0.695,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.651,
-        "description": "3-year survival"
+        "plot_y": 0.651,
+        "description": "3-year value"
       },
       {
         "time": 48,
         "survival": 0.5791,
-        "description": "4-year survival"
+        "plot_y": 0.5791,
+        "description": "4-year value"
       }
     ],
     "median_survival": null,
     "quartiles": {
       "25pct": 17.38
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
         "survival": 0.9411,
-        "description": "6-month survival"
+        "plot_y": 0.9411,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.8926,
-        "description": "1-year survival"
+        "plot_y": 0.8926,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.8074,
-        "description": "2-year survival"
+        "plot_y": 0.8074,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.7449,
-        "description": "3-year survival"
+        "plot_y": 0.7449,
+        "description": "3-year value"
       },
       {
         "time": 48,
         "survival": 0.6358,
-        "description": "4-year survival"
+        "plot_y": 0.6358,
+        "description": "4-year value"
       }
     ],
     "median_survival": null,
     "quartiles": {
       "25pct": 29.06
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   }
 }

@@ -4,28 +4,35 @@
       {
         "time": 6,
         "survival": 0.7086,
-        "description": "6-month survival"
+        "plot_y": 0.7086,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.5382,
-        "description": "1-year survival"
+        "plot_y": 0.5382,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.4322,
-        "description": "2-year survival"
+        "plot_y": 0.4322,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.3081,
-        "description": "3-year survival"
+        "plot_y": 0.3081,
+        "description": "3-year value"
       }
     ],
     "median_survival": 16.51,
     "quartiles": {
       "25pct": 4.53,
       "50pct": 16.51
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   }
 }
