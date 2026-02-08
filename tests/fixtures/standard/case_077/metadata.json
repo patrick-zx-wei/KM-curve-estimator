@@ -29,7 +29,7 @@
     "LowResolution",
     "JPEGArtifacts"
   ],
-  "title": "Kaplan-Meier Survival Curve",
+  "title": "Cumulative Incidence Curve",
   "annotations": [],
   "x_axis": {
     "label": "Time (months)",
@@ -63,5 +63,7 @@
     "scale": "linear"
   },
   "total_patients": 234,
-  "total_events": 2
+  "total_events": 2,
+  "hard_points_space": "survival",
+  "plot_space_for_upward": "incidence"
 }

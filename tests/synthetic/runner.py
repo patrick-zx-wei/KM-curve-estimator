@@ -257,7 +257,9 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
         import os
 
         digitizer = os.getenv("KM_DIGITIZER", "").strip().lower()
-        if digitizer in {"v3", "3", "digitization_3"}:
+        if digitizer in {"v4", "4", "digitization_4"}:
+            from km_estimator.nodes.digitization_4.axis_map import build_plot_model
+        elif digitizer in {"v3", "3", "digitization_3"}:
             from km_estimator.nodes.digitization_3.axis_map import build_plot_model
         else:
             from km_estimator.nodes.digitization_2.axis_map import build_plot_model

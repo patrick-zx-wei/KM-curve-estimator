@@ -43,6 +43,8 @@ HARDPOINT_CORRIDOR_BASE_BAND_RATIO = 0.025
 HARDPOINT_CORRIDOR_EXTRA_BAND_RATIO = 0.040
 HARDPOINT_CORRIDOR_DIST_RATIO = 0.12
 HARDPOINT_CORRIDOR_PENALTY_WEIGHT = 5.5
+LOCAL_WINDOW_RATIO = 0.018
+LOCAL_WINDOW_MAX_RATIO = 0.10
 
 # Crossing detection caps and locality constraints
 MAX_CROSSING_WINDOWS = 10
@@ -245,6 +247,40 @@ def _hardpoint_corridor_penalty(
     if over <= 0.0:
         return 0.0
     return float(HARDPOINT_CORRIDOR_PENALTY_WEIGHT * (over / float(max(1, height))))
+
+
+def _local_window_px(
+    x: int,
+    width: int,
+    height: int,
+    hardpoints: tuple[tuple[int, int], ...] | None,
+) -> int:
+    base = max(2, int(round(float(height) * LOCAL_WINDOW_RATIO)))
+    cap = max(base + 1, int(round(float(height) * LOCAL_WINDOW_MAX_RATIO)))
+    if hardpoints:
+        hp_radius = max(1, int(round(width * HARDPOINT_CANDIDATE_RADIUS_RATIO)))
+        near = _nearest_hardpoint_y(x, hardpoints, hp_radius)
+        if near is not None:
+            hp_band = max(2, int(round(height * HARDPOINT_CANDIDATE_BAND_RATIO)))
+            base = max(base, hp_band + 2)
+    return int(np.clip(base, 2, max(3, cap)))
+
+
+def _carry_candidates_from_prev(
+    prev_cands: list[tuple[int, float]],
+    column_scores: NDArray[np.float32],
+    top_k: int,
+) -> list[tuple[int, float]]:
+    if not prev_cands:
+        best = int(np.argmax(column_scores))
+        return [(best, float(column_scores[best]))]
+    ys_unique = sorted({int(y) for y, _ in prev_cands})
+    out: list[tuple[int, float]] = []
+    for y in ys_unique:
+        yy = int(np.clip(y, 0, column_scores.shape[0] - 1))
+        out.append((yy, float(column_scores[yy])))
+    out.sort(key=lambda p: p[1], reverse=True)
+    return out[: max(1, min(top_k, len(out)))]
 
 
 def _column_candidates(
@@ -550,6 +586,7 @@ def _trace_single(
         hardpoints=hardpoint_guides,
     )
     candidates_by_x: list[list[tuple[int, float]]] = []
+    local_carry_count = 0
     for x in range(w):
         hard = candidate_mask[:, x] if candidate_mask is not None else None
         hp_y = _nearest_hardpoint_y(x, hardpoint_guides, hp_radius)
@@ -613,6 +650,12 @@ def _trace_single(
         prev_cost = costs[-1]
         curr_cost = np.full((len(curr_cands),), np.inf, dtype=np.float32)
         curr_parent = np.full((len(curr_cands),), -1, dtype=np.int32)
+        local_win = _local_window_px(
+            x=x,
+            width=w,
+            height=h,
+            hardpoints=hardpoint_guides,
+        )
         for j, (y_cur, score_cur) in enumerate(curr_cands):
             unary = (
                 -float(score_cur)
@@ -639,6 +682,8 @@ def _trace_single(
             best_value = np.inf
             best_idx = -1
             for i, (y_prev, _) in enumerate(prev_cands):
+                if abs(int(y_cur) - int(y_prev)) > local_win:
+                    continue
                 smooth = (
                     SMOOTHNESS_WEIGHT
                     * cfg.smoothness_multiplier
@@ -653,6 +698,52 @@ def _trace_single(
                     best_idx = i
             curr_cost[j] = np.float32(best_value)
             curr_parent[j] = np.int32(best_idx)
+
+        if not np.any(np.isfinite(curr_cost)):
+            local_carry_count += 1
+            curr_cands = _carry_candidates_from_prev(
+                prev_cands=prev_cands,
+                column_scores=score_map[:, x],
+                top_k=MAX_CANDIDATES_PER_COLUMN,
+            )
+            candidates_by_x[x] = curr_cands
+            curr_cost = np.full((len(curr_cands),), np.inf, dtype=np.float32)
+            curr_parent = np.full((len(curr_cands),), -1, dtype=np.int32)
+            for j, (y_cur, score_cur) in enumerate(curr_cands):
+                unary = (
+                    -float(score_cur)
+                    + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier) * _axis_penalty_value(
+                        axis_penalty_map, y_cur, x, direction, h
+                    )
+                    + _start_anchor_penalty(y_cur, x, w, h, direction, cfg)
+                    + (
+                        OVERLAP_AMBIG_PENALTY
+                        * (1.0 - float(overlap_consensus_map[y_cur, x]))
+                        if overlap_consensus_map is not None
+                        else 0.0
+                    )
+                    + _hardpoint_penalty(y_cur, x, w, h, hardpoint_guides)
+                    + _hardpoint_corridor_penalty(
+                        y=y_cur,
+                        x=x,
+                        height=h,
+                        corridor_target=corridor_target,
+                        corridor_band=corridor_band,
+                    )
+                    + (float(occupied_penalty[y_cur, x]) if occupied_penalty is not None else 0.0)
+                )
+                best_idx = int(np.argmin(prev_cost))
+                y_prev = prev_cands[best_idx][0]
+                smooth = (
+                    SMOOTHNESS_WEIGHT
+                    * cfg.smoothness_multiplier
+                    * abs(y_cur - y_prev)
+                    / float(max(1, h))
+                )
+                dir_pen = _direction_penalty(y_prev, y_cur, direction, h, cfg)
+                jump_pen = _jump_penalty(y_prev, y_cur, h)
+                curr_cost[j] = np.float32(float(prev_cost[best_idx]) + unary + smooth + dir_pen + jump_pen)
+                curr_parent[j] = np.int32(best_idx)
         costs.append(curr_cost)
         parents.append(curr_parent)
 
@@ -666,7 +757,7 @@ def _trace_single(
             if idx < 0:
                 idx = 0
 
-    return ys, _extract_arm_diagnostics(
+    diag = _extract_arm_diagnostics(
         ys,
         score_map,
         axis_penalty_map,
@@ -674,6 +765,8 @@ def _trace_single(
         overlap_consensus_map,
         direction,
     )
+    diag["local_carry_frac"] = float(local_carry_count) / float(max(1, w - 1))
+    return ys, diag
 
 
 def _trace_joint_two(
@@ -694,6 +787,7 @@ def _trace_joint_two(
     """Joint DP for two curves with strict, localized swap handling."""
     h, w = map_a.shape
     warnings: list[str] = []
+    local_carry_cols = 0
 
     hp_radius = max(1, int(round(w * HARDPOINT_CANDIDATE_RADIUS_RATIO)))
     hp_band = max(2, int(round(h * HARDPOINT_CANDIDATE_BAND_RATIO)))
@@ -860,12 +954,26 @@ def _trace_joint_two(
         prev_cost = costs[-1]
         curr_cost = np.full((len(curr_states),), np.inf, dtype=np.float32)
         curr_parent = np.full((len(curr_states),), -1, dtype=np.int32)
+        local_win_a = _local_window_px(
+            x=x,
+            width=w,
+            height=h,
+            hardpoints=hardpoint_guides_a,
+        )
+        local_win_b = _local_window_px(
+            x=x,
+            width=w,
+            height=h,
+            hardpoints=hardpoint_guides_b,
+        )
         local_allow_swap = bool(allow_swap[x] or allow_swap[x - 1])
         for j, (ya, yb, unary) in enumerate(curr_states):
             best_value = np.inf
             best_idx = -1
             cur_sign = -1 if ya < yb else 1
             for i, (pya, pyb, _) in enumerate(prev_states):
+                if abs(int(ya) - int(pya)) > local_win_a or abs(int(yb) - int(pyb)) > local_win_b:
+                    continue
                 smooth = (
                     SMOOTHNESS_WEIGHT
                     * cfg.smoothness_multiplier
@@ -888,6 +996,23 @@ def _trace_joint_two(
                     best_idx = i
             curr_cost[j] = np.float32(best_value)
             curr_parent[j] = np.int32(best_idx)
+
+        if not np.any(np.isfinite(curr_cost)):
+            local_carry_cols += 1
+            warnings.append(f"W_LOCAL_CARRY_JOINT:{x}")
+            prev_n = len(prev_states)
+            curr_states = [(pya, pyb, 0.0) for (pya, pyb, _) in prev_states[:JOINT_MAX_STATES]]
+            states_by_x[x] = curr_states
+            keep_n = len(curr_states)
+            if keep_n <= 0:
+                curr_states = [(0, 0, 0.0)]
+                states_by_x[x] = curr_states
+                keep_n = 1
+                prev_cost = np.asarray([0.0], dtype=np.float32)
+            else:
+                prev_cost = prev_cost[:keep_n]
+            curr_cost = (prev_cost + 0.02).astype(np.float32)
+            curr_parent = np.arange(keep_n, dtype=np.int32)
         costs.append(curr_cost)
         parents.append(curr_parent)
 
@@ -931,6 +1056,9 @@ def _trace_joint_two(
     overlap_conflict_frac = float(conflict) / float(max(1, w))
     diag_a["overlap_conflict_frac"] = overlap_conflict_frac
     diag_b["overlap_conflict_frac"] = overlap_conflict_frac
+    carry_frac = float(local_carry_cols) / float(max(1, w - 1))
+    diag_a["local_carry_frac"] = carry_frac
+    diag_b["local_carry_frac"] = carry_frac
 
     return (
         {name_a: ys_a, name_b: ys_b},
@@ -1079,6 +1207,11 @@ def trace_curves(
             warnings.append(
                 f"W_MONOTONE_VIOLATION_MASS:{name}:{diag['monotone_violation_mass']:.3f}"
             )
+        local_carry_frac = float(diag.get("local_carry_frac", 0.0))
+        if local_carry_frac > 0.0:
+            warnings.append(f"I_LOCAL_CARRY_FRAC:{name}:{local_carry_frac:.3f}")
+        if local_carry_frac > 0.15:
+            warnings.append(f"W_LOCAL_CARRY_HIGH:{name}:{local_carry_frac:.3f}")
 
     plot_confidence = (
         float(np.mean(np.asarray(list(confidence.values()), dtype=np.float32)))

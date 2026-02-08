@@ -4,18 +4,23 @@
       {
         "time": 6,
         "survival": 0.6583,
-        "description": "6-month survival"
+        "plot_y": 0.6583,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.4869,
-        "description": "1-year survival"
+        "plot_y": 0.4869,
+        "description": "1-year value"
       }
     ],
     "median_survival": 11.2,
     "quartiles": {
       "25pct": 3.6,
       "50pct": 11.2
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   }
 }

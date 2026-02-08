@@ -4,22 +4,26 @@
       {
         "time": 6,
         "survival": 0.8396,
-        "description": "6-month survival"
+        "plot_y": 0.8396,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.7666,
-        "description": "1-year survival"
+        "plot_y": 0.7666,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.5795,
-        "description": "2-year survival"
+        "plot_y": 0.5795,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.4226,
-        "description": "3-year survival"
+        "plot_y": 0.4226,
+        "description": "3-year value"
       }
     ],
     "median_survival": 31.83,
@@ -27,34 +31,42 @@
       "25pct": 12.28,
       "50pct": 31.83,
       "75pct": 44.84
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
         "survival": 0.9139,
-        "description": "6-month survival"
+        "plot_y": 0.9139,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.8734,
-        "description": "1-year survival"
+        "plot_y": 0.8734,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.811,
-        "description": "2-year survival"
+        "plot_y": 0.811,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.6083,
-        "description": "3-year survival"
+        "plot_y": 0.6083,
+        "description": "3-year value"
       },
       {
         "time": 48,
         "survival": 0.6083,
-        "description": "4-year survival"
+        "plot_y": 0.6083,
+        "description": "4-year value"
       }
     ],
     "median_survival": 55.7,
@@ -62,6 +74,9 @@
       "25pct": 27.96,
       "50pct": 55.7,
       "75pct": 55.7
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   }
 }

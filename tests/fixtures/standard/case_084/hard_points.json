@@ -4,27 +4,32 @@
       {
         "time": 6,
         "survival": 0.9638,
-        "description": "6-month survival"
+        "plot_y": 0.9638,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.8666,
-        "description": "1-year survival"
+        "plot_y": 0.8666,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.6462,
-        "description": "2-year survival"
+        "plot_y": 0.6462,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.3674,
-        "description": "3-year survival"
+        "plot_y": 0.3674,
+        "description": "3-year value"
       },
       {
         "time": 48,
         "survival": 0.1837,
-        "description": "4-year survival"
+        "plot_y": 0.1837,
+        "description": "4-year value"
       }
     ],
     "median_survival": 29.26,
@@ -32,34 +37,44 @@
       "25pct": 17.0,
       "50pct": 29.26,
       "75pct": 47.26
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
         "survival": 1.0,
-        "description": "6-month survival"
+        "plot_y": 1.0,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.9523,
-        "description": "1-year survival"
+        "plot_y": 0.9523,
+        "description": "1-year value"
       },
       {
         "time": 24,
         "survival": 0.8492,
-        "description": "2-year survival"
+        "plot_y": 0.8492,
+        "description": "2-year value"
       },
       {
         "time": 36,
         "survival": 0.7686,
-        "description": "3-year survival"
+        "plot_y": 0.7686,
+        "description": "3-year value"
       }
     ],
     "median_survival": null,
     "quartiles": {
       "25pct": 39.92
-    }
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
   }
 }

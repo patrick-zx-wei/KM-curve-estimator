@@ -341,39 +341,32 @@ def _truncate_risk_table_tail(
     max_time: float,
 ) -> tuple[list[float], list[RiskGroup]]:
     """
-    Truncate trailing low-count/zero rows in risk table.
+    Truncate trailing rows where ALL groups have zero patients at risk.
 
-    Rule:
-    - Keep rows only up to the last "stable non-zero" timepoint where every arm has
-      count >= max(5, ceil(3% of initial arm size)).
-    - Exception: keep terminal row when curves genuinely end near zero at follow-up end.
+    Individual groups that reach 0 while others continue are kept in the
+    table (rendered as blank by the renderer).  Only rows where every
+    group has count == 0 are removed from the tail.
     """
     if not risk_time_points or not risk_groups:
-        return risk_time_points, risk_groups
-    if _supports_terminal_zero_row(curves, max_time):
         return risk_time_points, risk_groups
 
     n_points = len(risk_time_points)
     if n_points < 2:
         return risk_time_points, risk_groups
 
-    thresholds: list[int] = []
-    for group in risk_groups:
-        n0 = int(group.counts[0]) if group.counts else 0
-        thresholds.append(max(5, int(np.ceil(0.03 * max(1, n0)))))
-
-    last_stable_idx = 0
+    # Find the last time point where at least one group has count > 0
+    last_active_idx = 0
     for idx in range(n_points):
-        stable = True
-        for group, threshold in zip(risk_groups, thresholds):
-            if idx >= len(group.counts) or int(group.counts[idx]) < threshold:
-                stable = False
+        any_active = False
+        for group in risk_groups:
+            if idx < len(group.counts) and int(group.counts[idx]) > 0:
+                any_active = True
                 break
-        if stable:
-            last_stable_idx = idx
+        if any_active:
+            last_active_idx = idx
 
     # Require at least 2 time points for downstream FULL reconstruction.
-    keep_last = max(1, last_stable_idx)
+    keep_last = max(1, last_active_idx)
     if keep_last >= n_points - 1:
         return risk_time_points, risk_groups
 
@@ -506,6 +499,11 @@ def generate_test_case(
                 stub_end = min(last_event_t + stub_len, max_time)
                 if stub_end > last_event_t:
                     step_coords.append((stub_end, step_coords[-1][1]))
+
+            # Zero out n_at_risk beyond the curve's visual end so the risk
+            # table doesn't show numbers where no curve is drawn.
+            curve_visual_end = step_coords[-1][0] if len(step_coords) > 1 else 0.0
+            n_at_risk = [(t, n if t <= curve_visual_end else 0) for t, n in n_at_risk]
 
             curves.append(
                 SyntheticCurveData(

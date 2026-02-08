@@ -4,35 +4,45 @@
       {
         "time": 6,
         "survival": 0.7324,
-        "description": "6-month survival"
+        "plot_y": 0.2676,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.6062,
-        "description": "1-year survival"
+        "plot_y": 0.3938,
+        "description": "1-year value"
       }
     ],
     "median_survival": null,
     "quartiles": {
       "25pct": 4.53
-    }
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
   },
   "Treatment": {
     "landmarks": [
       {
         "time": 6,
         "survival": 0.8866,
-        "description": "6-month survival"
+        "plot_y": 0.1134,
+        "description": "6-month value"
       },
       {
         "time": 12,
         "survival": 0.862,
-        "description": "1-year survival"
+        "plot_y": 0.138,
+        "description": "1-year value"
       }
     ],
     "median_survival": null,
     "quartiles": {
       "25pct": 17.04
-    }
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
   }
 }

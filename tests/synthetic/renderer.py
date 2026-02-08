@@ -35,6 +35,40 @@ from .modifiers import (
 )
 
 
+def _simplify_step_coords(
+    coords: list[tuple[float, float]], max_steps: int = 100
+) -> list[tuple[float, float]]:
+    """Merge closely-spaced steps for cleaner visual rendering.
+
+    When a curve has hundreds of tiny steps (high patient counts), the
+    rendered line looks jagged with vertical-line artifacts.  This merges
+    steps closer than ``time_range / max_steps`` apart, keeping the first
+    time in each group and the final survival value.
+    """
+    if len(coords) <= max_steps:
+        return coords
+
+    time_range = coords[-1][0] - coords[0][0]
+    if time_range <= 0:
+        return coords
+
+    min_gap = time_range / max_steps
+
+    result = [coords[0]]
+    for i in range(1, len(coords)):
+        if coords[i][0] - result[-1][0] >= min_gap:
+            result.append(coords[i])
+        else:
+            # Keep first time, update to latest survival
+            result[-1] = (result[-1][0], coords[i][1])
+
+    # Always include the last point
+    if result[-1] != coords[-1]:
+        result.append(coords[-1])
+
+    return result
+
+
 def _get_linewidth(modifiers: list[Modifier]) -> float:
     """Get line width from modifiers, defaulting to 2.6."""
     for m in modifiers:
@@ -183,22 +217,32 @@ def render_test_case(
     _apply_background_style(ax, ax_table, background_style, has_explicit_grid)
     test_case.curve_direction = curve_direction
 
+    # Simplify step coordinates for cleaner rendering
+    simplified: dict[str, list[tuple[float, float]]] = {}
+    for curve in test_case.curves:
+        simplified[curve.group_name] = _simplify_step_coords(curve.step_coords)
+
     # Plot curves
     for curve in test_case.curves:
-        times = [c[0] for c in curve.step_coords]
-        survivals = [c[1] for c in curve.step_coords]
+        coords = simplified[curve.group_name]
+        times = [c[0] for c in coords]
+        survivals = [c[1] for c in coords]
         if curve_direction == "upward":
             survivals = [1.0 - float(s) for s in survivals]
 
-        ax.step(
-            times,
-            survivals,
+        step_kwargs: dict = dict(
             where="post",
             label=curve.group_name,
             color=curve.color,
             linewidth=linewidth,
-            linestyle=curve.line_style,
         )
+        if curve.line_style == "dashed":
+            step_kwargs["linestyle"] = "--"
+            step_kwargs["dashes"] = (5, 0.5)
+        else:
+            step_kwargs["linestyle"] = curve.line_style
+
+        ax.step(times, survivals, **step_kwargs)
 
     # Apply figure-stage modifiers
     for mod in figure_mods:
@@ -221,8 +265,9 @@ def render_test_case(
         elif isinstance(mod, CensoringMarks):
             for curve in test_case.curves:
                 if curve.censoring_times:
+                    simple = simplified.get(curve.group_name, curve.step_coords)
                     censor_survivals = [
-                        _get_survival_at(curve.step_coords, t)
+                        _get_survival_at(simple, t)
                         for t in curve.censoring_times
                     ]
                     if curve_direction == "upward":
@@ -318,15 +363,16 @@ def render_test_case(
                 verticalalignment="center", ha="left",
             )
 
-            # Counts at each time point
+            # Counts at each time point (skip groups with 0 at risk)
             for t, count in zip(rt.time_points, group.counts):
-                ax_table.text(
-                    t, y_pos,
-                    str(count),
-                    transform=ax_table.get_xaxis_transform(),
-                    fontsize=8,
-                    ha="center", va="center",
-                )
+                if int(count) > 0:
+                    ax_table.text(
+                        t, y_pos,
+                        str(count),
+                        transform=ax_table.get_xaxis_transform(),
+                        fontsize=8,
+                        ha="center", va="center",
+                    )
 
     fig.tight_layout()
     # Save draft
