@@ -9,7 +9,6 @@ Design goals:
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
@@ -29,15 +28,6 @@ LOW_CONFIDENCE_FAIL_THRESHOLD = 0.30
 LOW_CONFIDENCE_REVIEW_THRESHOLD = 0.48
 HARD_FAIL_MIN_CONFIDENCE = 0.55
 EXTREME_FAIL_THRESHOLD = 0.12
-DIGITIZER_HARDPOINT_ENABLE_ENV = "KM_DIGITIZER_HARDPOINTS_ENABLE"
-DIGITIZER_HARDPOINT_PATH_ENV = "KM_DIGITIZER_HARDPOINTS_PATH"
-
-
-def _env_bool(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _dedupe_ordered(items: list[str]) -> list[str]:
@@ -184,51 +174,79 @@ def _normalize01(arr: np.ndarray) -> np.ndarray:
     return ((arr - lo) / (hi - lo)).astype(np.float32)
 
 
-def _load_hardpoint_constraints(state: PipelineState) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
-    """Load optional hardpoint constraints for digitization-stage anchoring."""
+def _normalize_group_name(name: str) -> str:
+    return "".join(ch for ch in name.lower().strip() if ch.isalnum())
+
+
+def _match_risk_group_name(curve_name: str, risk_group_names: list[str]) -> str | None:
+    """Match curve name to risk-table group name with deterministic fuzzy fallback."""
+    if curve_name in risk_group_names:
+        return curve_name
+    curve_norm = _normalize_group_name(curve_name)
+    for group_name in risk_group_names:
+        if _normalize_group_name(group_name) == curve_norm:
+            return group_name
+    for group_name in risk_group_names:
+        group_norm = _normalize_group_name(group_name)
+        if curve_norm in group_norm or group_norm in curve_norm:
+            return group_name
+    return None
+
+
+def _build_risk_table_constraints(
+    state: PipelineState,
+) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
+    """Build curve constraints from extracted risk table only."""
     warnings: list[str] = []
-    enabled = _env_bool(DIGITIZER_HARDPOINT_ENABLE_ENV, default=False)
-
-    env_path = os.getenv(DIGITIZER_HARDPOINT_PATH_ENV)
-    hp_path = Path(env_path) if env_path else Path(state.image_path).with_name("hard_points.json")
-
-    if not enabled and not hp_path.exists():
-        return {}, warnings
-    if not hp_path.exists():
-        warnings.append(f"W_HARDPOINT_FILE_MISSING:{hp_path}")
-        return {}, warnings
-    if not enabled:
-        warnings.append(f"I_HARDPOINT_AUTO_ENABLED:{hp_path}")
-
-    try:
-        payload = json.loads(hp_path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        warnings.append(f"W_HARDPOINT_LOAD_FAILED:{exc}")
-        return {}, warnings
-    if not isinstance(payload, dict):
-        warnings.append("W_HARDPOINT_INVALID_PAYLOAD")
+    meta = state.plot_metadata
+    if meta is None or meta.risk_table is None:
+        warnings.append("I_HARDPOINT_SOURCE_RISK_TABLE:none")
         return {}, warnings
 
+    rt = meta.risk_table
+    if not rt.time_points or not rt.groups:
+        warnings.append("W_HARDPOINT_SOURCE_RISK_TABLE_EMPTY")
+        return {}, warnings
+
+    group_map = {g.name: g for g in rt.groups}
+    group_names = list(group_map)
     constraints: dict[str, list[tuple[float, float]]] = {}
-    for group_name, group_payload in payload.items():
-        if not isinstance(group_name, str) or not isinstance(group_payload, dict):
+    unmatched: list[str] = []
+    invalid_groups = 0
+
+    for curve in meta.curves:
+        curve_name = curve.name
+        matched_group_name = _match_risk_group_name(curve_name, group_names)
+        if matched_group_name is None:
+            unmatched.append(curve_name)
             continue
-        landmarks = group_payload.get("landmarks", [])
-        if not isinstance(landmarks, list):
+
+        group = group_map[matched_group_name]
+        counts = list(group.counts)
+        if len(counts) != len(rt.time_points) or not counts or int(counts[0]) <= 0:
+            invalid_groups += 1
+            warnings.append(
+                f"W_HARDPOINT_RISK_GROUP_INVALID:{curve_name}:{matched_group_name}:"
+                f"{len(counts)}vs{len(rt.time_points)}"
+            )
             continue
+
+        n0 = float(counts[0])
         pts: list[tuple[float, float]] = []
-        for lm in landmarks:
-            if not isinstance(lm, dict):
+        for t, c in zip(rt.time_points, counts):
+            if not isinstance(t, (int, float)) or not isinstance(c, (int, float)):
                 continue
-            t = lm.get("time")
-            s = lm.get("survival")
-            if not isinstance(t, (int, float)) or not isinstance(s, (int, float)):
-                continue
-            pts.append((float(t), float(np.clip(float(s), 0.0, 1.0))))
+            s_floor = float(np.clip(float(c) / n0, 0.0, 1.0))
+            pts.append((float(t), s_floor))
         if pts:
             pts.sort(key=lambda p: p[0])
-            constraints[group_name] = pts
-    warnings.append(f"I_HARDPOINT_LOADED_GROUPS:{len(constraints)}")
+            constraints[curve_name] = pts
+
+    warnings.append(f"I_HARDPOINT_SOURCE_RISK_TABLE:groups={len(constraints)}")
+    if unmatched:
+        warnings.append("W_HARDPOINT_RISK_GROUP_MISSING:" + ",".join(sorted(unmatched)))
+    if invalid_groups > 0:
+        warnings.append(f"W_HARDPOINT_RISK_GROUP_INVALID_COUNT:{invalid_groups}")
     return constraints, warnings
 
 
@@ -322,7 +340,7 @@ def digitize_v3(state: PipelineState) -> PipelineState:
     evidence = build_evidence_cube(image, plot_model, color_models)
     all_warnings.extend(evidence.warning_codes)
 
-    hardpoint_constraints, hardpoint_warnings = _load_hardpoint_constraints(state)
+    hardpoint_constraints, hardpoint_warnings = _build_risk_table_constraints(state)
     all_warnings.extend(hardpoint_warnings)
     hardpoint_guides, guide_warnings = _build_hardpoint_guides(
         plot_model=plot_model,
