@@ -2,10 +2,16 @@
 
 Digitizes with ground-truth metadata, injects ground-truth risk table,
 runs reconstruct() + validate(), and measures MAE.
+
+Usage:
+    python tests/run_recon_bench.py                  # use cached digitization (fast)
+    python tests/run_recon_bench.py --generate-cache # digitize all cases & save cache
+    python tests/run_recon_bench.py --no-cache       # force re-digitization (no save)
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import sys
@@ -26,13 +32,59 @@ from km_estimator.nodes.digitization_5 import digitize_v5  # noqa: E402
 from km_estimator.nodes.reconstruction import reconstruct, validate  # noqa: E402
 
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "standard"
+CACHE_FILENAME = "digitized_cache.json"
 
 CASES = [
-    f"case_{i:03d}" for i in range(1, 51)
+    f"case_{i:03d}" for i in range(1, 101)
 ]
 
 COLOR_NAMES = ["blue", "orange", "green", "red", "purple"]
 LINE_STYLES = ["solid", "dashed"]
+
+
+def _save_cache(case_dir: Path, state: PipelineState) -> None:
+    cache = {
+        "digitized_curves": {
+            name: [[t, s] for t, s in pts]
+            for name, pts in (state.digitized_curves or {}).items()
+        },
+        "censoring_marks": {
+            name: list(times)
+            for name, times in (state.censoring_marks or {}).items()
+        },
+        "isolated_curve_pixels": {
+            name: [[x, y] for x, y in pts]
+            for name, pts in (state.isolated_curve_pixels or {}).items()
+        },
+    }
+    (case_dir / CACHE_FILENAME).write_text(json.dumps(cache))
+
+
+def _load_cache(case_dir: Path) -> dict | None:
+    path = case_dir / CACHE_FILENAME
+    if not path.exists():
+        return None
+    return json.loads(path.read_text())
+
+
+def _apply_cache(state: PipelineState, cache: dict) -> PipelineState:
+    digitized = {
+        name: [(pt[0], pt[1]) for pt in pts]
+        for name, pts in cache["digitized_curves"].items()
+    }
+    censoring = {
+        name: list(times)
+        for name, times in cache.get("censoring_marks", {}).items()
+    }
+    pixels = {
+        name: [(pt[0], pt[1]) for pt in pts]
+        for name, pts in cache.get("isolated_curve_pixels", {}).items()
+    } if cache.get("isolated_curve_pixels") else None
+    return state.model_copy(update={
+        "digitized_curves": digitized,
+        "censoring_marks": censoring,
+        "isolated_curve_pixels": pixels,
+    })
 
 
 def _load_risk_table(csv_path: Path) -> RiskTable | None:
@@ -143,12 +195,26 @@ def _mae(curve1, curve2):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Reconstruction benchmark")
+    parser.add_argument("--generate-cache", action="store_true",
+                        help="Run digitization and save cache for all cases")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="Force re-digitization (don't load or save cache)")
+    args = parser.parse_args()
+
+    use_cache = not args.generate_cache and not args.no_cache
+    save_cache = args.generate_cache
+
     all_val_mae = []
     all_gt_mae = []
     all_valid_gt_mae = []
+    cache_hits = 0
+    cache_misses = 0
 
     for case_name in CASES:
         case_dir = FIXTURE_DIR / case_name
+        if not case_dir.exists():
+            continue
         meta = json.loads((case_dir / "metadata.json").read_text())
         image_path = str(case_dir / "graph.png")
 
@@ -171,13 +237,23 @@ def main():
         # Build metadata WITH risk table
         plot_meta = _build_metadata(meta, risk_table)
 
-        # Digitize
+        # Digitize (or load from cache)
         state = PipelineState(
             image_path=image_path,
             preprocessed_image_path=image_path,
             plot_metadata=plot_meta,
         )
-        state = digitize_v5(state)
+
+        cached = _load_cache(case_dir) if use_cache else None
+        if cached is not None:
+            state = _apply_cache(state, cached)
+            cache_hits += 1
+        else:
+            cache_misses += 1
+            state = digitize_v5(state)
+            if save_cache and not state.errors and state.digitized_curves:
+                _save_cache(case_dir, state)
+
         if state.errors or not state.digitized_curves:
             print(f"\n{case_name}: digitization failed")
             continue
@@ -234,6 +310,7 @@ def main():
 
     # Summary
     print(f"\n{'=' * 60}")
+    print(f"Cache: {cache_hits} hits, {cache_misses} misses")
     print("SUMMARY (all arms)")
     if all_val_mae:
         print(f"  Validation MAE (recon vs digitized): mean={np.mean(all_val_mae):.4f} median={np.median(all_val_mae):.4f}")

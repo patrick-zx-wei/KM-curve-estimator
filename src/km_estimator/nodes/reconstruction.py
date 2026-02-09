@@ -63,8 +63,8 @@ FULL_RECON_RERENDER_BLEND_ALPHA = 0.82
 FULL_RECON_HARDPOINT_OBJECTIVE_WEIGHT = 8.0
 FULL_RECON_HARDPOINT_MAXERR_WEIGHT = 20.0
 CENSOR_HINT_MIN_STRENGTH = 0.12
-CENSOR_HINT_BLEND_BASE = 0.25
-CENSOR_HINT_BLEND_SCALE = 0.45
+CENSOR_HINT_BLEND_BASE = 0.0
+CENSOR_HINT_BLEND_SCALE = 0.0
 MAX_TERMINAL_CENSOR_FRACTION = 0.30
 TERMINAL_CENSOR_SURVIVAL_MARGIN = 0.03
 HARDPOINT_DEFAULT_TOL = 0.01
@@ -646,9 +646,16 @@ def _guyot_ikm(
                     np.clip(
                         CENSOR_HINT_BLEND_BASE + CENSOR_HINT_BLEND_SCALE * hint_strength,
                         0.0,
-                        0.8,
+                        0.5,
                     )
                 )
+                # Guard: if the survival curve drops significantly, don't let
+                # censoring hints override the survival-derived event count.
+                # A large drop means real events happened.
+                survival_drop = max(0.0, s_start - s_end)
+                if survival_drop > 0.03 and hinted_events < d_j:
+                    drop_ratio = survival_drop / max(0.01, s_start)
+                    blend *= float(np.clip(1.0 - drop_ratio, 0.1, 1.0))
                 hinted_d_j = int(
                     np.clip(
                         round((1.0 - blend) * float(d_j) + blend * float(hinted_events)),
