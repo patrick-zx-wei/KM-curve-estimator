@@ -76,11 +76,15 @@ def _estimate_interval_end_survival(
     events: int,
     s_start: float,
 ) -> float:
-    """Approximate interval-end survival for a candidate event count."""
-    censors = max(0, int(lost_total - events))
-    # Approximate effective risk set after mid-interval censoring.
-    effective_at_risk = max(1.0, float(n_start) - 0.5 * float(censors))
-    ratio = max(0.0, 1.0 - float(events) / effective_at_risk)
+    """Interval-end survival using events-first KM formula.
+
+    When all events precede censorings within an interval, the KM product
+    telescopes to S_end = S_start * (n_start - events) / n_start regardless
+    of how events are distributed across sub-times.
+    """
+    if n_start <= 0:
+        return 0.0
+    ratio = max(0.0, 1.0 - float(events) / float(n_start))
     return float(s_start * ratio)
 
 
@@ -220,6 +224,7 @@ def _normalize_step_coords(coords: list[tuple[float, float]]) -> list[tuple[floa
     Normalize curve coordinates for reconstruction logic.
 
     - Sort by time
+    - Remove transient dip outliers (e.g. curve-crossing artifacts)
     - Merge duplicate times by keeping the lower survival
     - Enforce monotone non-increasing survival
     """
@@ -227,6 +232,33 @@ def _normalize_step_coords(coords: list[tuple[float, float]]) -> list[tuple[floa
         return []
 
     ordered = sorted((float(t), float(s)) for t, s in coords)
+
+    # Phase 1: Remove transient dip outliers using local median comparison.
+    # A digitized curve may pick up pixels from a crossing curve, creating a
+    # sudden dip that recovers.  Strict monotone enforcement would cap all
+    # subsequent values at the dip minimum, destroying the curve.  Instead we
+    # detect points whose survival is far below the local median and remove
+    # them before enforcing monotonicity.
+    _SPIKE_MIN_PTS = 30
+    _SPIKE_THRESHOLD = 0.04
+    if len(ordered) >= _SPIKE_MIN_PTS:
+        survivals = [s for _, s in ordered]
+        n_pts = len(survivals)
+        # Adaptive window: ~5% of points, minimum 21, maximum 61
+        half_w = max(10, min(30, n_pts // 40))
+        clean: list[tuple[float, float]] = []
+        for i, (t, s) in enumerate(ordered):
+            lo = max(0, i - half_w)
+            hi = min(n_pts, i + half_w + 1)
+            window = sorted(survivals[lo:hi])
+            local_median = window[len(window) // 2]
+            if s < local_median - _SPIKE_THRESHOLD:
+                continue  # skip outlier dip point
+            clean.append((t, s))
+        if clean:
+            ordered = clean
+
+    # Phase 2: merge duplicates and enforce monotone non-increasing
     merged: list[tuple[float, float]] = []
     for t, s in ordered:
         if merged and abs(t - merged[-1][0]) <= 1e-9:
@@ -651,6 +683,7 @@ def _guyot_ikm(
         )
 
         # Place events at observed drop times when possible.
+        event_times: list[float] = []
         if d_j > 0:
             s_mid = _get_survival_at_time(survival_lookup, 0.5 * (t_start + t_end))
             event_times = _weighted_event_times(
@@ -671,22 +704,29 @@ def _guyot_ikm(
             for et in event_times:
                 patients.append(PatientRecord(time=float(et), event=True))
 
-        # Distribute censorings uniformly in interval
+        # Place censorings AFTER events to match the events-first KM formula.
+        # This ensures the at-risk count at event times matches what
+        # _estimate_interval_end_survival assumes.
         if c_j > 0:
+            # Censorings start after the last event in this interval
+            censor_start = max(event_times) + 1e-6 if event_times else t_start
+            censor_start = min(censor_start, t_end - 1e-6)
+
             chosen_censor_times: list[float] = []
             if interval_hint_times:
-                interval_hint_sorted = sorted(interval_hint_times)
-                if len(interval_hint_sorted) >= c_j:
-                    pick_idx = np.linspace(0, len(interval_hint_sorted) - 1, c_j)
+                # Only use hint times that fall after events
+                valid_hints = [ct for ct in sorted(interval_hint_times) if ct >= censor_start]
+                if len(valid_hints) >= c_j:
+                    pick_idx = np.linspace(0, len(valid_hints) - 1, c_j)
                     chosen_censor_times.extend(
-                        interval_hint_sorted[int(round(idx))] for idx in pick_idx.tolist()
+                        valid_hints[int(round(idx))] for idx in pick_idx.tolist()
                     )
                 else:
-                    chosen_censor_times.extend(interval_hint_sorted)
+                    chosen_censor_times.extend(valid_hints)
 
             remaining = c_j - len(chosen_censor_times)
             if remaining > 0:
-                fallback_times = np.linspace(t_start, t_end, remaining + 2)[1:-1].tolist()
+                fallback_times = np.linspace(censor_start, t_end, remaining + 2)[1:-1].tolist()
                 if is_last_interval:
                     fallback_times = [min(float(t_end) - 1e-6, float(ct)) for ct in fallback_times]
                 chosen_censor_times.extend(float(ct) for ct in fallback_times)
@@ -954,9 +994,11 @@ def _apply_hardpoint_curve_constraints(
     hardpoints: list[tuple[float, float]],
 ) -> list[tuple[float, float]]:
     """
-    Project observed curve onto hardpoint anchors before IPD reconstruction.
+    Apply hardpoint floor constraints to the digitized curve.
 
-    Hardpoints are derived from the extracted risk table only.
+    Hardpoints from risk tables represent n_at_risk / n_initial, which is a
+    LOWER BOUND on survival (losses include both events and censorings).
+    We only raise curve values that fall below this floor — never push them down.
     """
     if not base_curve or not hardpoints:
         return _normalize_step_coords(base_curve)
@@ -967,30 +1009,14 @@ def _apply_hardpoint_curve_constraints(
     projected: list[tuple[float, float]] = []
     for t in all_times:
         key = round(float(t), 6)
-        s = hp_map.get(key, _get_survival_at_time(lookup, float(t)))
+        dig_s = _get_survival_at_time(lookup, float(t))
+        hp_floor = hp_map.get(key)
+        if hp_floor is not None:
+            # Floor only: raise if digitized is below the lower bound
+            s = max(dig_s, hp_floor)
+        else:
+            s = dig_s
         projected.append((float(t), float(np.clip(s, 0.0, 1.0))))
-
-    # Between consecutive hardpoint anchors, prevent pathological over-shoot above
-    # the anchor-to-anchor linear envelope. This reduces large in-between drift
-    # while preserving exact anchor values.
-    if len(hardpoints) >= 2:
-        hp_sorted = sorted((float(t), float(s)) for t, s in hardpoints)
-        adjusted: list[tuple[float, float]] = []
-        for t, s in projected:
-            s_adj = float(s)
-            for i in range(len(hp_sorted) - 1):
-                t0, s0 = hp_sorted[i]
-                t1, s1 = hp_sorted[i + 1]
-                if not (t0 < t < t1):
-                    continue
-                den = max(1e-9, t1 - t0)
-                alpha = (t - t0) / den
-                interp = float(s0 + alpha * (s1 - s0))
-                # For survival-space (non-increasing), cap above the envelope.
-                s_adj = min(s_adj, interp)
-                break
-            adjusted.append((float(t), float(np.clip(s_adj, 0.0, 1.0))))
-        projected = adjusted
 
     return _normalize_step_coords(projected)
 
@@ -1010,12 +1036,44 @@ def _hardpoint_error_metrics(
     return float(np.mean(arr)), float(np.max(arr)), int(len(errors))
 
 
+def _hardpoint_floor_violation(
+    candidate_curve: list[tuple[float, float]],
+    hardpoints: list[tuple[float, float]] | None,
+) -> float:
+    """Max amount the curve falls BELOW a hardpoint floor.
+
+    Hardpoints are lower bounds (n_at_risk / n_initial).  Being above is
+    correct; only below-floor deviations should trigger corrective action.
+    """
+    if not candidate_curve or not hardpoints:
+        return 0.0
+    lookup = _build_survival_lookup(candidate_curve)
+    violations = [max(0.0, float(s) - _get_survival_at_time(lookup, float(t))) for t, s in hardpoints]
+    return float(max(violations)) if violations else 0.0
+
+
 def _hardpoint_objective_penalty(
     mean_error: float,
     max_error: float,
     tolerance: float,
+    floor_violation: float | None = None,
 ) -> float:
-    """Hardpoint penalty added to reconstruction objective in benchmark mode."""
+    """Hardpoint penalty added to reconstruction objective.
+
+    When *floor_violation* is supplied (the max amount the curve falls
+    BELOW a hardpoint floor), the penalty is based only on that value.
+    Being above the floor is correct (due to censoring) and should not
+    be penalised.
+    """
+    if floor_violation is not None:
+        if floor_violation <= 0:
+            return 0.0
+        excess = max(0.0, floor_violation - float(max(0.0, tolerance)))
+        return float(
+            FULL_RECON_HARDPOINT_OBJECTIVE_WEIGHT * floor_violation
+            + FULL_RECON_HARDPOINT_MAXERR_WEIGHT * excess
+        )
+    # Legacy path (no floor_violation provided)
     excess = max(0.0, float(max_error) - float(max(0.0, tolerance)))
     return float(
         FULL_RECON_HARDPOINT_OBJECTIVE_WEIGHT * float(mean_error)
@@ -1254,6 +1312,7 @@ def _refine_full_reconstruction(
     )
     best_landmark = _landmark_proxy_error(survival_coords, best_curve, landmark_times)
     best_hardpoint_mean, best_hardpoint_max, _ = _hardpoint_error_metrics(best_curve, hardpoints)
+    best_floor_violation = _hardpoint_floor_violation(best_curve, hardpoints)
     best_rerender = _rerender_curve_error(
         rerender_ref_pixels,
         best_curve,
@@ -1267,6 +1326,7 @@ def _refine_full_reconstruction(
             best_hardpoint_mean,
             best_hardpoint_max,
             hardpoint_tolerance,
+            floor_violation=best_floor_violation,
         )
     )
     needs_forced_feedback = _has_high_loss_zero_event_intervals(
@@ -1276,7 +1336,7 @@ def _refine_full_reconstruction(
     )
     run_feedback = (
         _should_run_feedback_refinement(best_fit, best_interval, best_landmark)
-        or (bool(hardpoints) and best_hardpoint_max > hardpoint_tolerance)
+        or (bool(hardpoints) and best_floor_violation > hardpoint_tolerance)
         or needs_forced_feedback
     )
 
@@ -1303,6 +1363,7 @@ def _refine_full_reconstruction(
             cand_hardpoint_mean, cand_hardpoint_max, _ = _hardpoint_error_metrics(
                 cand_curve, hardpoints
             )
+            cand_floor_violation = _hardpoint_floor_violation(cand_curve, hardpoints)
             cand_rerender = _rerender_curve_error(
                 rerender_ref_pixels,
                 cand_curve,
@@ -1316,6 +1377,7 @@ def _refine_full_reconstruction(
                     cand_hardpoint_mean,
                     cand_hardpoint_max,
                     hardpoint_tolerance,
+                    floor_violation=cand_floor_violation,
                 )
             )
 
@@ -1365,6 +1427,7 @@ def _refine_full_reconstruction(
         residual_hardpoint_mean, residual_hardpoint_max, _ = _hardpoint_error_metrics(
             residual_curve, hardpoints
         )
+        residual_floor_violation = _hardpoint_floor_violation(residual_curve, hardpoints)
         residual_rerender = _rerender_curve_error(
             rerender_ref_pixels,
             residual_curve,
@@ -1378,6 +1441,7 @@ def _refine_full_reconstruction(
                 residual_hardpoint_mean,
                 residual_hardpoint_max,
                 hardpoint_tolerance,
+                floor_violation=residual_floor_violation,
             )
         )
         if (
@@ -1443,6 +1507,7 @@ def _refine_full_reconstruction(
                 rerender_hardpoint_mean,
                 rerender_hardpoint_max,
                 hardpoint_tolerance,
+                floor_violation=_hardpoint_floor_violation(rerender_curve, hardpoints),
             )
         )
         if (
@@ -1673,6 +1738,7 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 full_hardpoint_mean,
                 full_hardpoint_max,
                 hardpoint_tolerance,
+                floor_violation=_hardpoint_floor_violation(full_curve, curve_hardpoints),
             )
             alt_obj = _reconstruction_objective(
                 alt_fit_mae, alt_interval_mismatch, alt_landmark_error
@@ -1680,6 +1746,7 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 alt_hardpoint_mean,
                 alt_hardpoint_max,
                 hardpoint_tolerance,
+                floor_violation=_hardpoint_floor_violation(alt_curve, curve_hardpoints),
             )
 
             alt_size_plausible = True
