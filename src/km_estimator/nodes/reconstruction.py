@@ -1,20 +1,12 @@
 """IPD reconstruction and validation nodes."""
 
-from bisect import bisect_right
 import os
+from bisect import bisect_right
 
 import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from km_estimator.nodes.axis_calibration import AxisMapping, calibrate_axes
-from km_estimator.utils.shape_metrics import (
-    dtw_distance,
-    frechet_distance,
-    max_error,
-    rmse,
-)
-from km_estimator.utils import cv_utils
 from km_estimator.models import (
     CurveIPD,
     IPDOutput,
@@ -25,6 +17,14 @@ from km_estimator.models import (
     ReconstructionMode,
     RiskGroup,
     RiskTable,
+)
+from km_estimator.nodes.axis_calibration import AxisMapping, calibrate_axes
+from km_estimator.utils import cv_utils
+from km_estimator.utils.shape_metrics import (
+    dtw_distance,
+    frechet_distance,
+    max_error,
+    rmse,
 )
 
 MIN_ESTIMATED_COHORT_SIZE = 50
@@ -124,9 +124,7 @@ def _choose_interval_event_count(
     else:
         low = max(0, min(center, hint_center) - 10)
         high = min(lost_total, max(center, hint_center) + 10)
-        candidates = sorted(
-            set([0, lost_total, center, hint_center, *range(low, high + 1)])
-        )
+        candidates = sorted(set([0, lost_total, center, hint_center, *range(low, high + 1)]))
 
     best_events = center
     best_score = float("inf")
@@ -134,11 +132,7 @@ def _choose_interval_event_count(
         predicted_s_end = _estimate_interval_end_survival(n_start, lost_total, events, s_start)
         survival_error = abs(predicted_s_end - s_end)
         rounding_error = abs(float(events) - bounded_target)
-        hint_error = (
-            abs(float(events) - bounded_hint)
-            if bounded_hint is not None
-            else 0.0
-        )
+        hint_error = abs(float(events) - bounded_hint) if bounded_hint is not None else 0.0
         score = survival_error * (8.5 * max(0.7, survival_weight)) + rounding_error * 0.35
         if bounded_hint is not None:
             score += hint_error * 0.22
@@ -155,7 +149,8 @@ def _choose_interval_event_count(
         and max(
             bounded_target,
             (bounded_hint if bounded_hint is not None else 0.0),
-        ) >= HIGH_LOSS_ZERO_EVENT_HINT_THRESHOLD
+        )
+        >= HIGH_LOSS_ZERO_EVENT_HINT_THRESHOLD
     ):
         best_events = min_events_floor
 
@@ -207,9 +202,7 @@ def _find_matching_risk_group(
     return None
 
 
-def _get_survival_at_time(
-    lookup: tuple[list[float], list[float]], t: float
-) -> float:
+def _get_survival_at_time(lookup: tuple[list[float], list[float]], t: float) -> float:
     """Get survival probability at time t from precomputed step-function lookup."""
     times, survivals = lookup
     if not times:
@@ -515,8 +508,7 @@ def _guyot_ikm(
     if risk_group is None:
         available_groups = [g.name for g in risk_table.groups]
         warnings.append(
-            f"No risk table group for curve '{curve_name}'. "
-            f"Available groups: {available_groups}"
+            f"No risk table group for curve '{curve_name}'. Available groups: {available_groups}"
         )
         return patients, warnings
 
@@ -533,11 +525,7 @@ def _guyot_ikm(
 
     survival_lookup = _build_survival_lookup(coords)
     normalized_coords = _normalize_step_coords(coords)
-    hint_censor_times = sorted(
-        float(t)
-        for t in (censoring_times or [])
-        if np.isfinite(float(t))
-    )
+    hint_censor_times = sorted(float(t) for t in (censoring_times or []) if np.isfinite(float(t)))
     used_hint_intervals = 0
     adjusted_by_hint_intervals = 0
     event_residual = 0.0
@@ -546,7 +534,7 @@ def _guyot_ikm(
     for j in range(len(time_points) - 1):
         t_start = time_points[j]
         t_end = time_points[j + 1]
-        is_last_interval = (j == len(time_points) - 2)
+        is_last_interval = j == len(time_points) - 2
         n_start = int(n_at_risk[j])
         n_end = int(n_at_risk[j + 1])
 
@@ -604,34 +592,38 @@ def _guyot_ikm(
         if hint_censor_times:
             if is_last_interval:
                 interval_hint_times = [
-                    ct for ct in hint_censor_times
-                    if t_start < ct < (t_end - 1e-9)
+                    ct for ct in hint_censor_times if t_start < ct < (t_end - 1e-9)
                 ]
             else:
                 interval_hint_times = [
-                    ct for ct in hint_censor_times
-                    if t_start < ct <= (t_end + 1e-9)
+                    ct for ct in hint_censor_times if t_start < ct <= (t_end + 1e-9)
                 ]
         hint_censor_count = min(lost_total, len(interval_hint_times))
         if hint_censor_count > 0:
             used_hint_intervals += 1
             hinted_events = int(np.clip(lost_total - hint_censor_count, 0, lost_total))
-            hint_strength = float(np.clip(
-                hint_censor_count / max(1, lost_total),
-                0.0,
-                1.0,
-            ))
-            if hint_strength >= CENSOR_HINT_MIN_STRENGTH:
-                blend = float(np.clip(
-                    CENSOR_HINT_BLEND_BASE + CENSOR_HINT_BLEND_SCALE * hint_strength,
+            hint_strength = float(
+                np.clip(
+                    hint_censor_count / max(1, lost_total),
                     0.0,
-                    0.8,
-                ))
-                hinted_d_j = int(np.clip(
-                    round((1.0 - blend) * float(d_j) + blend * float(hinted_events)),
-                    0,
-                    lost_total,
-                ))
+                    1.0,
+                )
+            )
+            if hint_strength >= CENSOR_HINT_MIN_STRENGTH:
+                blend = float(
+                    np.clip(
+                        CENSOR_HINT_BLEND_BASE + CENSOR_HINT_BLEND_SCALE * hint_strength,
+                        0.0,
+                        0.8,
+                    )
+                )
+                hinted_d_j = int(
+                    np.clip(
+                        round((1.0 - blend) * float(d_j) + blend * float(hinted_events)),
+                        0,
+                        lost_total,
+                    )
+                )
                 if hinted_d_j != d_j:
                     adjusted_by_hint_intervals += 1
                 d_j = hinted_d_j
@@ -654,7 +646,9 @@ def _guyot_ikm(
         equivalent_events = float(
             np.clip(equivalent_events, -0.75 * max(1, lost_total), 0.75 * max(1, lost_total))
         )
-        carried_survival_bias_events = 0.45 * carried_survival_bias_events + 0.55 * equivalent_events
+        carried_survival_bias_events = (
+            0.45 * carried_survival_bias_events + 0.55 * equivalent_events
+        )
 
         # Place events at observed drop times when possible.
         if d_j > 0:
@@ -685,8 +679,7 @@ def _guyot_ikm(
                 if len(interval_hint_sorted) >= c_j:
                     pick_idx = np.linspace(0, len(interval_hint_sorted) - 1, c_j)
                     chosen_censor_times.extend(
-                        interval_hint_sorted[int(round(idx))]
-                        for idx in pick_idx.tolist()
+                        interval_hint_sorted[int(round(idx))] for idx in pick_idx.tolist()
                     )
                 else:
                     chosen_censor_times.extend(interval_hint_sorted)
@@ -706,7 +699,9 @@ def _guyot_ikm(
     target_total = max(0, int(n_at_risk[0]))
     raw_final_at_risk = max(0, int(n_at_risk[-1]))
     s_end_curve = float(np.clip(_get_survival_at_time(survival_lookup, final_time), 0.0, 1.0))
-    survival_cap = int(round(target_total * min(1.0, s_end_curve + TERMINAL_CENSOR_SURVIVAL_MARGIN)))
+    survival_cap = int(
+        round(target_total * min(1.0, s_end_curve + TERMINAL_CENSOR_SURVIVAL_MARGIN))
+    )
     fraction_cap = int(round(target_total * MAX_TERMINAL_CENSOR_FRACTION))
     terminal_cap = min(target_total, max(8, survival_cap, fraction_cap))
     final_at_risk = min(raw_final_at_risk, terminal_cap)
@@ -718,7 +713,9 @@ def _guyot_ikm(
     if final_at_risk > 0:
         for _ in range(final_at_risk):
             patients.append(PatientRecord(time=final_time, event=False))
-        warnings.append(f"Added {final_at_risk} terminal right-censored survivors at t={final_time}")
+        warnings.append(
+            f"Added {final_at_risk} terminal right-censored survivors at t={final_time}"
+        )
 
     # Guardrail: reconcile generated patient count to initial at-risk cohort.
     remaining_terminal_cap = max(0, terminal_cap - final_at_risk)
@@ -925,11 +922,7 @@ def _build_risk_table_hardpoint_constraints(
             continue
 
         counts = list(risk_group.counts)
-        if (
-            len(counts) != len(risk_table.time_points)
-            or not counts
-            or int(counts[0]) <= 0
-        ):
+        if len(counts) != len(risk_table.time_points) or not counts or int(counts[0]) <= 0:
             invalid_groups += 1
             warnings.append(
                 f"W_HARDPOINT_RISK_GROUP_INVALID:{curve_name}:{risk_group.name}:"
@@ -948,9 +941,7 @@ def _build_risk_table_hardpoint_constraints(
             points.sort(key=lambda p: p[0])
             constraints[curve_name] = points
 
-    warnings.append(
-        f"I_HARDPOINT_SOURCE_RISK_TABLE:groups={len(constraints)}"
-    )
+    warnings.append(f"I_HARDPOINT_SOURCE_RISK_TABLE:groups={len(constraints)}")
     if unmatched:
         warnings.append("W_HARDPOINT_RISK_GROUP_MISSING:" + ",".join(sorted(unmatched)))
     if invalid_groups > 0:
@@ -1012,10 +1003,7 @@ def _hardpoint_error_metrics(
     if not candidate_curve or not hardpoints:
         return 0.0, 0.0, 0
     lookup = _build_survival_lookup(candidate_curve)
-    errors = [
-        abs(_get_survival_at_time(lookup, float(t)) - float(s))
-        for t, s in hardpoints
-    ]
+    errors = [abs(_get_survival_at_time(lookup, float(t)) - float(s)) for t, s in hardpoints]
     if not errors:
         return 0.0, 0.0, 0
     arr = np.asarray(errors, dtype=np.float64)
@@ -1091,9 +1079,7 @@ def _has_high_loss_zero_event_intervals(
         expected_loss = max(0, int(counts[j]) - int(counts[j + 1]))
         if expected_loss < int(loss_threshold):
             continue
-        events = sum(
-            1 for p in patients if (t_start < float(p.time) <= t_end and bool(p.event))
-        )
+        events = sum(1 for p in patients if (t_start < float(p.time) <= t_end and bool(p.event)))
         if events == 0:
             return True
     return False
@@ -1116,7 +1102,8 @@ def _curve_residual_series(
     cand_lookup = _build_survival_lookup(candidate)
     residual = np.asarray(
         [
-            _get_survival_at_time(obs_lookup, float(t)) - _get_survival_at_time(cand_lookup, float(t))
+            _get_survival_at_time(obs_lookup, float(t))
+            - _get_survival_at_time(cand_lookup, float(t))
             for t in times
         ],
         dtype=np.float64,
@@ -1206,7 +1193,7 @@ def _pixel_mask_from_real_curve(
         return cv2.dilate(mask, np.ones((3, 3), dtype=np.uint8), iterations=1)
 
     arr = np.asarray(px_points, dtype=np.int32).reshape(-1, 1, 2)
-    cv2.polylines(mask, [arr], isClosed=False, color=255, thickness=2, lineType=cv2.LINE_AA)
+    cv2.polylines(mask, [arr], isClosed=False, color=255, thickness=2, lineType=cv2.LINE_AA)  # type: ignore[arg-type]
     return mask
 
 
@@ -1217,12 +1204,7 @@ def _rerender_curve_error(
     image_shape: tuple[int, int] | None,
 ) -> float:
     """F1-based mismatch between rerendered candidate and isolated curve pixels."""
-    if (
-        reference_pixels is None
-        or not reference_pixels
-        or mapping is None
-        or image_shape is None
-    ):
+    if reference_pixels is None or not reference_pixels or mapping is None or image_shape is None:
         return 0.0
 
     ref_mask = _pixel_mask_from_curve_points(reference_pixels, image_shape)
@@ -1267,7 +1249,9 @@ def _refine_full_reconstruction(
     best_warnings = list(initial_warnings)
     best_curve = _km_from_ipd(best_patients)
     best_fit = _calculate_mae(survival_coords, best_curve)
-    best_interval = _interval_loss_mismatch_fraction(best_patients, risk_group, risk_table.time_points)
+    best_interval = _interval_loss_mismatch_fraction(
+        best_patients, risk_group, risk_table.time_points
+    )
     best_landmark = _landmark_proxy_error(survival_coords, best_curve, landmark_times)
     best_hardpoint_mean, best_hardpoint_max, _ = _hardpoint_error_metrics(best_curve, hardpoints)
     best_rerender = _rerender_curve_error(
@@ -1276,12 +1260,14 @@ def _refine_full_reconstruction(
         rerender_mapping,
         rerender_image_shape,
     )
-    best_obj = _reconstruction_objective(best_fit, best_interval, best_landmark) + (
-        FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * best_rerender
-    ) + _hardpoint_objective_penalty(
-        best_hardpoint_mean,
-        best_hardpoint_max,
-        hardpoint_tolerance,
+    best_obj = (
+        _reconstruction_objective(best_fit, best_interval, best_landmark)
+        + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * best_rerender)
+        + _hardpoint_objective_penalty(
+            best_hardpoint_mean,
+            best_hardpoint_max,
+            hardpoint_tolerance,
+        )
     )
     needs_forced_feedback = _has_high_loss_zero_event_intervals(
         best_patients,
@@ -1290,10 +1276,7 @@ def _refine_full_reconstruction(
     )
     run_feedback = (
         _should_run_feedback_refinement(best_fit, best_interval, best_landmark)
-        or (
-            bool(hardpoints)
-            and best_hardpoint_max > hardpoint_tolerance
-        )
+        or (bool(hardpoints) and best_hardpoint_max > hardpoint_tolerance)
         or needs_forced_feedback
     )
 
@@ -1317,21 +1300,23 @@ def _refine_full_reconstruction(
                 cand_patients, risk_group, risk_table.time_points
             )
             cand_landmark = _landmark_proxy_error(survival_coords, cand_curve, landmark_times)
-            cand_hardpoint_mean, cand_hardpoint_max, _ = _hardpoint_error_metrics(cand_curve, hardpoints)
+            cand_hardpoint_mean, cand_hardpoint_max, _ = _hardpoint_error_metrics(
+                cand_curve, hardpoints
+            )
             cand_rerender = _rerender_curve_error(
                 rerender_ref_pixels,
                 cand_curve,
                 rerender_mapping,
                 rerender_image_shape,
             )
-            cand_obj = _reconstruction_objective(
-                cand_fit, cand_interval, cand_landmark
-            ) + (
-                FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * cand_rerender
-            ) + _hardpoint_objective_penalty(
-                cand_hardpoint_mean,
-                cand_hardpoint_max,
-                hardpoint_tolerance,
+            cand_obj = (
+                _reconstruction_objective(cand_fit, cand_interval, cand_landmark)
+                + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * cand_rerender)
+                + _hardpoint_objective_penalty(
+                    cand_hardpoint_mean,
+                    cand_hardpoint_max,
+                    hardpoint_tolerance,
+                )
             )
 
             improved = cand_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
@@ -1348,7 +1333,8 @@ def _refine_full_reconstruction(
                 best_rerender = cand_rerender
                 best_obj = cand_obj
                 best_warnings.append(
-                    f"{curve_name}: feedback iteration {iter_idx + 1} improved objective to {best_obj:.4f}"
+                    f"{curve_name}: feedback iteration {iter_idx + 1} "
+                    f"improved objective to {best_obj:.4f}"
                 )
     else:
         best_warnings.append(
@@ -1385,14 +1371,14 @@ def _refine_full_reconstruction(
             rerender_mapping,
             rerender_image_shape,
         )
-        residual_obj = _reconstruction_objective(
-            residual_fit, residual_interval, residual_landmark
-        ) + (
-            FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * residual_rerender
-        ) + _hardpoint_objective_penalty(
-            residual_hardpoint_mean,
-            residual_hardpoint_max,
-            hardpoint_tolerance,
+        residual_obj = (
+            _reconstruction_objective(residual_fit, residual_interval, residual_landmark)
+            + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * residual_rerender)
+            + _hardpoint_objective_penalty(
+                residual_hardpoint_mean,
+                residual_hardpoint_max,
+                hardpoint_tolerance,
+            )
         )
         if (
             residual_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
@@ -1450,14 +1436,14 @@ def _refine_full_reconstruction(
             rerender_mapping,
             rerender_image_shape,
         )
-        rerender_obj = _reconstruction_objective(
-            rerender_fit, rerender_interval, rerender_landmark
-        ) + (
-            FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * rerender_error
-        ) + _hardpoint_objective_penalty(
-            rerender_hardpoint_mean,
-            rerender_hardpoint_max,
-            hardpoint_tolerance,
+        rerender_obj = (
+            _reconstruction_objective(rerender_fit, rerender_interval, rerender_landmark)
+            + (FULL_RECON_RERENDER_OBJECTIVE_WEIGHT * rerender_error)
+            + _hardpoint_objective_penalty(
+                rerender_hardpoint_mean,
+                rerender_hardpoint_max,
+                hardpoint_tolerance,
+            )
         )
         if (
             rerender_obj + FULL_RECON_FEEDBACK_MIN_IMPROVEMENT < best_obj
@@ -1481,7 +1467,9 @@ def _refine_full_reconstruction(
         elif force_rerender:
             best_warnings.append(
                 f"{curve_name}: rerender pass forced but objective did not improve "
-                f"(fit={rerender_fit:.4f}, interval={rerender_interval:.4f}, rerender={rerender_error:.4f})"
+                f"(fit={rerender_fit:.4f}, "
+                f"interval={rerender_interval:.4f}, "
+                f"rerender={rerender_error:.4f})"
             )
     if hardpoints:
         best_warnings.append(
@@ -1588,7 +1576,8 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 rerender_shape = img.shape[:2]
             else:
                 all_warnings.append(
-                    "Skipped rerender correction setup: axis calibration unavailable in reconstruction stage"
+                    "Skipped rerender correction setup: "
+                    "axis calibration unavailable in reconstruction stage"
                 )
 
     for name, coords in state.digitized_curves.items():
@@ -1670,12 +1659,8 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 risk_group,
                 risk_table.time_points,
             )
-            landmark_times = sorted(
-                set(float(t) for t in risk_table.time_points if float(t) > 0)
-            )
-            alt_landmark_error = _landmark_proxy_error(
-                survival_coords, alt_curve, landmark_times
-            )
+            landmark_times = sorted(set(float(t) for t in risk_table.time_points if float(t) > 0))
+            alt_landmark_error = _landmark_proxy_error(survival_coords, alt_curve, landmark_times)
             full_hardpoint_mean, full_hardpoint_max, _ = _hardpoint_error_metrics(
                 full_curve, curve_hardpoints
             )
@@ -1741,9 +1726,7 @@ def reconstruct(state: PipelineState) -> PipelineState:
             if curve_hardpoints:
                 full_hardpoint_ok = full_hardpoint_max <= hardpoint_tolerance
                 alt_hardpoint_ok = alt_hardpoint_max <= hardpoint_tolerance
-                alt_interval_ok = (
-                    alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
-                )
+                alt_interval_ok = alt_interval_mismatch <= FULL_RECON_ALT_INTERVAL_LOSS_MISMATCH_MAX
                 if (
                     alt_hardpoint_ok
                     and not full_hardpoint_ok
@@ -1802,11 +1785,13 @@ def reconstruct(state: PipelineState) -> PipelineState:
             )
 
         all_warnings.extend(warnings)
-        curves.append(CurveIPD(
-            group_name=name,
-            patients=patients,
-            censoring_times=censoring,
-        ))
+        curves.append(
+            CurveIPD(
+                group_name=name,
+                patients=patients,
+                censoring_times=censoring,
+            )
+        )
 
     output = IPDOutput(
         metadata=state.plot_metadata,
@@ -1858,12 +1843,14 @@ def validate(state: PipelineState) -> PipelineState:
         mae = _calculate_mae(original, reconstructed)
         updates: dict[str, float | None] = {"validation_mae": mae}
         if compute_full_metrics:
-            updates.update({
-                "validation_dtw": dtw_distance(original, reconstructed),
-                "validation_rmse": rmse(original, reconstructed),
-                "validation_max_error": max_error(original, reconstructed),
-                "validation_frechet": frechet_distance(original, reconstructed),
-            })
+            updates.update(
+                {
+                    "validation_dtw": dtw_distance(original, reconstructed),
+                    "validation_rmse": rmse(original, reconstructed),
+                    "validation_max_error": max_error(original, reconstructed),
+                    "validation_frechet": frechet_distance(original, reconstructed),
+                }
+            )
 
         validated_curves.append(curve.model_copy(update=updates))
 

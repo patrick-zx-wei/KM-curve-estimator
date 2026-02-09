@@ -155,10 +155,7 @@ def _gate_confidence(
 
     # Do not block downstream evaluation for most low-confidence traces.
     # Reserve hard failure for critically unreliable traces with poor coverage.
-    should_fail = bool(
-        adjusted < EXTREME_FAIL_THRESHOLD
-        and (span_mean < 0.35 or low_frac >= 0.95)
-    )
+    should_fail = bool(adjusted < EXTREME_FAIL_THRESHOLD and (span_mean < 0.35 or low_frac >= 0.95))
     if hard_fail and not should_fail:
         warnings.append("W_HARD_FAIL_REVIEW_ONLY")
     if adjusted < LOW_CONFIDENCE_REVIEW_THRESHOLD:
@@ -519,9 +516,7 @@ def digitize_v5(state: PipelineState) -> PipelineState:
     # Optional debug artifacts.
     debug_enabled = os.getenv("KM_DIGITIZER_V5_DEBUG", "").lower() in {"1", "true", "yes"}
     if debug_enabled:
-        out_dir = Path(
-            os.getenv("KM_DIGITIZER_V5_DEBUG_DIR", "/tmp/km_digitization_v5")
-        )
+        out_dir = Path(os.getenv("KM_DIGITIZER_V5_DEBUG_DIR", "/tmp/km_digitization_v5"))
         prefix = Path(state.image_path).stem
         all_warnings.extend(
             write_debug_artifacts(

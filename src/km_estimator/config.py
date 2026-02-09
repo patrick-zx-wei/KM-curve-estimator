@@ -59,7 +59,8 @@ Return JSON with these fields:
 
 Return only valid JSON, no markdown."""
 
-OCR_PROMPT_WITH_CONFIDENCE = """Extract all text from this Kaplan-Meier style time-to-event plot image.
+OCR_PROMPT_WITH_CONFIDENCE = """\
+Extract all text from this Kaplan-Meier style time-to-event plot image.
 
 Return JSON with these fields:
 - x_tick_labels: list of x-axis tick labels (e.g., ["0", "12", "24", "36"])
@@ -93,7 +94,8 @@ The curve direction can be downward (survival) or upward (incidence).
 Return only valid JSON, no markdown."""
 
 # Gemini: Aggressive, push for completeness
-OCR_PROMPT_GEMINI = """Extract ALL visible text from this Kaplan-Meier style time-to-event plot with HIGH DETAIL.
+OCR_PROMPT_GEMINI = """\
+Extract ALL visible text from this Kaplan-Meier style time-to-event plot with HIGH DETAIL.
 
 You MUST extract:
 - x_tick_labels: ALL X-axis tick labels (every visible time value)
@@ -120,7 +122,8 @@ Using both the image and extracted text, return JSON with:
 - y_axis: {{label, start, end, tick_interval, tick_values, scale}}
 - curves: [{{name, color_description, line_style}}]
 - risk_table: {{time_points, groups: [{{name, counts}}]}} or null
-- curve_direction: "downward" for survival-style curves or "upward" for cumulative-incidence-style curves
+- curve_direction: "downward" for survival-style curves or \
+"upward" for cumulative-incidence-style curves
 - title: string or null
 - annotations: list of strings
 
@@ -132,7 +135,8 @@ CRITICAL - Y-AXIS ATTENTION:
 
 CRITICAL - CURVE DIRECTION:
 - Set curve_direction="downward" when the main curves decrease over time (survival).
-- Set curve_direction="upward" when the main curves increase over time (cumulative incidence / cumulative event probability).
+- Set curve_direction="upward" when the main curves increase over time \
+(cumulative incidence / cumulative event probability).
 - Use the y-axis label and curve shape together to decide.
 
 CRITICAL - X-AXIS ENDPOINT:
@@ -145,11 +149,14 @@ CRITICAL - RISK TABLE:
 
 Return only valid JSON, no markdown."""
 
-INPUT_GUARD_PROMPT = """Analyze this image and determine if it is a valid Kaplan-Meier style time-to-event curve figure.
+INPUT_GUARD_PROMPT = """\
+Analyze this image and determine if it is a valid Kaplan-Meier \
+style time-to-event curve figure.
 
 Check for the following elements:
 1. Axes: Are there clear X and Y axes?
-2. Curves: Is there at least one step-function curve (downward survival OR upward cumulative incidence)?
+2. Curves: Is there at least one step-function curve \
+(downward survival OR upward cumulative incidence)?
 3. Ticks: Are there readable tick marks/labels on both axes?
 4. Legend: Is there a legend identifying curve groups? (optional but helpful)
 5. Risk table: Is there a number-at-risk table below the plot? (optional)

@@ -246,7 +246,9 @@ def _build_hardpoint_corridor(
         dtype=np.float32,
     )
     xs = np.arange(width, dtype=np.float32)
-    target = np.interp(xs, cols.astype(np.float32), vals, left=float(vals[0]), right=float(vals[-1]))
+    target = np.interp(
+        xs, cols.astype(np.float32), vals, left=float(vals[0]), right=float(vals[-1])
+    )
 
     nearest = np.min(np.abs(xs[:, None] - cols[None, :].astype(np.float32)), axis=1)
     base = max(2.0, float(height) * HARDPOINT_CORRIDOR_BASE_BAND_RATIO)
@@ -259,7 +261,7 @@ def _build_hardpoint_corridor(
     if left > 0:
         band[:left] = np.float32(max(float(height) * 2.0, float(base)))
     if right + 1 < width:
-        band[right + 1:] = np.float32(max(float(height) * 2.0, float(base)))
+        band[right + 1 :] = np.float32(max(float(height) * 2.0, float(base)))
     return target.astype(np.float32), band.astype(np.float32)
 
 
@@ -377,7 +379,10 @@ def _extract_arm_diagnostics(
         axis_hits.append(1.0 if pen > 0.35 else 0.0)
     axis_capture_frac = float(np.mean(np.asarray(axis_hits, dtype=np.float32)))
     low_margin_frac = float(
-        np.mean(np.asarray([ambiguity_map[ys[x], x] for x in range(w)], dtype=np.float32) < LOW_AMBIGUITY_THRESHOLD)
+        np.mean(
+            np.asarray([ambiguity_map[ys[x], x] for x in range(w)], dtype=np.float32)
+            < LOW_AMBIGUITY_THRESHOLD
+        )
     )
     low_consensus_frac = 0.0
     if overlap_consensus_map is not None:
@@ -386,7 +391,8 @@ def _extract_arm_diagnostics(
                 np.asarray(
                     [overlap_consensus_map[ys[x], x] for x in range(w)],
                     dtype=np.float32,
-                ) < 0.33
+                )
+                < 0.33
             )
         )
 
@@ -517,13 +523,13 @@ def _detect_crossing_windows(
     for i in range(1, w):
         if sign[i] == sign[i - 1]:
             continue
-        local = delta[max(0, i - 1): min(w, i + 2)]
+        local = delta[max(0, i - 1) : min(w, i + 2)]
         if local.size == 0:
             continue
         if int(np.min(np.abs(local))) > approach_px:
             continue
-        left = np.abs(delta[max(0, i - search_radius):i])
-        right = np.abs(delta[i:min(w, i + search_radius)])
+        left = np.abs(delta[max(0, i - search_radius) : i])
+        right = np.abs(delta[i : min(w, i + search_radius)])
         left_sep = int(np.max(left)) if left.size else 0
         right_sep = int(np.max(right)) if right.size else 0
         if left_sep < separation_px or right_sep < separation_px:
@@ -543,7 +549,9 @@ def _detect_crossing_windows(
     mid = ((y_a + y_b) // 2).clip(0, h - 1)
     amb = ambiguity[mid, np.arange(w)]
     close_amb = (np.abs(delta) <= (approach_px * 2)) & (amb < LOW_AMBIGUITY_THRESHOLD)
-    parallel_windows = _merge_windows(_mask_to_windows(close_amb.astype(np.bool_)), CROSSING_MERGE_GAP)
+    parallel_windows = _merge_windows(
+        _mask_to_windows(close_amb.astype(np.bool_)), CROSSING_MERGE_GAP
+    )
 
     # Remove overlaps from parallel set.
     cleaned_parallel: list[tuple[int, int]] = []
@@ -655,13 +663,11 @@ def _trace_single(
     first_cost = np.asarray(
         [
             -score
-            + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier) * _axis_penalty_value(
-                axis_penalty_map, y, 0, direction, h
-            )
+            + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
+            * _axis_penalty_value(axis_penalty_map, y, 0, direction, h)
             + _start_anchor_penalty(y, 0, w, h, direction, cfg)
             + (
-                OVERLAP_AMBIG_PENALTY
-                * (1.0 - float(overlap_consensus_map[y, 0]))
+                OVERLAP_AMBIG_PENALTY * (1.0 - float(overlap_consensus_map[y, 0]))
                 if overlap_consensus_map is not None
                 else 0.0
             )
@@ -705,19 +711,18 @@ def _trace_single(
             if local_curr:
                 curr_cands = local_curr
             candidates_by_x[x] = curr_cands
+
         def _solve_with_window(win: int | None) -> tuple[NDArray[np.float32], NDArray[np.int32]]:
             out_cost = np.full((len(curr_cands),), np.inf, dtype=np.float32)
             out_parent = np.full((len(curr_cands),), -1, dtype=np.int32)
             for j, (y_cur, score_cur) in enumerate(curr_cands):
                 unary = (
                     -float(score_cur)
-                    + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier) * _axis_penalty_value(
-                        axis_penalty_map, y_cur, x, direction, h
-                    )
+                    + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
+                    * _axis_penalty_value(axis_penalty_map, y_cur, x, direction, h)
                     + _start_anchor_penalty(y_cur, x, w, h, direction, cfg)
                     + (
-                        OVERLAP_AMBIG_PENALTY
-                        * (1.0 - float(overlap_consensus_map[y_cur, x]))
+                        OVERLAP_AMBIG_PENALTY * (1.0 - float(overlap_consensus_map[y_cur, x]))
                         if overlap_consensus_map is not None
                         else 0.0
                     )
@@ -779,8 +784,7 @@ def _trace_single(
                 y_target, score_target = min(
                     topn,
                     key=lambda p: (
-                        (abs(int(p[0]) - y_prev) / float(max(1, hard_cap)))
-                        - 0.65 * float(p[1])
+                        (abs(int(p[0]) - y_prev) / float(max(1, hard_cap))) - 0.65 * float(p[1])
                     ),
                 )
                 step = int(np.clip(int(y_target) - y_prev, -hard_cap, hard_cap))
@@ -792,7 +796,9 @@ def _trace_single(
                 score_hold = float(score_map[y_hold, x])
             curr_cands = [(y_hold, score_hold)]
             candidates_by_x[x] = curr_cands
-            curr_cost = np.asarray([np.float32(float(prev_cost[best_idx]) + 0.02)], dtype=np.float32)
+            curr_cost = np.asarray(
+                [np.float32(float(prev_cost[best_idx]) + 0.02)], dtype=np.float32
+            )
             curr_parent = np.asarray([np.int32(best_idx)], dtype=np.int32)
         else:
             carry_streak = 0
@@ -946,9 +952,7 @@ def _trace_joint_two(
     crossing_disabled = False
     if len(crossing_windows) > MAX_CROSSING_WINDOWS or total_cross_cols > cross_cap_cols:
         crossing_disabled = True
-        warnings.append(
-            f"W_CROSSING_DISABLED_CAP:{len(crossing_windows)}:{total_cross_cols}:{w}"
-        )
+        warnings.append(f"W_CROSSING_DISABLED_CAP:{len(crossing_windows)}:{total_cross_cols}:{w}")
         crossing_windows = []
 
     # Keep warnings informative but bounded.
@@ -964,9 +968,7 @@ def _trace_joint_two(
     for s, e in crossing_windows:
         warnings.append(f"W_CROSSING_AMBIGUOUS:{s}:{e}")
 
-    allow_swap = (
-        allow_swap_raw if not crossing_disabled else np.zeros((w,), dtype=np.bool_)
-    )
+    allow_swap = allow_swap_raw if not crossing_disabled else np.zeros((w,), dtype=np.bool_)
 
     states_by_x: list[list[tuple[int, int, float]]] = []
     for x in range(w):
@@ -977,12 +979,10 @@ def _trace_joint_two(
             collision_penalty = max(0.0, 1.0 - (float(col_dist) / float(coll_scale)))
             unary = (
                 -float(sa + sb)
-                + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier) * _axis_penalty_value(
-                    axis_penalty_map, ya, x, direction, h
-                )
-                + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier) * _axis_penalty_value(
-                    axis_penalty_map, yb, x, direction, h
-                )
+                + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
+                * _axis_penalty_value(axis_penalty_map, ya, x, direction, h)
+                + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
+                * _axis_penalty_value(axis_penalty_map, yb, x, direction, h)
                 + _start_anchor_penalty(ya, x, w, h, direction, cfg)
                 + _start_anchor_penalty(yb, x, w, h, direction, cfg)
                 + _hardpoint_penalty(ya, x, w, h, hardpoint_guides_a)
@@ -1003,7 +1003,11 @@ def _trace_joint_two(
                 )
                 + (
                     OVERLAP_AMBIG_PENALTY
-                    * (2.0 - float(overlap_consensus_map[ya, x]) - float(overlap_consensus_map[yb, x]))
+                    * (
+                        2.0
+                        - float(overlap_consensus_map[ya, x])
+                        - float(overlap_consensus_map[yb, x])
+                    )
                     if overlap_consensus_map is not None
                     else 0.0
                 )
@@ -1053,6 +1057,7 @@ def _trace_joint_two(
                 curr_states = local_states
             states_by_x[x] = curr_states
         local_allow_swap = bool(allow_swap[x] or allow_swap[x - 1])
+
         def _solve_joint(
             win_a: int | None,
             win_b: int | None,
@@ -1101,8 +1106,12 @@ def _trace_joint_two(
 
         curr_cost, curr_parent = _solve_joint(track_win_a, track_win_b, gated=True)
         if not np.any(np.isfinite(curr_cost)):
-            relaxed_a = max(track_win_a + 1, int(round(float(track_win_a) * LOCAL_RETRY_MULTIPLIER)))
-            relaxed_b = max(track_win_b + 1, int(round(float(track_win_b) * LOCAL_RETRY_MULTIPLIER)))
+            relaxed_a = max(
+                track_win_a + 1, int(round(float(track_win_a) * LOCAL_RETRY_MULTIPLIER))
+            )
+            relaxed_b = max(
+                track_win_b + 1, int(round(float(track_win_b) * LOCAL_RETRY_MULTIPLIER))
+            )
             if relaxed_a > track_win_a or relaxed_b > track_win_b:
                 local_retry_cols += 1
                 curr_cost, curr_parent = _solve_joint(relaxed_a, relaxed_b, gated=True)
@@ -1110,8 +1119,12 @@ def _trace_joint_two(
         if not np.any(np.isfinite(curr_cost)) and carry_streak >= MAX_LOCAL_CARRY_STREAK:
             carry_break_cols += 1
             warnings.append(f"W_LOCAL_CARRY_STREAK_BREAK_JOINT:{x}")
-            break_win_a = max(track_win_a + 2, int(round(float(track_win_a) * BREAK_RESEED_MULTIPLIER)))
-            break_win_b = max(track_win_b + 2, int(round(float(track_win_b) * BREAK_RESEED_MULTIPLIER)))
+            break_win_a = max(
+                track_win_a + 2, int(round(float(track_win_a) * BREAK_RESEED_MULTIPLIER))
+            )
+            break_win_b = max(
+                track_win_b + 2, int(round(float(track_win_b) * BREAK_RESEED_MULTIPLIER))
+            )
             curr_cost, curr_parent = _solve_joint(break_win_a, break_win_b, gated=True)
             if np.any(np.isfinite(curr_cost)):
                 carry_streak = 0
@@ -1137,8 +1150,16 @@ def _trace_joint_two(
                             float(st[2]),
                         ),
                     )
-                    ya_hold = int(np.clip(int(pya) + np.clip(int(ya_t) - int(pya), -hard_cap, hard_cap), 0, h - 1))
-                    yb_hold = int(np.clip(int(pyb) + np.clip(int(yb_t) - int(pyb), -hard_cap, hard_cap), 0, h - 1))
+                    ya_hold = int(
+                        np.clip(
+                            int(pya) + np.clip(int(ya_t) - int(pya), -hard_cap, hard_cap), 0, h - 1
+                        )
+                    )
+                    yb_hold = int(
+                        np.clip(
+                            int(pyb) + np.clip(int(yb_t) - int(pyb), -hard_cap, hard_cap), 0, h - 1
+                        )
+                    )
                     if ya_hold == yb_hold:
                         if expected_sign < 0:
                             ya_hold = max(0, ya_hold - 1)
@@ -1152,7 +1173,9 @@ def _trace_joint_two(
                 unary = -float(map_a[ya_hold, x] + map_b[yb_hold, x])
                 curr_states = [(int(ya_hold), int(yb_hold), unary)]
                 states_by_x[x] = curr_states
-                curr_cost = np.asarray([np.float32(float(prev_cost[best_prev_idx]) + 0.02)], dtype=np.float32)
+                curr_cost = np.asarray(
+                    [np.float32(float(prev_cost[best_prev_idx]) + 0.02)], dtype=np.float32
+                )
                 curr_parent = np.asarray([np.int32(best_prev_idx)], dtype=np.int32)
             else:
                 curr_states = [(0, 0, 0.0)]
@@ -1232,7 +1255,9 @@ def _trace_joint_three(
     ambiguity_map: NDArray[np.float32],
     overlap_consensus_map: NDArray[np.float32] | None,
     direction: DirectionMode,
-    candidate_masks: tuple[NDArray[np.bool_] | None, NDArray[np.bool_] | None, NDArray[np.bool_] | None],
+    candidate_masks: tuple[
+        NDArray[np.bool_] | None, NDArray[np.bool_] | None, NDArray[np.bool_] | None
+    ],
     hardpoint_guides: tuple[
         tuple[tuple[int, int], ...] | None,
         tuple[tuple[int, int], ...] | None,
@@ -1352,7 +1377,14 @@ def _trace_joint_three(
         if len(states) > JOINT3_MAX_STATES:
             states = states[:JOINT3_MAX_STATES]
         if not states:
-            states = [(init_ys[0], init_ys[1], init_ys[2], _state_unary(x, (init_ys[0], init_ys[1], init_ys[2]), (0.0, 0.0, 0.0)))]
+            states = [
+                (
+                    init_ys[0],
+                    init_ys[1],
+                    init_ys[2],
+                    _state_unary(x, (init_ys[0], init_ys[1], init_ys[2]), (0.0, 0.0, 0.0)),
+                )
+            ]
         states_by_x.append(states)
 
     costs: list[NDArray[np.float32]] = []
@@ -1388,7 +1420,9 @@ def _trace_joint_three(
                 curr_states = local_states
             states_by_x[x] = curr_states
 
-        def _solve_joint(wins: tuple[int, int, int], gated: bool) -> tuple[NDArray[np.float32], NDArray[np.int32]]:
+        def _solve_joint(
+            wins: tuple[int, int, int], gated: bool
+        ) -> tuple[NDArray[np.float32], NDArray[np.int32]]:
             out_cost = np.full((len(curr_states),), np.inf, dtype=np.float32)
             out_parent = np.full((len(curr_states),), -1, dtype=np.int32)
             for j, (y0, y1, y2, unary) in enumerate(curr_states):
@@ -1420,7 +1454,11 @@ def _trace_joint_three(
                         + _direction_penalty(p1, y1, direction, h, cfg)
                         + _direction_penalty(p2, y2, direction, h, cfg)
                     )
-                    jump_pen = _jump_penalty(p0, y0, h) + _jump_penalty(p1, y1, h) + _jump_penalty(p2, y2, h)
+                    jump_pen = (
+                        _jump_penalty(p0, y0, h)
+                        + _jump_penalty(p1, y1, h)
+                        + _jump_penalty(p2, y2, h)
+                    )
                     total = float(prev_cost[i]) + float(unary) + smooth + dpen + jump_pen
                     if total < best_value:
                         best_value = total
@@ -1429,11 +1467,14 @@ def _trace_joint_three(
                 out_parent[j] = np.int32(best_idx)
             return out_cost, out_parent
 
-        curr_cost, curr_parent = _solve_joint((track_wins[0], track_wins[1], track_wins[2]), gated=True)
+        curr_cost, curr_parent = _solve_joint(
+            (track_wins[0], track_wins[1], track_wins[2]), gated=True
+        )
         if not np.any(np.isfinite(curr_cost)):
-            relaxed = tuple(
-                max(track_wins[i] + 1, int(round(float(track_wins[i]) * LOCAL_RETRY_MULTIPLIER)))
-                for i in range(3)
+            relaxed: tuple[int, int, int] = (
+                max(track_wins[0] + 1, int(round(float(track_wins[0]) * LOCAL_RETRY_MULTIPLIER))),
+                max(track_wins[1] + 1, int(round(float(track_wins[1]) * LOCAL_RETRY_MULTIPLIER))),
+                max(track_wins[2] + 1, int(round(float(track_wins[2]) * LOCAL_RETRY_MULTIPLIER))),
             )
             if relaxed != (track_wins[0], track_wins[1], track_wins[2]):
                 local_retry_cols += 1
@@ -1442,9 +1483,10 @@ def _trace_joint_three(
         if not np.any(np.isfinite(curr_cost)) and carry_streak >= MAX_LOCAL_CARRY_STREAK:
             carry_break_cols += 1
             warnings.append(f"W_LOCAL_CARRY_STREAK_BREAK_JOINT3:{x}")
-            break_wins = tuple(
-                max(track_wins[i] + 2, int(round(float(track_wins[i]) * BREAK_RESEED_MULTIPLIER)))
-                for i in range(3)
+            break_wins: tuple[int, int, int] = (
+                max(track_wins[0] + 2, int(round(float(track_wins[0]) * BREAK_RESEED_MULTIPLIER))),
+                max(track_wins[1] + 2, int(round(float(track_wins[1]) * BREAK_RESEED_MULTIPLIER))),
+                max(track_wins[2] + 2, int(round(float(track_wins[2]) * BREAK_RESEED_MULTIPLIER))),
             )
             curr_cost, curr_parent = _solve_joint(break_wins, gated=True)
             if np.any(np.isfinite(curr_cost)):
@@ -1461,7 +1503,9 @@ def _trace_joint_three(
                 hard_cap = max(3, int(round(float(h) * HARD_TRANSITION_CAP_RATIO)))
                 reseed_pool = full_curr_states if full_curr_states else curr_states
                 if reseed_pool:
-                    top_states = sorted(reseed_pool, key=lambda st: st[3])[: min(24, len(reseed_pool))]
+                    top_states = sorted(reseed_pool, key=lambda st: st[3])[
+                        : min(24, len(reseed_pool))
+                    ]
                     t0, t1, t2, _ = min(
                         top_states,
                         key=lambda st: (
@@ -1471,9 +1515,15 @@ def _trace_joint_three(
                             float(st[3]),
                         ),
                     )
-                    h0 = int(np.clip(int(p0) + np.clip(int(t0) - int(p0), -hard_cap, hard_cap), 0, h - 1))
-                    h1 = int(np.clip(int(p1) + np.clip(int(t1) - int(p1), -hard_cap, hard_cap), 0, h - 1))
-                    h2 = int(np.clip(int(p2) + np.clip(int(t2) - int(p2), -hard_cap, hard_cap), 0, h - 1))
+                    h0 = int(
+                        np.clip(int(p0) + np.clip(int(t0) - int(p0), -hard_cap, hard_cap), 0, h - 1)
+                    )
+                    h1 = int(
+                        np.clip(int(p1) + np.clip(int(t1) - int(p1), -hard_cap, hard_cap), 0, h - 1)
+                    )
+                    h2 = int(
+                        np.clip(int(p2) + np.clip(int(t2) - int(p2), -hard_cap, hard_cap), 0, h - 1)
+                    )
                     local_reseed_cols += 1
                 else:
                     h0, h1, h2 = int(p0), int(p1), int(p2)
@@ -1488,7 +1538,9 @@ def _trace_joint_three(
                 )
                 curr_states = [(int(h0), int(h1), int(h2), float(unary))]
                 states_by_x[x] = curr_states
-                curr_cost = np.asarray([np.float32(float(prev_cost[best_prev_idx]) + 0.02)], dtype=np.float32)
+                curr_cost = np.asarray(
+                    [np.float32(float(prev_cost[best_prev_idx]) + 0.02)], dtype=np.float32
+                )
                 curr_parent = np.asarray([np.int32(best_prev_idx)], dtype=np.int32)
             else:
                 curr_states = [(0, 0, 0, 0.0)]
@@ -1614,14 +1666,10 @@ def trace_curves(
                 else candidate_mask
             ),
             hardpoint_guides_a=(
-                hardpoint_guides.get(names[0], ())
-                if hardpoint_guides is not None
-                else None
+                hardpoint_guides.get(names[0], ()) if hardpoint_guides is not None else None
             ),
             hardpoint_guides_b=(
-                hardpoint_guides.get(names[1], ())
-                if hardpoint_guides is not None
-                else None
+                hardpoint_guides.get(names[1], ()) if hardpoint_guides is not None else None
             ),
             cfg=cfg,
         )
@@ -1642,9 +1690,15 @@ def trace_curves(
             overlap_consensus,
             direction,
             candidate_masks=(
-                arm_candidate_masks.get(names[0], candidate_mask) if arm_candidate_masks is not None else candidate_mask,
-                arm_candidate_masks.get(names[1], candidate_mask) if arm_candidate_masks is not None else candidate_mask,
-                arm_candidate_masks.get(names[2], candidate_mask) if arm_candidate_masks is not None else candidate_mask,
+                arm_candidate_masks.get(names[0], candidate_mask)
+                if arm_candidate_masks is not None
+                else candidate_mask,
+                arm_candidate_masks.get(names[1], candidate_mask)
+                if arm_candidate_masks is not None
+                else candidate_mask,
+                arm_candidate_masks.get(names[2], candidate_mask)
+                if arm_candidate_masks is not None
+                else candidate_mask,
             ),
             hardpoint_guides=(
                 hardpoint_guides.get(names[0], ()) if hardpoint_guides is not None else None,
@@ -1686,9 +1740,7 @@ def trace_curves(
                 occupied_penalty=occupied,
                 candidate_mask=arm_mask,
                 hardpoint_guides=(
-                    hardpoint_guides.get(name, ())
-                    if hardpoint_guides is not None
-                    else None
+                    hardpoint_guides.get(name, ()) if hardpoint_guides is not None else None
                 ),
                 cfg=single_cfg,
             )

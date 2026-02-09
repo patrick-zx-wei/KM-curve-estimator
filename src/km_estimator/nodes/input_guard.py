@@ -31,46 +31,60 @@ def input_guard(state: PipelineState) -> PipelineState:
 
         if isinstance(result, ProcessingError):
             if attempt == cfg.max_input_guard_retries:
-                return state.model_copy(update={
-                    "input_guard_retries": attempt,
-                    "errors": state.errors + [result],
-                })
+                return state.model_copy(
+                    update={
+                        "input_guard_retries": attempt,
+                        "errors": state.errors + [result],
+                    }
+                )
             continue  # Retry on API error
 
         # Got a ValidationResult - don't retry, trust the LLM's judgment
         if result.valid:
-            return state.model_copy(update={
-                "validation_result": result,
-                "input_guard_retries": attempt,
-            })
+            return state.model_copy(
+                update={
+                    "validation_result": result,
+                    "input_guard_retries": attempt,
+                }
+            )
 
         # Image is not a valid KM curve - fail immediately, don't retry
-        return state.model_copy(update={
-            "validation_result": result,
-            "input_guard_retries": attempt,
-            "errors": state.errors + [ProcessingError(
-                stage=ProcessingStage.INPUT_GUARD,
-                error_type="invalid_image",
-                recoverable=False,
-                message=f"Not a valid KM curve: {result.feedback}",
-                details={
-                    "axes_present": result.axes_present,
-                    "curves_present": result.curves_present,
-                    "ticks_readable": result.ticks_readable,
-                },
-            )],
-        })
+        return state.model_copy(
+            update={
+                "validation_result": result,
+                "input_guard_retries": attempt,
+                "errors": state.errors
+                + [
+                    ProcessingError(
+                        stage=ProcessingStage.INPUT_GUARD,
+                        error_type="invalid_image",
+                        recoverable=False,
+                        message=f"Not a valid KM curve: {result.feedback}",
+                        details={
+                            "axes_present": result.axes_present,
+                            "curves_present": result.curves_present,
+                            "ticks_readable": result.ticks_readable,
+                        },
+                    )
+                ],
+            }
+        )
 
     # All retries exhausted due to API errors
-    return state.model_copy(update={
-        "input_guard_retries": cfg.max_input_guard_retries,
-        "errors": state.errors + [ProcessingError(
-            stage=ProcessingStage.INPUT_GUARD,
-            error_type="max_retries_exceeded",
-            recoverable=False,
-            message="Validation failed after max retries",
-        )],
-    })
+    return state.model_copy(
+        update={
+            "input_guard_retries": cfg.max_input_guard_retries,
+            "errors": state.errors
+            + [
+                ProcessingError(
+                    stage=ProcessingStage.INPUT_GUARD,
+                    error_type="max_retries_exceeded",
+                    recoverable=False,
+                    message="Validation failed after max retries",
+                )
+            ],
+        }
+    )
 
 
 async def input_guard_async(state: PipelineState) -> PipelineState:
@@ -100,43 +114,57 @@ async def input_guard_async(state: PipelineState) -> PipelineState:
 
         if isinstance(result, ProcessingError):
             if attempt == cfg.max_input_guard_retries:
-                return state.model_copy(update={
-                    "input_guard_retries": attempt,
-                    "errors": state.errors + [result],
-                })
+                return state.model_copy(
+                    update={
+                        "input_guard_retries": attempt,
+                        "errors": state.errors + [result],
+                    }
+                )
             continue  # Retry on API error
 
         # Got a ValidationResult - don't retry, trust the LLM's judgment
         if result.valid:
-            return state.model_copy(update={
-                "validation_result": result,
-                "input_guard_retries": attempt,
-            })
+            return state.model_copy(
+                update={
+                    "validation_result": result,
+                    "input_guard_retries": attempt,
+                }
+            )
 
         # Image is not a valid KM curve - fail immediately, don't retry
-        return state.model_copy(update={
-            "validation_result": result,
-            "input_guard_retries": attempt,
-            "errors": state.errors + [ProcessingError(
-                stage=ProcessingStage.INPUT_GUARD,
-                error_type="invalid_image",
-                recoverable=False,
-                message=f"Not a valid KM curve: {result.feedback}",
-                details={
-                    "axes_present": result.axes_present,
-                    "curves_present": result.curves_present,
-                    "ticks_readable": result.ticks_readable,
-                },
-            )],
-        })
+        return state.model_copy(
+            update={
+                "validation_result": result,
+                "input_guard_retries": attempt,
+                "errors": state.errors
+                + [
+                    ProcessingError(
+                        stage=ProcessingStage.INPUT_GUARD,
+                        error_type="invalid_image",
+                        recoverable=False,
+                        message=f"Not a valid KM curve: {result.feedback}",
+                        details={
+                            "axes_present": result.axes_present,
+                            "curves_present": result.curves_present,
+                            "ticks_readable": result.ticks_readable,
+                        },
+                    )
+                ],
+            }
+        )
 
     # All retries exhausted due to API errors
-    return state.model_copy(update={
-        "input_guard_retries": cfg.max_input_guard_retries,
-        "errors": state.errors + [ProcessingError(
-            stage=ProcessingStage.INPUT_GUARD,
-            error_type="max_retries_exceeded",
-            recoverable=False,
-            message="Validation failed after max retries",
-        )],
-    })
+    return state.model_copy(
+        update={
+            "input_guard_retries": cfg.max_input_guard_retries,
+            "errors": state.errors
+            + [
+                ProcessingError(
+                    stage=ProcessingStage.INPUT_GUARD,
+                    error_type="max_retries_exceeded",
+                    recoverable=False,
+                    message="Validation failed after max retries",
+                )
+            ],
+        }
+    )

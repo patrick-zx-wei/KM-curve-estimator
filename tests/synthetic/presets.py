@@ -34,7 +34,6 @@ from .modifiers import (
 )
 from .renderer import render_test_case
 
-
 # ---------------------------------------------------------------------------
 # Tier configuration
 # ---------------------------------------------------------------------------
@@ -131,9 +130,7 @@ FontFamilyLabel = Literal["sans", "serif"]
 # ---------------------------------------------------------------------------
 
 
-def _generate_and_save(
-    test_case: SyntheticTestCase, output_dir: Path
-) -> SyntheticTestCase:
+def _generate_and_save(test_case: SyntheticTestCase, output_dir: Path) -> SyntheticTestCase:
     """Render and persist a test case."""
     case_dir = output_dir / test_case.name
     render_test_case(test_case, case_dir)
@@ -141,9 +138,7 @@ def _generate_and_save(
     return test_case
 
 
-def _pick_line_styles(
-    rng: np.random.Generator, n_curves: int
-) -> list[str]:
+def _pick_line_styles(rng: np.random.Generator, n_curves: int) -> list[str]:
     """Pick line styles: 75% all-solid, 25% mixed (solid + dashed)."""
     if rng.random() < 0.75:
         return ["solid"] * n_curves
@@ -197,18 +192,10 @@ def _apply_literature_style_profile(style_profile: dict[str, str]) -> list[Modif
     return cast(
         list[Modifier],
         [
-            BackgroundStyle(
-                style=cast(BackgroundStyleLabel, style_profile["background_style"])
-            ),
-            CurveDirection(
-                direction=cast(CurveDirectionLabel, style_profile["curve_direction"])
-            ),
-            FrameLayout(
-                layout=cast(FrameLayoutLabel, style_profile["frame_layout"])
-            ),
-            FontTypography(
-                family=cast(FontFamilyLabel, style_profile["font_typography"])
-            ),
+            BackgroundStyle(style=cast(BackgroundStyleLabel, style_profile["background_style"])),
+            CurveDirection(direction=cast(CurveDirectionLabel, style_profile["curve_direction"])),
+            FrameLayout(layout=cast(FrameLayoutLabel, style_profile["frame_layout"])),
+            FontTypography(family=cast(FontFamilyLabel, style_profile["font_typography"])),
         ],
     )
 
@@ -266,23 +253,21 @@ def _apply_tier_modifiers(
     _apply_post_render(case_rng, tier, modifiers)
 
     # --- Cap harsh modifiers: max 2 post-render, max 4 total ---
-    _HARSH_POST = (JPEGArtifacts, LowResolution, NoisyBackground)
-    _HARSH_FIGURE = (ThinLines, TruncatedYAxis, Annotations, GridLines)
+    harsh_post_types = (JPEGArtifacts, LowResolution, NoisyBackground)
+    harsh_figure_types = (ThinLines, TruncatedYAxis, Annotations, GridLines)
 
     # Count non-white background as a harsh figure modifier
-    has_harsh_bg = any(
-        isinstance(m, BackgroundStyle) and m.style != "white" for m in modifiers
-    )
+    has_harsh_bg = any(isinstance(m, BackgroundStyle) and m.style != "white" for m in modifiers)
 
     # 1) Cap post-render harsh to 2
-    harsh_post = [m for m in modifiers if isinstance(m, _HARSH_POST)]
+    harsh_post = [m for m in modifiers if isinstance(m, harsh_post_types)]
     while len(harsh_post) > 2:
         drop = harsh_post.pop(case_rng.integers(len(harsh_post)))
         modifiers.remove(drop)
 
     # 2) Cap total harsh to 4
-    harsh_fig = [m for m in modifiers if isinstance(m, _HARSH_FIGURE)]
-    harsh_post = [m for m in modifiers if isinstance(m, _HARSH_POST)]
+    harsh_fig = [m for m in modifiers if isinstance(m, harsh_figure_types)]
+    harsh_post = [m for m in modifiers if isinstance(m, harsh_post_types)]
     total_harsh = len(harsh_post) + len(harsh_fig) + (1 if has_harsh_bg else 0)
     while total_harsh > 4 and harsh_fig:
         drop = harsh_fig.pop(case_rng.integers(len(harsh_fig)))
@@ -292,24 +277,24 @@ def _apply_tier_modifiers(
         total_harsh -= 1
 
     # --- Enforce minimum 2.3px final line thickness ---
-    _DPI = 150
-    _NATIVE_WIDTH = 1500  # 10in * 150dpi
-    _MIN_FINAL_PX = 2.3
+    render_dpi = 150
+    native_width = 1500  # 10in * 150dpi
+    min_final_px = 2.3
 
     thin_mod = next((m for m in modifiers if isinstance(m, ThinLines)), None)
     lowres_mod = next((m for m in modifiers if isinstance(m, LowResolution)), None)
     linewidth_pt = thin_mod.linewidth if thin_mod else 2.0
-    target_w = lowres_mod.target_width if lowres_mod else _NATIVE_WIDTH
-    final_px = linewidth_pt * (_DPI / 72) * (target_w / _NATIVE_WIDTH)
+    target_w = lowres_mod.target_width if lowres_mod else native_width
+    final_px = linewidth_pt * (render_dpi / 72) * (target_w / native_width)
 
-    if final_px < _MIN_FINAL_PX and thin_mod:
+    if final_px < min_final_px and thin_mod:
         # Compute minimum target_width that would satisfy constraint
-        needed_w = _MIN_FINAL_PX * 72 * _NATIVE_WIDTH / (_DPI * linewidth_pt)
+        needed_w = min_final_px * 72 * native_width / (render_dpi * linewidth_pt)
         if lowres_mod and needed_w <= tier.lowres_width_range[1]:
             lowres_mod.target_width = int(math.ceil(needed_w))
         else:
             # Increase linewidth to satisfy constraint at current resolution
-            needed_lw = _MIN_FINAL_PX * 72 * _NATIVE_WIDTH / (_DPI * target_w)
+            needed_lw = min_final_px * 72 * native_width / (render_dpi * target_w)
             if needed_lw <= 1.8:
                 thin_mod.linewidth = needed_lw
             else:
@@ -334,12 +319,8 @@ def _apply_post_render(
         lo_w, hi_w = tier.lowres_width_range
         lo_q, hi_q = tier.jpeg_quality_range
         if rng.random() < 0.5:
-            modifiers.append(
-                LowResolution(target_width=int(rng.integers(lo_w, hi_w + 1)))
-            )
-        modifiers.append(
-            JPEGArtifacts(quality=int(rng.integers(lo_q, hi_q + 1)))
-        )
+            modifiers.append(LowResolution(target_width=int(rng.integers(lo_w, hi_w + 1))))
+        modifiers.append(JPEGArtifacts(quality=int(rng.integers(lo_q, hi_q + 1))))
         return
 
     # Legacy: always resolution + JPEG + noise
@@ -554,16 +535,17 @@ def _sample_weibull_ks(
 
     lower_k = 0.6
     upper_k = 2.0
-    best_ks: list[float] = []
     best_gap = -1.0
 
     for _ in range(max_attempts):
-        ks = [float(np.clip(base_k * rng.uniform(0.80, 1.25), lower_k, upper_k)) for _ in range(n_curves)]
+        ks = [
+            float(np.clip(base_k * rng.uniform(0.80, 1.25), lower_k, upper_k))
+            for _ in range(n_curves)
+        ]
         sorted_ks = sorted(ks)
         min_observed_gap = min(sorted_ks[i + 1] - sorted_ks[i] for i in range(len(sorted_ks) - 1))
         if min_observed_gap > best_gap:
             best_gap = min_observed_gap
-            best_ks = ks
         if min_observed_gap >= min_gap:
             return ks
 
@@ -572,8 +554,7 @@ def _sample_weibull_ks(
     half = (n_curves - 1) / 2.0
     spread = max(min_gap, 0.18)
     return [
-        float(np.clip(center + (idx - half) * spread, lower_k, upper_k))
-        for idx in range(n_curves)
+        float(np.clip(center + (idx - half) * spread, lower_k, upper_k)) for idx in range(n_curves)
     ]
 
 
@@ -975,8 +956,7 @@ def generate_standard(
             min_separation += 0.005
 
         has_post = any(
-            isinstance(m, (LowResolution, JPEGArtifacts, NoisyBackground))
-            for m in modifiers
+            isinstance(m, (LowResolution, JPEGArtifacts, NoisyBackground)) for m in modifiers
         )
         tc: SyntheticTestCase | None = None
         best_score = -1e9
@@ -1022,15 +1002,10 @@ def generate_standard(
             accepted, score = _pattern_fit(candidate, gap_pattern)
 
             # Reject candidates where curves don't travel far enough
-            travel_ends = [
-                c.step_coords[-1][0]
-                for c in candidate.curves
-                if len(c.step_coords) > 1
-            ]
+            travel_ends = [c.step_coords[-1][0] for c in candidate.curves if len(c.step_coords) > 1]
             if travel_ends:
                 travel_ok = (
-                    min(travel_ends) >= (2 / 3) * max_time
-                    and max(travel_ends) >= 0.9 * max_time
+                    min(travel_ends) >= (2 / 3) * max_time and max(travel_ends) >= 0.9 * max_time
                 )
             else:
                 travel_ok = False

@@ -342,11 +342,11 @@ def process_in_tiles(
             if y1 < h:
                 bottom_n = min(overlap, th)
                 bottom_ramp = np.arange(bottom_n, dtype=np.float32) / max(1, overlap)
-                weight[th - bottom_n:th, :] *= bottom_ramp[::-1, None]
+                weight[th - bottom_n : th, :] *= bottom_ramp[::-1, None]
             if x1 < w:
                 right_n = min(overlap, tw)
                 right_ramp = np.arange(right_n, dtype=np.float32) / max(1, overlap)
-                weight[:, tw - right_n:tw] *= right_ramp[None, ::-1]
+                weight[:, tw - right_n : tw] *= right_ramp[None, ::-1]
 
             processed_f32 = processed.astype(np.float32)
             if is_color:
@@ -414,7 +414,9 @@ def normalize_plot_background(
     if candidate_ratio < 0.12:
         return image
 
-    score_sat = np.clip((float(saturation_threshold) - sat) / max(1.0, float(saturation_threshold)), 0.0, 1.0)
+    score_sat = np.clip(
+        (float(saturation_threshold) - sat) / max(1.0, float(saturation_threshold)), 0.0, 1.0
+    )
     score_val = np.clip((val - float(min_value)) / max(1.0, 255.0 - float(min_value)), 0.0, 1.0)
     alpha = 0.85 * score_sat * score_val
 
@@ -601,13 +603,18 @@ def denoise_nlmeans(
 
     if len(image.shape) == 3:
         return cv2.fastNlMeansDenoisingColored(
-            src=image, h=h_int, hColor=h_int,
-            templateWindowSize=template_window_size, searchWindowSize=search_window_size,
+            src=image,
+            h=h_int,
+            hColor=h_int,
+            templateWindowSize=template_window_size,
+            searchWindowSize=search_window_size,
         )
     else:
         return cv2.fastNlMeansDenoising(
-            src=image, h=h_int,
-            templateWindowSize=template_window_size, searchWindowSize=search_window_size,
+            src=image,
+            h=h_int,
+            templateWindowSize=template_window_size,
+            searchWindowSize=search_window_size,
         )
 
 

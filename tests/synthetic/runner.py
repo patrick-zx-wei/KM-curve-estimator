@@ -8,9 +8,8 @@ Requires OPENAI_API_KEY and GEMINI_API_KEY environment variables.
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import as_completed
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import cv2
@@ -40,9 +39,7 @@ def _tick_values_mae(detected: list[float], expected: list[float]) -> float | No
     n = min(len(det), len(exp))
     if n == 0:
         return None
-    arr = np.abs(
-        np.asarray(det[:n], dtype=np.float64) - np.asarray(exp[:n], dtype=np.float64)
-    )
+    arr = np.abs(np.asarray(det[:n], dtype=np.float64) - np.asarray(exp[:n], dtype=np.float64))
     return float(np.mean(arr))
 
 
@@ -142,8 +139,8 @@ def _draw_axis_tick_overlay(
 ) -> None:
     """Draw calibrated axes and where the pipeline thinks tick marks are."""
     h, w = overlay.shape[:2]
-    x_tick_color = (200, 0, 255)   # magenta
-    y_tick_color = (0, 180, 255)   # orange
+    x_tick_color = (200, 0, 255)  # magenta
+    y_tick_color = (0, 180, 255)  # orange
     axis_color = (70, 70, 70)
 
     x_axis = plot_metadata.x_axis
@@ -192,7 +189,9 @@ def _draw_axis_tick_overlay(
     # X-axis ticks: redraw inward (upward) to avoid overlapping x tick labels.
     for i, cx in enumerate(x_positions):
         cy = y_base
-        local_len = tick_len if 0 < i < len(x_positions) - 1 else max(4, int(round(tick_len * 0.65)))
+        local_len = (
+            tick_len if 0 < i < len(x_positions) - 1 else max(4, int(round(tick_len * 0.65)))
+        )
         y_in = int(np.clip(cy - local_len, y_lo, y_hi))
         cv2.line(
             overlay,
@@ -216,7 +215,9 @@ def _draw_axis_tick_overlay(
     # Y-axis ticks: redraw inward (rightward) to avoid overlapping y tick labels.
     for i, cy in enumerate(y_positions):
         cx = x0
-        local_len = tick_len if 0 < i < len(y_positions) - 1 else max(4, int(round(tick_len * 0.65)))
+        local_len = (
+            tick_len if 0 < i < len(y_positions) - 1 else max(4, int(round(tick_len * 0.65)))
+        )
         x_in = int(np.clip(cx + local_len, x_lo, x_hi))
         cv2.line(
             overlay,
@@ -256,7 +257,9 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
     try:
         from km_estimator.nodes.digitization_5.axis_map import build_plot_model
 
-        plot_model = build_plot_model(image=image, meta=state.plot_metadata, ocr_tokens=state.ocr_tokens)
+        plot_model = build_plot_model(
+            image=image, meta=state.plot_metadata, ocr_tokens=state.ocr_tokens
+        )
         if not isinstance(plot_model, ProcessingError):
             if len(plot_model.x_tick_anchors) >= 2:
                 x_tick_anchor_px = [int(px) for px, _ in plot_model.x_tick_anchors]
@@ -276,8 +279,8 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
     y_end = float(state.plot_metadata.y_axis.end)
 
     # OpenCV BGR colors.
-    digitized_color = (255, 220, 0)      # cyan-ish
-    reconstructed_color = (0, 200, 40)   # green
+    digitized_color = (255, 220, 0)  # cyan-ish
+    reconstructed_color = (0, 200, 40)  # green
 
     if isinstance(state.digitized_curves, dict):
         for coords in state.digitized_curves.values():
@@ -315,26 +318,56 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
     )
 
     # Minimal legend
-    x_tick_color = (200, 0, 255)   # magenta
-    y_tick_color = (0, 180, 255)   # orange
+    x_tick_color = (200, 0, 255)  # magenta
+    y_tick_color = (0, 180, 255)  # orange
     cv2.rectangle(overlay, (12, 12), (320, 98), (255, 255, 255), -1)
     cv2.rectangle(overlay, (12, 12), (320, 98), (40, 40, 40), 1)
     cv2.line(overlay, (24, 30), (58, 30), digitized_color, 1, cv2.LINE_AA)
-    cv2.putText(overlay, "digitized", (66, 34), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(
+        overlay, "digitized", (66, 34), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA
+    )
     cv2.line(overlay, (24, 48), (58, 48), reconstructed_color, 2, cv2.LINE_AA)
-    cv2.putText(overlay, "reconstructed", (66, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(
+        overlay,
+        "reconstructed",
+        (66, 52),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.45,
+        (20, 20, 20),
+        1,
+        cv2.LINE_AA,
+    )
     cv2.circle(overlay, (41, 66), 3, x_tick_color, -1, cv2.LINE_AA)
     cv2.line(overlay, (41, 59), (41, 73), x_tick_color, 1, cv2.LINE_AA)
-    cv2.putText(overlay, "x-axis tick redraw", (66, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(
+        overlay,
+        "x-axis tick redraw",
+        (66, 70),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.45,
+        (20, 20, 20),
+        1,
+        cv2.LINE_AA,
+    )
     cv2.circle(overlay, (41, 84), 3, y_tick_color, -1, cv2.LINE_AA)
     cv2.line(overlay, (34, 84), (48, 84), y_tick_color, 1, cv2.LINE_AA)
-    cv2.putText(overlay, "y-axis tick redraw", (66, 88), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (20, 20, 20), 1, cv2.LINE_AA)
+    cv2.putText(
+        overlay,
+        "y-axis tick redraw",
+        (66, 88),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.45,
+        (20, 20, 20),
+        1,
+        cv2.LINE_AA,
+    )
 
     out_path = case_dir / "overlay_results.png"
     ok = cv2.imwrite(str(out_path), overlay)
     if not ok:
         return {"overlay_results": None, "error": f"failed to write overlay: {out_path}"}
     return {"overlay_results": str(out_path.name)}
+
 
 def run_case(
     case_name: str,
@@ -384,10 +417,12 @@ def run_case(
             "case_name": case_name,
             "difficulty": test_case.difficulty,
             "n_curves": len(test_case.curves),
-            "pipeline_errors": [{
-                "stage": "runtime",
-                "message": f"Unhandled exception: {type(e).__name__}: {e}",
-            }],
+            "pipeline_errors": [
+                {
+                    "stage": "runtime",
+                    "message": f"Unhandled exception: {type(e).__name__}: {e}",
+                }
+            ],
             "mmpu": {"error": "pipeline exception"},
             "digitize": {"error": "pipeline exception"},
             "hard_points": {"error": "pipeline exception"},
@@ -436,9 +471,13 @@ def run_case(
             "y_tick_count_expected": len(gt_y.tick_values),
             "x_tick_values_mae": _tick_values_mae(pm.x_axis.tick_values, gt_x.tick_values),
             "y_tick_values_mae": _tick_values_mae(pm.y_axis.tick_values, gt_y.tick_values),
-            "x_tick_coverage_detected": _tick_coverage(pm.x_axis.tick_values, pm.x_axis.start, pm.x_axis.end),
+            "x_tick_coverage_detected": _tick_coverage(
+                pm.x_axis.tick_values, pm.x_axis.start, pm.x_axis.end
+            ),
             "x_tick_coverage_expected": _tick_coverage(gt_x.tick_values, gt_x.start, gt_x.end),
-            "y_tick_coverage_detected": _tick_coverage(pm.y_axis.tick_values, pm.y_axis.start, pm.y_axis.end),
+            "y_tick_coverage_detected": _tick_coverage(
+                pm.y_axis.tick_values, pm.y_axis.start, pm.y_axis.end
+            ),
             "y_tick_coverage_expected": _tick_coverage(gt_y.tick_values, gt_y.start, gt_y.end),
             "n_curves_detected": len(pm.curves),
             "n_curves_expected": len(test_case.curves),
@@ -456,12 +495,8 @@ def run_case(
 
     # Stage 2: Digitize — compare curve coordinates
     if state.digitized_curves:
-        expected_curves = {
-            c.group_name: c.step_coords for c in test_case.curves
-        }
-        results["digitize"] = compare_digitized_curves(
-            state.digitized_curves, expected_curves
-        )
+        expected_curves = {c.group_name: c.step_coords for c in test_case.curves}
+        results["digitize"] = compare_digitized_curves(state.digitized_curves, expected_curves)
     else:
         results["digitize"] = {"error": "no digitized_curves produced"}
 
@@ -471,9 +506,7 @@ def run_case(
         if hp_path.exists():
             with open(hp_path) as f:
                 hard_points = json.load(f)
-            results["hard_points"] = compare_hard_points(
-                state.output, hard_points
-            )
+            results["hard_points"] = compare_hard_points(state.output, hard_points)
         else:
             results["hard_points"] = {"error": "hard_points.json not found"}
 
@@ -482,12 +515,8 @@ def run_case(
         for curve in state.output.curves:
             recon_km = _km_from_ipd(curve.patients)
             recon_curves[curve.group_name] = recon_km
-        expected_curves = {
-            c.group_name: c.step_coords for c in test_case.curves
-        }
-        results["reconstruction"] = compare_digitized_curves(
-            recon_curves, expected_curves
-        )
+        expected_curves = {c.group_name: c.step_coords for c in test_case.curves}
+        results["reconstruction"] = compare_digitized_curves(recon_curves, expected_curves)
     else:
         results["hard_points"] = {"error": "no pipeline output"}
         results["reconstruction"] = {"error": "no pipeline output"}
@@ -505,8 +534,7 @@ def run_case(
         results["reconstruction_meta"] = {
             "mode": state.output.reconstruction_mode.value,
             "patient_counts": {
-                curve.group_name: len(curve.patients)
-                for curve in state.output.curves
+                curve.group_name: len(curve.patients) for curve in state.output.curves
             },
             "warnings": list(state.output.warnings),
         }
@@ -644,10 +672,12 @@ def _run_manifest_cases(
                     "case_name": case_name,
                     "difficulty": difficulty,
                     "n_curves": 0,
-                    "pipeline_errors": [{
-                        "stage": "runtime",
-                        "message": f"Unhandled exception: {type(exc).__name__}: {exc}",
-                    }],
+                    "pipeline_errors": [
+                        {
+                            "stage": "runtime",
+                            "message": f"Unhandled exception: {type(exc).__name__}: {exc}",
+                        }
+                    ],
                     "mmpu": {"error": "runner exception"},
                     "digitize": {"error": "runner exception"},
                     "hard_points": {"error": "runner exception"},
@@ -721,32 +751,36 @@ def _build_interval_debug_artifacts(state, test_case, results: dict) -> dict:
                         terminal_carryover_censors += 1
                         continue
                     censors += 1
-                interval_ledger.append({
-                    "t_start": t_start,
-                    "t_end": t_end,
-                    "n_start": n_start,
-                    "n_end": n_end,
-                    "risk_table_loss": int(n_start - n_end),
-                    "events_reconstructed": int(events),
-                    "censors_reconstructed": int(censors),
-                    "terminal_carryover_censors": int(terminal_carryover_censors),
-                    "digitized_s_start": round(_survival_at(digitized_coords, t_start), 4),
-                    "digitized_s_end": round(_survival_at(digitized_coords, t_end), 4),
-                    "reconstructed_s_end": round(_survival_at(recon_coords, t_end), 4),
-                    "expected_s_end": round(_survival_at(expected_coords, t_end), 4),
-                })
+                interval_ledger.append(
+                    {
+                        "t_start": t_start,
+                        "t_end": t_end,
+                        "n_start": n_start,
+                        "n_end": n_end,
+                        "risk_table_loss": int(n_start - n_end),
+                        "events_reconstructed": int(events),
+                        "censors_reconstructed": int(censors),
+                        "terminal_carryover_censors": int(terminal_carryover_censors),
+                        "digitized_s_start": round(_survival_at(digitized_coords, t_start), 4),
+                        "digitized_s_end": round(_survival_at(digitized_coords, t_end), 4),
+                        "reconstructed_s_end": round(_survival_at(recon_coords, t_end), 4),
+                        "expected_s_end": round(_survival_at(expected_coords, t_end), 4),
+                    }
+                )
 
         hardpoint_deltas: list[dict] = []
         hp_group = hard_points.get(name, {}) if isinstance(hard_points, dict) else {}
         if isinstance(hp_group, dict):
             for landmark in hp_group.get("landmarks", []):
-                hardpoint_deltas.append({
-                    "time": landmark.get("time"),
-                    "expected": landmark.get("expected"),
-                    "actual": landmark.get("actual"),
-                    "error": landmark.get("error"),
-                    "pass": bool(landmark.get("pass", False)),
-                })
+                hardpoint_deltas.append(
+                    {
+                        "time": landmark.get("time"),
+                        "expected": landmark.get("expected"),
+                        "actual": landmark.get("actual"),
+                        "error": landmark.get("error"),
+                        "pass": bool(landmark.get("pass", False)),
+                    }
+                )
 
         rec_mae = None
         metric_group = recon_metrics.get(name, {}) if isinstance(recon_metrics, dict) else {}
@@ -810,7 +844,9 @@ def _build_case_diagnostics(results: dict) -> dict:
     if isinstance(reconstruction, dict):
         arm_names.update(k for k, v in reconstruction.items() if isinstance(v, dict) and "mae" in v)
     if isinstance(hard_points, dict):
-        arm_names.update(k for k, v in hard_points.items() if isinstance(v, dict) and "landmarks" in v)
+        arm_names.update(
+            k for k, v in hard_points.items() if isinstance(v, dict) and "landmarks" in v
+        )
 
     per_arm: dict[str, dict] = {}
     stage_counts: dict[str, int] = {}
@@ -835,13 +871,15 @@ def _build_case_diagnostics(results: dict) -> dict:
                 if lm.get("pass", True):
                     continue
                 bias = lm["actual"] - lm["expected"]
-                failed_landmarks.append({
-                    "time": lm["time"],
-                    "expected": lm["expected"],
-                    "actual": lm["actual"],
-                    "error": lm["error"],
-                    "bias": round(bias, 4),
-                })
+                failed_landmarks.append(
+                    {
+                        "time": lm["time"],
+                        "expected": lm["expected"],
+                        "actual": lm["actual"],
+                        "error": lm["error"],
+                        "bias": round(bias, 4),
+                    }
+                )
                 hard_fail_times[str(lm["time"])] = hard_fail_times.get(str(lm["time"]), 0) + 1
 
         hard_fail_count = len(failed_landmarks)
@@ -986,7 +1024,9 @@ def _build_interval_bias_dashboard(all_results: list[dict]) -> dict:
                         rec_s = interval.get("reconstructed_s_end")
                         exp_s = interval.get("expected_s_end")
                         dig_s = interval.get("digitized_s_end")
-                        if not isinstance(rec_s, (int, float)) or not isinstance(exp_s, (int, float)):
+                        if not isinstance(rec_s, (int, float)) or not isinstance(
+                            exp_s, (int, float)
+                        ):
                             continue
                         bucket = interval_bins.setdefault(
                             t_end,
@@ -1143,16 +1183,14 @@ def _build_summary(
 
         if isinstance(digitize, dict):
             has_mae_fail = any(
-                isinstance(v, dict) and v.get("mae", 0) > 0.05
-                for v in digitize.values()
+                isinstance(v, dict) and v.get("mae", 0) > 0.05 for v in digitize.values()
             )
             if has_mae_fail:
                 failure_breakdown["digitization_mae_failed"] += 1
 
         if isinstance(hard_points, dict):
             has_hard_fail = any(
-                isinstance(v, dict) and not v.get("all_pass", True)
-                for v in hard_points.values()
+                isinstance(v, dict) and not v.get("all_pass", True) for v in hard_points.values()
             )
             if has_hard_fail:
                 failure_breakdown["hard_points_failed"] += 1
@@ -1186,9 +1224,7 @@ def _build_summary(
         "stage_mae_dashboard": _build_stage_mae_dashboard(all_results),
         "benchmark_tracks": _build_track_summary(all_results),
         "metrics_dashboard": _build_interval_bias_dashboard(all_results),
-        "by_difficulty": {
-            str(k): v for k, v in sorted(by_difficulty.items())
-        },
+        "by_difficulty": {str(k): v for k, v in sorted(by_difficulty.items())},
     }
 
     if write_results:

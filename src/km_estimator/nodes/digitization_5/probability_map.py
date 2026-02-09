@@ -1,9 +1,13 @@
 """Shared evidence cube and per-arm score maps for digitization_v5."""
 
+# pyright: reportArgumentType=false
+# pyright: reportCallIssue=false
+# pyright: reportReturnType=false
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
@@ -104,7 +108,9 @@ def _normalize01(arr: NDArray[np.float32]) -> NDArray[np.float32]:
     return (arr - lo) / (hi - lo)
 
 
-def _local_mean_lab(roi_lab: NDArray[np.float32], k: int = LOCAL_COLOR_KERNEL) -> NDArray[np.float32]:
+def _local_mean_lab(
+    roi_lab: NDArray[np.float32], k: int = LOCAL_COLOR_KERNEL
+) -> NDArray[np.float32]:
     """Compute local-average Lab values for robust anti-aliased color matching."""
     kk = max(1, int(k))
     if kk % 2 == 0:
@@ -140,7 +146,9 @@ def _hardpoint_corridor_mask(
         dtype=np.float32,
     )
     xs = np.arange(w, dtype=np.float32)
-    target = np.interp(xs, cols.astype(np.float32), vals, left=float(vals[0]), right=float(vals[-1]))
+    target = np.interp(
+        xs, cols.astype(np.float32), vals, left=float(vals[0]), right=float(vals[-1])
+    )
     nearest = np.min(np.abs(xs[:, None] - cols[None, :].astype(np.float32)), axis=1)
 
     base = max(2.0, float(h) * HARDPOINT_WINDOW_BASE_RATIO)
@@ -186,7 +194,7 @@ def _frame_penalty(gray: NDArray[np.uint8]) -> tuple[NDArray[np.float32], bool, 
     band = max(1, int(round(min(h, w) * FRAME_BAND_RATIO)))
     ink = (gray < 130).astype(np.uint8)
     top_density = float(np.mean(ink[:band, :])) if band < h else 0.0
-    right_density = float(np.mean(ink[:, max(0, w - band):])) if band < w else 0.0
+    right_density = float(np.mean(ink[:, max(0, w - band) :])) if band < w else 0.0
     has_top = top_density >= FRAME_LINE_DENSITY_MIN
     has_right = right_density >= FRAME_LINE_DENSITY_MIN
 
@@ -195,7 +203,7 @@ def _frame_penalty(gray: NDArray[np.uint8]) -> tuple[NDArray[np.float32], bool, 
         x_exempt = max(0, int(round(w * FRAME_TOP_X_EXEMPT_RATIO)))
         pen[:band, x_exempt:] = 255
     if has_right:
-        pen[:, max(0, w - band):] = 255
+        pen[:, max(0, w - band) :] = 255
 
     pen = cv2.GaussianBlur((pen.astype(np.float32) / 255.0).astype(np.float32), (5, 5), 0)
     pen = _normalize01(pen.astype(np.float32))
@@ -232,7 +240,7 @@ def _prune_curve_components(
     if h <= 0 or w <= 0:
         return mask, 0, 0
 
-    src = (mask.astype(np.uint8) * 255)
+    src = mask.astype(np.uint8) * 255
     n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(src, connectivity=8)
     if n_labels <= 1:
         return mask, 0, 0
@@ -255,7 +263,6 @@ def _prune_curve_components(
             continue
 
         x_min = x
-        x_max = x + cw - 1
         y_min = y
         y_max = y + ch - 1
         x_span_ratio = float(cw) / float(max(1, w))
@@ -294,7 +301,7 @@ def _select_primary_component(
     if h <= 0 or w <= 0:
         return mask, False, 0.0
 
-    src = (mask.astype(np.uint8) * 255)
+    src = mask.astype(np.uint8) * 255
     n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(src, connectivity=8)
     if n_labels <= 1:
         return mask, False, 0.0
@@ -508,11 +515,15 @@ def _reference_gray_from_lab(reference_lab: tuple[float, float, float] | None) -
     if reference_lab is None:
         return None
     lab = np.asarray(
-        [[[
-            int(np.clip(round(reference_lab[0]), 0, 255)),
-            int(np.clip(round(reference_lab[1]), 0, 255)),
-            int(np.clip(round(reference_lab[2]), 0, 255)),
-        ]]],
+        [
+            [
+                [
+                    int(np.clip(round(reference_lab[0]), 0, 255)),
+                    int(np.clip(round(reference_lab[1]), 0, 255)),
+                    int(np.clip(round(reference_lab[2]), 0, 255)),
+                ]
+            ]
+        ],
         dtype=np.uint8,
     )
     bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
@@ -526,11 +537,15 @@ def _reference_hsv_from_lab(
     if reference_lab is None:
         return None
     lab = np.asarray(
-        [[[
-            int(np.clip(round(reference_lab[0]), 0, 255)),
-            int(np.clip(round(reference_lab[1]), 0, 255)),
-            int(np.clip(round(reference_lab[2]), 0, 255)),
-        ]]],
+        [
+            [
+                [
+                    int(np.clip(round(reference_lab[0]), 0, 255)),
+                    int(np.clip(round(reference_lab[1]), 0, 255)),
+                    int(np.clip(round(reference_lab[2]), 0, 255)),
+                ]
+            ]
+        ],
         dtype=np.uint8,
     )
     bgr = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
@@ -564,11 +579,17 @@ def _dynamic_hue_gate(
     if ref_hue is None:
         return None, HSV_HUE_MIN_THR, 0, 0.0, HSV_HUE_SEED_MIN_SCORE
 
-    sat_min = HSV_SAT_MIN if reliability >= COLOR_STRICT_RELIABILITY else HSV_SAT_MIN_LOW_RELIABILITY
+    sat_min = (
+        HSV_SAT_MIN if reliability >= COLOR_STRICT_RELIABILITY else HSV_SAT_MIN_LOW_RELIABILITY
+    )
     seed_cand = candidate_mask & (sat_channel >= sat_min)
     seed_scores = color_mix[seed_cand]
     if seed_scores.size <= 0:
-        cap = HSV_HUE_MAX_THR if reliability >= COLOR_STRICT_RELIABILITY else HSV_HUE_MAX_THR_LOW_RELIABILITY
+        cap = (
+            HSV_HUE_MAX_THR
+            if reliability >= COLOR_STRICT_RELIABILITY
+            else HSV_HUE_MAX_THR_LOW_RELIABILITY
+        )
         return float(ref_hue), float(cap), 0, 0.0, HSV_HUE_SEED_MIN_SCORE
 
     q = float(np.percentile(seed_scores, HSV_HUE_SEED_QUANTILE))
@@ -586,14 +607,22 @@ def _dynamic_hue_gate(
 
     seed_n = int(seed_hue.size)
     if seed_n <= 0:
-        cap = HSV_HUE_MAX_THR if reliability >= COLOR_STRICT_RELIABILITY else HSV_HUE_MAX_THR_LOW_RELIABILITY
+        cap = (
+            HSV_HUE_MAX_THR
+            if reliability >= COLOR_STRICT_RELIABILITY
+            else HSV_HUE_MAX_THR_LOW_RELIABILITY
+        )
         return float(ref_hue), float(cap), seed_n, 0.0, seed_thr
 
     deltas = ((seed_hue - float(ref_hue) + 90.0) % 180.0) - 90.0
     center_delta = float(np.median(deltas))
     center = (float(ref_hue) + center_delta) % 180.0
     mad = float(np.median(np.abs(deltas - center_delta)))
-    cap = HSV_HUE_MAX_THR if reliability >= COLOR_STRICT_RELIABILITY else HSV_HUE_MAX_THR_LOW_RELIABILITY
+    cap = (
+        HSV_HUE_MAX_THR
+        if reliability >= COLOR_STRICT_RELIABILITY
+        else HSV_HUE_MAX_THR_LOW_RELIABILITY
+    )
     thr = float(np.clip((1.9 * mad) + 3.0, HSV_HUE_MIN_THR, cap))
     return float(center), thr, seed_n, mad, seed_thr
 
@@ -638,7 +667,11 @@ def _dynamic_gray_gate(
 
     center = float(np.median(seed_gray))
     mad = float(np.median(np.abs(seed_gray - center)))
-    cap = GRAY_DYNAMIC_MAX_DIFF if reliability >= COLOR_STRICT_RELIABILITY else GRAY_DYNAMIC_MAX_DIFF_LOW_RELIABILITY
+    cap = (
+        GRAY_DYNAMIC_MAX_DIFF
+        if reliability >= COLOR_STRICT_RELIABILITY
+        else GRAY_DYNAMIC_MAX_DIFF_LOW_RELIABILITY
+    )
     thr = float(np.clip((2.5 * mad) + 2.0, GRAY_DYNAMIC_MIN_DIFF, cap))
     return center, thr, seed_count, mad, seed_thr
 
@@ -665,7 +698,7 @@ def _init_medoids_farthest(
     for _ in range(1, k):
         idx = int(np.argmax(d2))
         medoids.append(idx)
-        d2 = np.minimum(d2, np.sum((x - x[idx:idx + 1]) ** 2, axis=1))
+        d2 = np.minimum(d2, np.sum((x - x[idx : idx + 1]) ** 2, axis=1))
     return np.asarray(medoids, dtype=np.int32)
 
 
@@ -764,7 +797,14 @@ def _build_hsl_partition(
         return [], np.zeros((h, w), dtype=np.float32), [], warnings
 
     medoids = x_norm[medoid_idx]
-    medoid_lab = [tuple(float(v) for v in roi_lab[ys_s[i], xs_s[i]]) for i in medoid_idx.tolist()]
+    medoid_lab: list[tuple[float, float, float]] = [
+        (
+            float(roi_lab[ys_s[i], xs_s[i], 0]),
+            float(roi_lab[ys_s[i], xs_s[i], 1]),
+            float(roi_lab[ys_s[i], xs_s[i], 2]),
+        )
+        for i in medoid_idx.tolist()
+    ]
 
     x_all = ((feats - mu) / sigma) * HSL_CLUSTER_WEIGHT[None, :]
     d_all = np.sqrt(_pairwise_sqdist(x_all.astype(np.float32), medoids.astype(np.float32)))
@@ -884,7 +924,9 @@ def build_evidence_cube(
     # patterns and censoring marks from being misclassified as text blobs.
     sat_not_text = sat_chan >= 50.0
     text_pen = np.where(sat_not_text, text_pen * 0.10, text_pen).astype(np.float32)
-    text_region_pen = np.where(sat_not_text, text_region_pen * 0.10, text_region_pen).astype(np.float32)
+    text_region_pen = np.where(sat_not_text, text_region_pen * 0.10, text_region_pen).astype(
+        np.float32
+    )
     frame_pen, has_top_frame, has_right_frame = _frame_penalty(gray)
     prelim_mask = (
         ((ridge > max(0.10, CANDIDATE_RIDGE_THRESH * 0.7)) | sat_not_text)
@@ -977,9 +1019,7 @@ def build_evidence_cube(
     )
     warnings.extend(cluster_warnings)
     if has_top_frame or has_right_frame:
-        warnings.append(
-            f"I_FRAME_PENALTY_APPLIED:{int(has_top_frame)}:{int(has_right_frame)}"
-        )
+        warnings.append(f"I_FRAME_PENALTY_APPLIED:{int(has_top_frame)}:{int(has_right_frame)}")
     line_density = float(np.mean(line_pen > 0.35))
     if line_count > 0:
         warnings.append(f"I_STRAIGHT_LINE_PENALTY:{line_count}:{line_density:.4f}")
@@ -1013,14 +1053,10 @@ def build_evidence_cube(
         cluster_weight = 0.85 + 0.15 * max(0.0, 1.0 - model.reliability)
         color_mix = np.maximum(color_like, cluster_weight * cluster_like).astype(np.float32)
         color_term = (
-            COLOR_WEIGHT
-            * np.clip(0.25 + 0.75 * model.reliability, 0.15, 1.0)
-            * color_mix
+            COLOR_WEIGHT * np.clip(0.25 + 0.75 * model.reliability, 0.15, 1.0) * color_mix
         ).astype(np.float32)
         anti_color_penalty = (
-            COLOR_ANTI_WEIGHT
-            * np.clip(model.reliability, 0.0, 1.0)
-            * (1.0 - color_mix)
+            COLOR_ANTI_WEIGHT * np.clip(model.reliability, 0.0, 1.0) * (1.0 - color_mix)
         ).astype(np.float32)
         base = (structure_base + color_term - anti_color_penalty).astype(np.float32)
         color_relax = 0.0
@@ -1069,7 +1105,11 @@ def build_evidence_cube(
         ref_hsv = _reference_hsv_from_lab(ref_lab)
         if ref_hsv is not None:
             ref_h, _, _ = ref_hsv
-            sat_min = HSV_SAT_MIN if model.reliability >= COLOR_STRICT_RELIABILITY else HSV_SAT_MIN_LOW_RELIABILITY
+            sat_min = (
+                HSV_SAT_MIN
+                if model.reliability >= COLOR_STRICT_RELIABILITY
+                else HSV_SAT_MIN_LOW_RELIABILITY
+            )
             sat_mask = sat_chan >= sat_min
 
             hue_center, hue_thr, hue_seed_n, hue_mad, hue_seed_thr = _dynamic_hue_gate(
@@ -1091,14 +1131,20 @@ def build_evidence_cube(
                 warnings.append(
                     f"I_HSV_STRICT_LOCK:{arm_name}:{hsv_density:.4f}:{sat_density:.4f}:{hsv_cov:.3f}:{sat_cov:.3f}:{hue_center:.1f}:{hue_thr:.2f}:{hue_seed_n}:{hue_mad:.2f}:{hue_seed_thr:.3f}:{sat_min:.1f}"
                 )
-                if hsv_density >= HSV_STRICT_MIN_DENSITY and hsv_cov >= HSV_STRICT_MIN_COLUMN_COVERAGE:
+                if (
+                    hsv_density >= HSV_STRICT_MIN_DENSITY
+                    and hsv_cov >= HSV_STRICT_MIN_COLUMN_COVERAGE
+                ):
                     arm_mask = np.logical_and(arm_mask, hsv_mask)
                     base = np.where(
                         hsv_mask,
                         base,
                         base - (2.80 * (1.0 - 0.30 * color_relax)),
                     ).astype(np.float32)
-                elif sat_density >= HSV_STRICT_MIN_DENSITY and sat_cov >= HSV_STRICT_MIN_COLUMN_COVERAGE:
+                elif (
+                    sat_density >= HSV_STRICT_MIN_DENSITY
+                    and sat_cov >= HSV_STRICT_MIN_COLUMN_COVERAGE
+                ):
                     sat_only = arm_mask & sat_mask
                     arm_mask = np.logical_and(arm_mask, sat_only)
                     base = np.where(
@@ -1106,7 +1152,9 @@ def build_evidence_cube(
                         base,
                         base - (2.10 * (1.0 - 0.25 * color_relax)),
                     ).astype(np.float32)
-                    warnings.append(f"W_HSV_STRICT_HUE_SPARSE:{arm_name}:{hsv_density:.4f}:{hsv_cov:.3f}")
+                    warnings.append(
+                        f"W_HSV_STRICT_HUE_SPARSE:{arm_name}:{hsv_density:.4f}:{hsv_cov:.3f}"
+                    )
                 else:
                     warnings.append(
                         f"W_HSV_STRICT_SPARSE:{arm_name}:{hsv_density:.4f}:{sat_density:.4f}:{hsv_cov:.3f}:{sat_cov:.3f}"
@@ -1160,7 +1208,10 @@ def build_evidence_cube(
             strict_mask = color_mix >= strict_thr
             strict_density = float(np.mean(strict_mask & candidate_mask))
             strict_cov = _mask_column_coverage((strict_mask & candidate_mask).astype(np.bool_))
-            if strict_density >= COLOR_STRICT_MIN_DENSITY and strict_cov >= COLOR_STRICT_MIN_COLUMN_COVERAGE:
+            if (
+                strict_density >= COLOR_STRICT_MIN_DENSITY
+                and strict_cov >= COLOR_STRICT_MIN_COLUMN_COVERAGE
+            ):
                 arm_mask = candidate_mask & strict_mask
                 base = np.where(
                     arm_mask,
@@ -1225,10 +1276,16 @@ def build_evidence_cube(
                 and guide_cov >= HARDPOINT_WINDOW_MIN_COLUMN_COVERAGE
             ):
                 arm_mask = guide_keep
-                base = np.where(guide_mask, base, base - HARDPOINT_WINDOW_OFF_PENALTY).astype(np.float32)
-                warnings.append(f"I_HARDPOINT_WINDOW_LOCK:{arm_name}:{guide_density:.4f}:{guide_cov:.3f}")
+                base = np.where(guide_mask, base, base - HARDPOINT_WINDOW_OFF_PENALTY).astype(
+                    np.float32
+                )
+                warnings.append(
+                    f"I_HARDPOINT_WINDOW_LOCK:{arm_name}:{guide_density:.4f}:{guide_cov:.3f}"
+                )
             else:
-                warnings.append(f"W_HARDPOINT_WINDOW_SPARSE:{arm_name}:{guide_density:.4f}:{guide_cov:.3f}")
+                warnings.append(
+                    f"W_HARDPOINT_WINDOW_SPARSE:{arm_name}:{guide_density:.4f}:{guide_cov:.3f}"
+                )
 
         # Bridge small gaps between adjacent KM step fragments before pruning.
         # The arm_mask is already color-locked so closing only connects same-arm steps.
@@ -1241,7 +1298,9 @@ def build_evidence_cube(
             close_k += 1
         close_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (close_k, 3))
         arm_mask_u8 = cv2.morphologyEx(
-            arm_mask.astype(np.uint8) * 255, cv2.MORPH_CLOSE, close_kern,
+            arm_mask.astype(np.uint8) * 255,
+            cv2.MORPH_CLOSE,
+            close_kern,
         )
         arm_mask = arm_mask_u8 > 0
 
@@ -1250,9 +1309,7 @@ def build_evidence_cube(
         # Skip pruning for very sparse masks — the color lock already filtered to
         # arm-specific pixels, and pruning destroys the little signal we have.
         if sparse_arm:
-            warnings.append(
-                f"I_SPARSE_ARM_PRUNE_SKIP:{arm_name}:{arm_mask_density:.5f}"
-            )
+            warnings.append(f"I_SPARSE_ARM_PRUNE_SKIP:{arm_name}:{arm_mask_density:.5f}")
         else:
             pruned_mask, kept_components, dropped_components = _prune_curve_components(
                 arm_mask.astype(np.bool_),

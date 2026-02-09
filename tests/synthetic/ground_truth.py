@@ -106,9 +106,7 @@ def build_ground_truth_ipd(test_case: SyntheticTestCase) -> IPDOutput:
         metadata=build_ground_truth_metadata(test_case),
         curves=curve_ipds,
         reconstruction_mode=(
-            ReconstructionMode.FULL
-            if test_case.risk_table
-            else ReconstructionMode.ESTIMATED
+            ReconstructionMode.FULL if test_case.risk_table else ReconstructionMode.ESTIMATED
         ),
     )
 
@@ -124,7 +122,6 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
     plot_space = "incidence" if direction == "upward" else "survival"
 
     for curve in test_case.curves:
-        patients = curve.patients
         step_coords = curve.step_coords
 
         # The curve is only drawn up to the last event time
@@ -148,12 +145,14 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
             if t <= last_event_t:
                 s = _get_survival_at_step(step_coords, float(t))
                 plot_y = (1.0 - s) if direction == "upward" else s
-                landmarks.append({
-                    "time": t,
-                    "survival": round(s, 4),
-                    "plot_y": round(plot_y, 4),
-                    "description": time_labels[t],
-                })
+                landmarks.append(
+                    {
+                        "time": t,
+                        "survival": round(s, 4),
+                        "plot_y": round(plot_y, 4),
+                        "description": time_labels[t],
+                    }
+                )
 
         # Median and quartile survival times
         quartiles = {}
@@ -176,9 +175,7 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
     return result
 
 
-def _get_survival_at_step(
-    coords: list[tuple[float, float]], t: float
-) -> float:
+def _get_survival_at_step(coords: list[tuple[float, float]], t: float) -> float:
     """Step-function lookup."""
     if not coords:
         return 1.0
@@ -190,9 +187,7 @@ def _get_survival_at_step(
     return coords[0][1]
 
 
-def _find_survival_time(
-    coords: list[tuple[float, float]], target_survival: float
-) -> float | None:
+def _find_survival_time(coords: list[tuple[float, float]], target_survival: float) -> float | None:
     """Find the first time survival drops to or below target_survival."""
     for t, s in coords:
         if s <= target_survival:
@@ -214,9 +209,7 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "name": test_case.name,
         "seed": test_case.seed,
         "n_groups": len(test_case.curves),
-        "n_patients_per_arm": (
-            len(test_case.curves[0].patients) if test_case.curves else 0
-        ),
+        "n_patients_per_arm": (len(test_case.curves[0].patients) if test_case.curves else 0),
         "groups": [c.group_name for c in test_case.curves],
         "max_time": test_case.x_axis.end,
         "y_axis_start": test_case.y_axis.start,
@@ -234,9 +227,7 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "x_axis": test_case.x_axis.model_dump(),
         "y_axis": test_case.y_axis.model_dump(),
         "total_patients": sum(len(c.patients) for c in test_case.curves),
-        "total_events": sum(
-            sum(1 for p in c.patients if p.event) for c in test_case.curves
-        ),
+        "total_events": sum(sum(1 for p in c.patients if p.event) for c in test_case.curves),
         "hard_points_space": "survival",
         "plot_space_for_upward": "incidence",
     }
@@ -276,13 +267,15 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
             eval_times = np.linspace(0, test_case.x_axis.end, 1000)
             ci_data = _compute_greenwood_ci(curve.patients, eval_times)
             for t, (s, ci_lo, ci_hi) in zip(eval_times, ci_data):
-                writer.writerow([
-                    round(float(t), 6),
-                    curve.group_name,
-                    round(s, 6),
-                    round(ci_lo, 6),
-                    round(ci_hi, 6),
-                ])
+                writer.writerow(
+                    [
+                        round(float(t), 6),
+                        curve.group_name,
+                        round(s, 6),
+                        round(ci_lo, 6),
+                        round(ci_hi, 6),
+                    ]
+                )
 
     # 5. hard_points.json
     hard_points = compute_hard_points(test_case)
@@ -329,14 +322,12 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
                         counts[g].append(int(row_data[i + 1]))
                 risk_table = RiskTable(
                     time_points=time_points,
-                    groups=[
-                        RiskGroup(name=g, counts=counts[g]) for g in group_names_rt
-                    ],
+                    groups=[RiskGroup(name=g, counts=counts[g]) for g in group_names_rt],
                 )
 
     # Build curves
     group_order = metadata.get("groups", list(patients_by_group.keys()))
-    from .data_gen import COLORS, COLOR_NAMES, LINE_STYLES, _compute_n_at_risk
+    from .data_gen import COLOR_NAMES, COLORS, LINE_STYLES, _compute_n_at_risk
 
     curves = []
     for i, group_name in enumerate(group_order):
@@ -515,23 +506,25 @@ def compare_hard_points(
         for lm in expected.get("landmarks", []):
             t = lm["time"]
             expected_s = lm["survival"]
-            expected_plot_y = (
-                lm.get("plot_y", expected_s if direction == "downward" else 1.0 - expected_s)
+            expected_plot_y = lm.get(
+                "plot_y", expected_s if direction == "downward" else 1.0 - expected_s
             )
             actual_s = _get_survival_at_step_local(reconstructed_km, float(t))
             actual_plot_y = actual_s if direction == "downward" else (1.0 - actual_s)
             error = abs(actual_s - expected_s)
             plot_error = abs(float(actual_plot_y) - float(expected_plot_y))
-            landmark_results.append({
-                "time": t,
-                "expected": expected_s,
-                "actual": round(actual_s, 4),
-                "error": round(error, 4),
-                "expected_plot_y": round(float(expected_plot_y), 4),
-                "actual_plot_y": round(float(actual_plot_y), 4),
-                "plot_error": round(float(plot_error), 4),
-                "pass": error <= tolerance,
-            })
+            landmark_results.append(
+                {
+                    "time": t,
+                    "expected": expected_s,
+                    "actual": round(actual_s, 4),
+                    "error": round(error, 4),
+                    "expected_plot_y": round(float(expected_plot_y), 4),
+                    "actual_plot_y": round(float(actual_plot_y), 4),
+                    "plot_error": round(float(plot_error), 4),
+                    "pass": error <= tolerance,
+                }
+            )
 
         results[group] = {
             "landmarks": landmark_results,
@@ -543,9 +536,7 @@ def compare_hard_points(
     return results
 
 
-def _get_survival_at_step_local(
-    coords: list[tuple[float, float]], t: float
-) -> float:
+def _get_survival_at_step_local(coords: list[tuple[float, float]], t: float) -> float:
     if not coords:
         return 1.0
     if t < coords[0][0]:

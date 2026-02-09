@@ -91,11 +91,7 @@ def _collect_observed_centers(
     lab = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2LAB).astype(np.float32)
     sat = hsv[:, :, 1]
     val = hsv[:, :, 2]
-    valid = (
-        (sat >= OBSERVED_SATURATION_MIN)
-        & (val <= OBSERVED_VALUE_MAX)
-        & (exclude_mask == 0)
-    )
+    valid = (sat >= OBSERVED_SATURATION_MIN) & (val <= OBSERVED_VALUE_MAX) & (exclude_mask == 0)
     ys, xs = np.where(valid)
     if ys.size < max(MIN_OBSERVED_COLOR_PIXELS, n_centers * 60):
         return []
@@ -133,7 +129,9 @@ def _collect_observed_centers(
     if not np.isfinite(compactness):
         return []
 
-    center_list = [tuple(float(v) for v in center) for center in centers]
+    center_list: list[tuple[float, float, float]] = [
+        (float(center[0]), float(center[1]), float(center[2])) for center in centers
+    ]
     # Deterministic order by lightness then a/b channels.
     center_list.sort(key=lambda c: (c[0], c[1], c[2]))
     return center_list

@@ -6,7 +6,13 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from km_estimator.models import AxisConfig, PlotMetadata, ProcessingError, ProcessingStage, RiskTable
+from km_estimator.models import (
+    AxisConfig,
+    PlotMetadata,
+    ProcessingError,
+    ProcessingStage,
+    RiskTable,
+)
 
 
 @dataclass
@@ -182,9 +188,7 @@ def _refine_plot_extents_from_axis_ink(
     return int(top_border_y), int(right_border_x)
 
 
-def calibrate_axes(
-    image: NDArray[np.uint8], meta: PlotMetadata
-) -> AxisMapping | ProcessingError:
+def calibrate_axes(image: NDArray[np.uint8], meta: PlotMetadata) -> AxisMapping | ProcessingError:
     """Detect plot region via Hough lines, build coordinate mapping."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
@@ -254,17 +258,17 @@ def calibrate_axes(
         col_floor = max(0.015, float(np.percentile(edge_col_density, 80)))
 
         if x_axis_y is None:
-            lower_slice = edge_row_density[int(h * 0.55):]
+            lower_slice = edge_row_density[int(h * 0.55) :]
             if lower_slice.size > 0 and float(np.max(lower_slice)) >= row_floor:
                 x_axis_y = int(int(h * 0.55) + int(np.argmax(lower_slice)))
 
         if y_axis_x is None:
-            left_slice = edge_col_density[:int(w * 0.45)]
+            left_slice = edge_col_density[: int(w * 0.45)]
             if left_slice.size > 0 and float(np.max(left_slice)) >= col_floor:
                 y_axis_x = int(np.argmax(left_slice))
 
         if top_border_y is None:
-            upper_slice = edge_row_density[:int(h * 0.45)]
+            upper_slice = edge_row_density[: int(h * 0.45)]
             if upper_slice.size > 0 and float(np.max(upper_slice)) >= row_floor:
                 top_border_y = int(np.argmax(upper_slice))
 
@@ -306,8 +310,7 @@ def calibrate_axes(
             error_type="invalid_plot_region",
             recoverable=False,
             message=(
-                f"Invalid plot region: ({y_axis_x}, {top_border_y}, "
-                f"{right_border_x}, {x_axis_y})"
+                f"Invalid plot region: ({y_axis_x}, {top_border_y}, {right_border_x}, {x_axis_y})"
             ),
             details={"image_size": (w, h)},
         )
@@ -444,13 +447,9 @@ def validate_axis_bounds(
                 above_count += 1
 
         if below_count > 0:
-            warnings.append(
-                f"{curve_name}: {below_count} points below y_axis.start={y_axis.start}"
-            )
+            warnings.append(f"{curve_name}: {below_count} points below y_axis.start={y_axis.start}")
         if above_count > 0:
-            warnings.append(
-                f"{curve_name}: {above_count} points above y_axis.end={y_axis.end}"
-            )
+            warnings.append(f"{curve_name}: {above_count} points above y_axis.end={y_axis.end}")
 
     return warnings
 
@@ -479,10 +478,7 @@ def validate_axis_config(axis: AxisConfig, axis_name: str) -> list[str]:
 
     if axis.tick_values:
         # Check tick values are in range
-        out_of_range = [
-            v for v in axis.tick_values
-            if v < axis.start - 0.01 or v > axis.end + 0.01
-        ]
+        out_of_range = [v for v in axis.tick_values if v < axis.start - 0.01 or v > axis.end + 0.01]
         if out_of_range:
             warnings.append(f"{axis_name}: tick values out of range: {out_of_range}")
 

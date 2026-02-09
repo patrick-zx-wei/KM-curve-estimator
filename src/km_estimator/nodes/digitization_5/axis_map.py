@@ -9,8 +9,9 @@ This module is the single source of truth for:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -87,7 +88,7 @@ class PlotModel:
     @staticmethod
     def _axis_value_inverse(value: float, scale: str) -> float:
         if scale == "log":
-            return float(10 ** value)
+            return float(10**value)
         return float(value)
 
     @staticmethod
@@ -118,7 +119,9 @@ class PlotModel:
         by_px: dict[int, list[float]] = {}
         for px, val in anchors:
             by_px.setdefault(int(px), []).append(float(val))
-        pairs = [(px, float(np.mean(np.asarray(vals, dtype=np.float32)))) for px, vals in by_px.items()]
+        pairs = [
+            (px, float(np.mean(np.asarray(vals, dtype=np.float32)))) for px, vals in by_px.items()
+        ]
         pairs.sort(key=lambda p: p[0])
         return pairs
 
@@ -132,7 +135,10 @@ class PlotModel:
         for px, val in anchors:
             key = round(cls._axis_value_transform(float(val), scale), 8)
             by_val.setdefault(key, []).append(int(px))
-        pairs = [(float(k), int(round(float(np.mean(np.asarray(v, dtype=np.float32)))))) for k, v in by_val.items()]
+        pairs = [
+            (float(k), int(round(float(np.mean(np.asarray(v, dtype=np.float32))))))
+            for k, v in by_val.items()
+        ]
         pairs.sort(key=lambda p: p[0])
         return pairs
 
@@ -217,7 +223,10 @@ def _direction_from_text(text: str) -> CurveDirection | None:
         for token in ("incidence", "cumulative", "event-free", "hazard", "probability of event")
     ):
         return "upward"
-    if any(token in lowered for token in ("survival", "overall survival", "progression-free", "pfs", "os")):
+    if any(
+        token in lowered
+        for token in ("survival", "overall survival", "progression-free", "pfs", "os")
+    ):
         return "downward"
     return None
 
@@ -253,7 +262,11 @@ def infer_curve_direction(
         if n_up == n_down:
             # Keep deterministic behavior: fall back to metadata direction
             # rather than unknown/no-constraint tracing.
-            fallback = meta.curve_direction if meta.curve_direction in ("upward", "downward") else "unknown"
+            fallback = (
+                meta.curve_direction
+                if meta.curve_direction in ("upward", "downward")
+                else "unknown"
+            )
             warnings.append("W_DIRECTION_AMBIGUOUS_TEXT")
             warnings.append(f"I_DIRECTION_FALLBACK_METADATA:{fallback}")
             if fallback != "unknown":
@@ -320,11 +333,11 @@ def _score_x_tick(
     up_score = 0.0
     dn_score = 0.0
     if up1 >= up0:
-        patch = dark_mask[up0: up1 + 1, x0: x1 + 1]
+        patch = dark_mask[up0 : up1 + 1, x0 : x1 + 1]
         if patch.size > 0:
             up_score = float(np.mean(patch)) / 255.0
     if dn1 >= dn0:
-        patch = dark_mask[dn0: dn1 + 1, x0: x1 + 1]
+        patch = dark_mask[dn0 : dn1 + 1, x0 : x1 + 1]
         if patch.size > 0:
             dn_score = float(np.mean(patch)) / 255.0
     return float(max(up_score, dn_score))
@@ -347,11 +360,11 @@ def _score_y_tick(
     l_score = 0.0
     r_score = 0.0
     if lx1 >= lx0:
-        patch = dark_mask[y0: y1 + 1, lx0: lx1 + 1]
+        patch = dark_mask[y0 : y1 + 1, lx0 : lx1 + 1]
         if patch.size > 0:
             l_score = float(np.mean(patch)) / 255.0
     if rx1 >= rx0:
-        patch = dark_mask[y0: y1 + 1, rx0: rx1 + 1]
+        patch = dark_mask[y0 : y1 + 1, rx0 : rx1 + 1]
         if patch.size > 0:
             r_score = float(np.mean(patch)) / 255.0
     return float(max(l_score, r_score))
@@ -426,7 +439,8 @@ def _extract_tick_centers_from_contours(
     axis_len = int(w) if axis_type == "x" else int(h)
     deduped = _dedupe_positions(centers, axis_len=axis_len)
     mean_strength = (
-        float(np.mean(np.asarray(strengths, dtype=np.float32))) / float(max(1.0, float(min_len * min_len)))
+        float(np.mean(np.asarray(strengths, dtype=np.float32)))
+        / float(max(1.0, float(min_len * min_len)))
         if strengths
         else 0.0
     )
@@ -470,7 +484,7 @@ def _detect_tick_candidates_x(
     y0 = max(0, int(axis_row) - band)
     y1 = min(h - 1, int(axis_row) + band)
     if y1 >= y0:
-        profile = np.sum(combined[y0: y1 + 1, :], axis=0).astype(np.float32) / 255.0
+        profile = np.sum(combined[y0 : y1 + 1, :], axis=0).astype(np.float32) / 255.0
         c0 = max(0, int(axis_col) - guard)
         c1 = min(w, int(axis_col) + guard + 1)
         profile[c0:c1] = 0.0
@@ -481,7 +495,9 @@ def _detect_tick_candidates_x(
         peaks = _find_peaks_1d(smooth, threshold=threshold, min_distance=min_dist)
         if peaks:
             all_centers.extend(int(p) for p in peaks)
-            strengths.append(float(np.mean(np.asarray([smooth[p] for p in peaks], dtype=np.float32))))
+            strengths.append(
+                float(np.mean(np.asarray([smooth[p] for p in peaks], dtype=np.float32)))
+            )
     deduped = _dedupe_positions(all_centers, axis_len=w)
     mean_score = float(np.mean(np.asarray(strengths, dtype=np.float32))) if strengths else 0.0
     return deduped, mean_score
@@ -524,7 +540,7 @@ def _detect_tick_candidates_y(
     x0 = max(0, int(axis_col) - band)
     x1 = min(w - 1, int(axis_col) + band)
     if x1 >= x0:
-        profile = np.sum(combined[:, x0: x1 + 1], axis=1).astype(np.float32) / 255.0
+        profile = np.sum(combined[:, x0 : x1 + 1], axis=1).astype(np.float32) / 255.0
         r0 = max(0, int(axis_row) - guard)
         r1 = min(h, int(axis_row) + guard + 1)
         profile[r0:r1] = 0.0
@@ -535,7 +551,9 @@ def _detect_tick_candidates_y(
         peaks = _find_peaks_1d(smooth, threshold=threshold, min_distance=min_dist)
         if peaks:
             all_centers.extend(int(p) for p in peaks)
-            strengths.append(float(np.mean(np.asarray([smooth[p] for p in peaks], dtype=np.float32))))
+            strengths.append(
+                float(np.mean(np.asarray([smooth[p] for p in peaks], dtype=np.float32)))
+            )
     deduped = _dedupe_positions(all_centers, axis_len=h)
     mean_score = float(np.mean(np.asarray(strengths, dtype=np.float32))) if strengths else 0.0
     return deduped, mean_score
@@ -574,7 +592,7 @@ def _monotonic_subset_match(
                 cost[i, j] = best_val + abs(float(expected[i]) - float(detected[j]))
                 prev[i, j] = best_idx
 
-    j_end = int(np.argmin(cost[n - 1, n - 1:])) + (n - 1)
+    j_end = int(np.argmin(cost[n - 1, n - 1 :])) + (n - 1)
     if not np.isfinite(cost[n - 1, j_end]):
         return expected
 
@@ -616,7 +634,7 @@ def _assign_ticks_to_values(
     local_assigned = expected.copy()
     local_hits = 0
     used: set[int] = set()
-    prev = -10**9 if increasing else 10**9
+    prev = -(10**9) if increasing else 10**9
     for i, exp in enumerate(expected):
         if i == 0:
             gap = abs(expected[i + 1] - exp) if len(expected) > 1 else tol
@@ -625,12 +643,13 @@ def _assign_ticks_to_values(
         else:
             gap = min(abs(exp - expected[i - 1]), abs(expected[i + 1] - exp))
         local_tol = int(np.clip(round(0.45 * float(max(2, gap))), 3, tol))
-        if increasing:
-            monotone_ok = lambda d: int(d) > int(prev)
-        else:
-            monotone_ok = lambda d: int(d) < int(prev)
+        def monotone_ok(d: float) -> bool:
+            if increasing:
+                return int(d) > int(prev)
+            return int(d) < int(prev)
         candidates = [
-            d for d in detected
+            d
+            for d in detected
             if d not in used and abs(int(d) - int(exp)) <= local_tol and monotone_ok(d)
         ]
         if candidates:
@@ -745,8 +764,12 @@ def _independent_tick_anchors(
     height = max(1, y1 - y0)
     h_img, w_img = dark_mask.shape
 
-    axis_col = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0], 0, w_img - 1))
-    axis_row = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1], 0, h_img - 1))
+    axis_col = int(
+        np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0], 0, w_img - 1)
+    )
+    axis_row = int(
+        np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1], 0, h_img - 1)
+    )
 
     x_expected: list[int] = []
     x_values: list[float] = []
@@ -827,7 +850,9 @@ def _independent_tick_anchors(
     # Endpoint locking when tick values include axis starts/ends.
     def _axis_value_tol(start: float, end: float, tick_values: list[float]) -> float:
         if len(tick_values) >= 2:
-            diffs = np.diff(np.asarray(sorted(set(float(v) for v in tick_values)), dtype=np.float32))
+            diffs = np.diff(
+                np.asarray(sorted(set(float(v) for v in tick_values)), dtype=np.float32)
+            )
             diffs = np.asarray([d for d in diffs if float(d) > 1e-9], dtype=np.float32)
             if diffs.size > 0:
                 return max(1e-6, 0.05 * float(np.median(diffs)))
@@ -868,8 +893,12 @@ def _independent_tick_anchors(
 
     x_shift_den = max(1.0, float(width) * TICK_MAX_SHIFT_RATIO)
     y_shift_den = max(1.0, float(height) * TICK_MAX_SHIFT_RATIO)
-    x_quality = float(np.clip(0.6 * x_match_ratio + 0.4 * (1.0 - min(1.0, x_shift / x_shift_den)), 0.0, 1.0))
-    y_quality = float(np.clip(0.6 * y_match_ratio + 0.4 * (1.0 - min(1.0, y_shift / y_shift_den)), 0.0, 1.0))
+    x_quality = float(
+        np.clip(0.6 * x_match_ratio + 0.4 * (1.0 - min(1.0, x_shift / x_shift_den)), 0.0, 1.0)
+    )
+    y_quality = float(
+        np.clip(0.6 * y_match_ratio + 0.4 * (1.0 - min(1.0, y_shift / y_shift_den)), 0.0, 1.0)
+    )
     # Penalize sparse raw detections to avoid trusting accidental matches.
     x_cov = float(len(x_detected)) / float(max(1, len(x_values)))
     y_cov = float(len(y_detected)) / float(max(1, len(y_values)))
@@ -1011,8 +1040,16 @@ def _refine_tick_anchors(
     tick_extent_y = max(2, int(round(height * TICK_EXTENT_RATIO)))
 
     # Local axis coordinates inside the ROI.
-    x_axis_col = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0] - x0, 0, width - 1))
-    y_axis_row = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1] - y0, 0, height - 1))
+    x_axis_col = int(
+        np.clip(
+            mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0] - x0, 0, width - 1
+        )
+    )
+    y_axis_row = int(
+        np.clip(
+            mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1] - y0, 0, height - 1
+        )
+    )
 
     x_expected: list[int] = []
     x_values: list[float] = []
@@ -1031,34 +1068,45 @@ def _refine_tick_anchors(
     x_refined, x_score, x_shift, x_edge_frac, x_gain = _refine_positions_1d(
         expected_positions=x_expected,
         axis_len=width,
-        scorer=lambda pos: _score_x_tick(dark_mask, pos, y_axis_row=y_axis_row, tick_extent=tick_extent_y),
+        scorer=lambda pos: _score_x_tick(
+            dark_mask, pos, y_axis_row=y_axis_row, tick_extent=tick_extent_y
+        ),
     )
     y_refined, y_score, y_shift, y_edge_frac, y_gain = _refine_positions_1d(
         expected_positions=y_expected,
         axis_len=height,
-        scorer=lambda pos: _score_y_tick(dark_mask, pos, x_axis_col=x_axis_col, tick_extent=tick_extent_x),
+        scorer=lambda pos: _score_y_tick(
+            dark_mask, pos, x_axis_col=x_axis_col, tick_extent=tick_extent_x
+        ),
     )
 
     x_detected, x_detect_score = _detect_tick_positions_1d(
         axis_len=width,
         expected_count=len(x_expected),
-        scorer=lambda pos: _score_x_tick(dark_mask, pos, y_axis_row=y_axis_row, tick_extent=tick_extent_y),
+        scorer=lambda pos: _score_x_tick(
+            dark_mask, pos, y_axis_row=y_axis_row, tick_extent=tick_extent_y
+        ),
     )
     y_detected, y_detect_score = _detect_tick_positions_1d(
         axis_len=height,
         expected_count=len(y_expected),
-        scorer=lambda pos: _score_y_tick(dark_mask, pos, x_axis_col=x_axis_col, tick_extent=tick_extent_x),
+        scorer=lambda pos: _score_y_tick(
+            dark_mask, pos, x_axis_col=x_axis_col, tick_extent=tick_extent_x
+        ),
     )
 
     if len(x_detected) == len(x_expected) and len(x_expected) >= 2:
         detect_shift = float(
             np.median(
                 np.abs(
-                    np.asarray(x_detected, dtype=np.float32) - np.asarray(x_expected, dtype=np.float32)
+                    np.asarray(x_detected, dtype=np.float32)
+                    - np.asarray(x_expected, dtype=np.float32)
                 )
             )
         )
-        warnings.append(f"I_TICK_DETECT_X:{len(x_detected)}:{x_detect_score:.3f}:{detect_shift:.1f}")
+        warnings.append(
+            f"I_TICK_DETECT_X:{len(x_detected)}:{x_detect_score:.3f}:{detect_shift:.1f}"
+        )
         if x_detect_score >= x_score + 0.02 and detect_shift <= float(width) * 0.12:
             x_refined = [int(v) for v in x_detected]
             x_score = float(x_detect_score)
@@ -1068,11 +1116,14 @@ def _refine_tick_anchors(
         detect_shift = float(
             np.median(
                 np.abs(
-                    np.asarray(y_detected, dtype=np.float32) - np.asarray(y_expected, dtype=np.float32)
+                    np.asarray(y_detected, dtype=np.float32)
+                    - np.asarray(y_expected, dtype=np.float32)
                 )
             )
         )
-        warnings.append(f"I_TICK_DETECT_Y:{len(y_detected)}:{y_detect_score:.3f}:{detect_shift:.1f}")
+        warnings.append(
+            f"I_TICK_DETECT_Y:{len(y_detected)}:{y_detect_score:.3f}:{detect_shift:.1f}"
+        )
         if y_detect_score >= y_score + 0.02 and detect_shift <= float(height) * 0.12:
             y_refined = [int(v) for v in y_detected]
             y_score = float(y_detect_score)
@@ -1080,8 +1131,12 @@ def _refine_tick_anchors(
 
     x_refined_anchors = tuple((int(x0 + pos), float(val)) for pos, val in zip(x_refined, x_values))
     y_refined_anchors = tuple((int(y0 + pos), float(val)) for pos, val in zip(y_refined, y_values))
-    x_expected_anchors = tuple((int(x0 + pos), float(val)) for pos, val in zip(x_expected, x_values))
-    y_expected_anchors = tuple((int(y0 + pos), float(val)) for pos, val in zip(y_expected, y_values))
+    x_expected_anchors = tuple(
+        (int(x0 + pos), float(val)) for pos, val in zip(x_expected, x_values)
+    )
+    y_expected_anchors = tuple(
+        (int(y0 + pos), float(val)) for pos, val in zip(y_expected, y_values)
+    )
 
     x_reject = (
         x_edge_frac >= TICK_EDGE_HIT_REJECT_FRAC
@@ -1103,8 +1158,12 @@ def _refine_tick_anchors(
     y_quality = 0.0
     if x_values:
         x_shift_den = max(1.0, float(width) * TICK_MAX_SHIFT_RATIO)
-        x_quality = float(np.clip((x_score / 0.25) * (1.0 - min(1.0, x_shift / x_shift_den)), 0.0, 1.0))
-        warnings.append(f"I_TICK_CAL_X:{len(x_values)}:{x_score:.3f}:{x_shift:.1f}:{x_edge_frac:.2f}:{x_gain:.3f}")
+        x_quality = float(
+            np.clip((x_score / 0.25) * (1.0 - min(1.0, x_shift / x_shift_den)), 0.0, 1.0)
+        )
+        warnings.append(
+            f"I_TICK_CAL_X:{len(x_values)}:{x_score:.3f}:{x_shift:.1f}:{x_edge_frac:.2f}:{x_gain:.3f}"
+        )
         if x_reject:
             x_quality = 0.0
             warnings.append("W_TICK_CAL_X_REJECTED_UNSTABLE")
@@ -1112,8 +1171,12 @@ def _refine_tick_anchors(
         warnings.append("W_TICK_CAL_X_NO_TICKS")
     if y_values:
         y_shift_den = max(1.0, float(height) * TICK_MAX_SHIFT_RATIO)
-        y_quality = float(np.clip((y_score / 0.25) * (1.0 - min(1.0, y_shift / y_shift_den)), 0.0, 1.0))
-        warnings.append(f"I_TICK_CAL_Y:{len(y_values)}:{y_score:.3f}:{y_shift:.1f}:{y_edge_frac:.2f}:{y_gain:.3f}")
+        y_quality = float(
+            np.clip((y_score / 0.25) * (1.0 - min(1.0, y_shift / y_shift_den)), 0.0, 1.0)
+        )
+        warnings.append(
+            f"I_TICK_CAL_Y:{len(y_values)}:{y_score:.3f}:{y_shift:.1f}:{y_edge_frac:.2f}:{y_gain:.3f}"
+        )
         if y_reject:
             y_quality = 0.0
             warnings.append("W_TICK_CAL_Y_REJECTED_UNSTABLE")
@@ -1143,7 +1206,11 @@ def _draw_tick_mask(
     tick_extent_y = max(2, int(round(height * TICK_EXTENT_RATIO)))
 
     # X ticks: vertical little bands near bottom axis.
-    x_row = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1] - y0, 0, height - 1))
+    x_row = int(
+        np.clip(
+            mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[1] - y0, 0, height - 1
+        )
+    )
     x_tick_local = (
         [int(np.clip(px - x0, 0, width - 1)) for px in x_ticks_px]
         if x_ticks_px is not None
@@ -1163,7 +1230,11 @@ def _draw_tick_mask(
         )
 
     # Y ticks: horizontal little bands near left axis.
-    y_col = int(np.clip(mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0] - x0, 0, width - 1))
+    y_col = int(
+        np.clip(
+            mapping.real_to_px(mapping.x_axis.start, mapping.y_axis.start)[0] - x0, 0, width - 1
+        )
+    )
     y_tick_local = (
         [int(np.clip(py - y0, 0, height - 1)) for py in y_ticks_py]
         if y_ticks_py is not None
@@ -1202,7 +1273,9 @@ def build_plot_model(
 
     axis_mask = np.zeros((height, width), dtype=np.uint8)
     # Draw strong penalties on the two principal axes.
-    cv2.line(axis_mask, (0, height - 1), (width - 1, height - 1), color=255, thickness=axis_thickness)
+    cv2.line(
+        axis_mask, (0, height - 1), (width - 1, height - 1), color=255, thickness=axis_thickness
+    )
     cv2.line(axis_mask, (0, 0), (0, height - 1), color=255, thickness=axis_thickness)
     axis_mask = cv2.dilate(axis_mask, np.ones((3, 3), dtype=np.uint8), iterations=1)
 
@@ -1216,7 +1289,7 @@ def build_plot_model(
     tick_warnings.extend(ref_warnings)
 
     # Prefer independent morphology detector unless it is clearly weak.
-    independent_usable = (len(rx_ind) >= 2 and len(ry_ind) >= 2 and conf_ind >= 0.45)
+    independent_usable = len(rx_ind) >= 2 and len(ry_ind) >= 2 and conf_ind >= 0.45
     use_refine = (
         not independent_usable
         and conf_ref > conf_ind + 0.10

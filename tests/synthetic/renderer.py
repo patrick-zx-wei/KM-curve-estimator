@@ -76,9 +76,7 @@ def _get_linewidth(modifiers: list[Modifier]) -> float:
     return 2.6
 
 
-def _get_survival_at(
-    coords: list[tuple[float, float]], t: float
-) -> float:
+def _get_survival_at(coords: list[tuple[float, float]], t: float) -> float:
     """Step-function interpolation of survival at time t."""
     if not coords:
         return 1.0
@@ -184,6 +182,7 @@ def render_test_case(
     Returns (draft_path, final_path).
     """
     import matplotlib
+
     matplotlib.use("Agg")
     _apply_font_directive(matplotlib, test_case.modifiers)
     import matplotlib.pyplot as plt
@@ -200,7 +199,8 @@ def render_test_case(
 
     if has_risk_table and test_case.risk_table:
         fig, (ax, ax_table) = plt.subplots(
-            2, 1,
+            2,
+            1,
             figsize=figsize,
             gridspec_kw={"height_ratios": [4, 1]},
         )
@@ -244,14 +244,10 @@ def render_test_case(
     # Apply figure-stage modifiers
     for mod in figure_mods:
         if isinstance(mod, TruncatedYAxis):
-            test_case.y_axis = test_case.y_axis.model_copy(
-                update={"start": mod.y_start}
-            )
+            test_case.y_axis = test_case.y_axis.model_copy(update={"start": mod.y_start})
             # Update tick values
             y_ticks = _uniform_ticks(start=float(mod.y_start), end=1.0, step=0.2, ndigits=1)
-            test_case.y_axis = test_case.y_axis.model_copy(
-                update={"tick_values": y_ticks}
-            )
+            test_case.y_axis = test_case.y_axis.model_copy(update={"tick_values": y_ticks})
 
         elif isinstance(mod, GridLines):
             ax.grid(True, which="major", alpha=mod.alpha, linestyle="--")
@@ -263,10 +259,7 @@ def render_test_case(
             for curve in test_case.curves:
                 if curve.censoring_times:
                     simple = simplified.get(curve.group_name, curve.step_coords)
-                    censor_survivals = [
-                        _get_survival_at(simple, t)
-                        for t in curve.censoring_times
-                    ]
+                    censor_survivals = [_get_survival_at(simple, t) for t in curve.censoring_times]
                     if curve_direction == "upward":
                         censor_survivals = [1.0 - float(s) for s in censor_survivals]
                     ax.plot(
@@ -319,38 +312,44 @@ def render_test_case(
         row_height = 1.0 / (n_groups + 1.5)
 
         ax_table.text(
-            -0.12, 1.0 - row_height * 0.5, "No. at Risk",
+            -0.12,
+            1.0 - row_height * 0.5,
+            "No. at Risk",
             transform=ax_table.transAxes,
-            fontsize=9, fontweight="bold",
-            verticalalignment="center", ha="left",
+            fontsize=9,
+            fontweight="bold",
+            verticalalignment="center",
+            ha="left",
         )
 
         for i, group in enumerate(rt.groups):
-            color = (
-                test_case.curves[i].color
-                if i < len(test_case.curves)
-                else "black"
-            )
+            color = test_case.curves[i].color if i < len(test_case.curves) else "black"
             y_pos = 1.0 - row_height * (i + 1.5)
 
             # Group name (placed to the left of the plot area)
             ax_table.text(
-                -0.12, y_pos,
+                -0.12,
+                y_pos,
                 group.name,
                 transform=ax_table.transAxes,
-                fontsize=9, color=color, fontweight="bold",
-                verticalalignment="center", ha="left",
+                fontsize=9,
+                color=color,
+                fontweight="bold",
+                verticalalignment="center",
+                ha="left",
             )
 
             # Counts at each time point (skip groups with 0 at risk)
             for t, count in zip(rt.time_points, group.counts):
                 if int(count) > 0:
                     ax_table.text(
-                        t, y_pos,
+                        t,
+                        y_pos,
                         str(count),
                         transform=ax_table.get_xaxis_transform(),
                         fontsize=8,
-                        ha="center", va="center",
+                        ha="center",
+                        va="center",
                     )
 
     fig.tight_layout()
@@ -383,9 +382,7 @@ def _apply_post_render_modifiers(image_path: Path, modifiers: list[Modifier]) ->
             h, w = img.shape[:2]
             scale = mod.target_width / w
             new_h = int(h * scale)
-            img = cv2.resize(
-                img, (mod.target_width, new_h), interpolation=cv2.INTER_AREA
-            )
+            img = cv2.resize(img, (mod.target_width, new_h), interpolation=cv2.INTER_AREA)
 
         elif isinstance(mod, JPEGArtifacts):
             encode_param: tuple[int, int] = (int(cv2.IMWRITE_JPEG_QUALITY), int(mod.quality))

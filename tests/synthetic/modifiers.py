@@ -78,9 +78,7 @@ class RiskTableDisplay(Modifier):
 class Annotations(Modifier):
     """Add text annotations (p-values, hazard ratios)."""
 
-    texts: list[str] = field(
-        default_factory=lambda: ["HR=0.65 (95% CI 0.45-0.94)", "p=0.021"]
-    )
+    texts: list[str] = field(default_factory=lambda: ["HR=0.65 (95% CI 0.45-0.94)", "p=0.021"])
     stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
 
 

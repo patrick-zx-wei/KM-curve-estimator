@@ -3,6 +3,7 @@
 Bypasses MMPU by constructing PlotMetadata directly from fixture metadata.json.
 Computes per-arm MAE at hard-point landmarks.
 """
+
 from __future__ import annotations
 
 import json
@@ -14,19 +15,44 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from km_estimator.models import PipelineState
-from km_estimator.models.plot_metadata import AxisConfig, CurveInfo, PlotMetadata, RiskTable, RiskGroup
-from km_estimator.nodes.digitization_5 import digitize_v5
+from km_estimator.models import PipelineState  # noqa: E402
+from km_estimator.models.plot_metadata import (  # noqa: E402
+    AxisConfig,
+    CurveInfo,
+    PlotMetadata,
+)
+from km_estimator.nodes.digitization_5 import digitize_v5  # noqa: E402
 
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "standard"
 CASES = [
     # All 3-arm cases (orange + green curves — key test for these changes)
-    "case_002", "case_012", "case_014", "case_017", "case_023", "case_026",
-    "case_029", "case_037", "case_049", "case_060", "case_067", "case_073",
-    "case_087", "case_093", "case_096", "case_100",
+    "case_002",
+    "case_012",
+    "case_014",
+    "case_017",
+    "case_023",
+    "case_026",
+    "case_029",
+    "case_037",
+    "case_049",
+    "case_060",
+    "case_067",
+    "case_073",
+    "case_087",
+    "case_093",
+    "case_096",
+    "case_100",
     # 2-arm sample across difficulties
-    "case_004", "case_015", "case_018", "case_032", "case_036",
-    "case_050", "case_070", "case_080", "case_082", "case_095",
+    "case_004",
+    "case_015",
+    "case_018",
+    "case_032",
+    "case_036",
+    "case_050",
+    "case_070",
+    "case_080",
+    "case_082",
+    "case_095",
 ]
 
 COLOR_NAMES = ["blue", "orange", "green", "red", "purple"]
@@ -39,11 +65,13 @@ def _build_metadata(meta: dict) -> PlotMetadata:
     for i, g in enumerate(groups):
         color_name = COLOR_NAMES[i % len(COLOR_NAMES)]
         line_style = LINE_STYLES[i % len(LINE_STYLES)]
-        curves.append(CurveInfo(
-            name=g,
-            color_description=f"{line_style} {color_name}",
-            line_style=line_style,
-        ))
+        curves.append(
+            CurveInfo(
+                name=g,
+                color_description=f"{line_style} {color_name}",
+                line_style=line_style,
+            )
+        )
     x = meta["x_axis"]
     y = meta["y_axis"]
     # Build risk table if available
@@ -125,7 +153,7 @@ def main():
             preprocessed_image_path=image_path,
             plot_metadata=plot_meta,
         )
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Running {case_name} ({len(meta['groups'])} arms)...")
         result = digitize_v5(state)
 
@@ -135,7 +163,7 @@ def main():
             continue
 
         if result.digitized_curves is None:
-            print(f"  No digitized curves!")
+            print("  No digitized curves!")
             all_results[case_name] = {"error": True}
             continue
 
@@ -151,9 +179,9 @@ def main():
             print(f"  {arm}: MAE={mae:.4f}")
 
     # Summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     total_mae = []
     for case_name, res in all_results.items():
         if isinstance(res, dict) and "error" not in res:
@@ -166,7 +194,7 @@ def main():
         print(f"\n  Mean MAE: {np.mean(total_mae):.4f}")
         print(f"  Median MAE: {np.median(total_mae):.4f}")
         ok = sum(1 for m in total_mae if m < 0.05)
-        print(f"  Arms < 0.05 MAE: {ok}/{len(total_mae)} ({100*ok/len(total_mae):.0f}%)")
+        print(f"  Arms < 0.05 MAE: {ok}/{len(total_mae)} ({100 * ok / len(total_mae):.0f}%)")
 
 
 if __name__ == "__main__":

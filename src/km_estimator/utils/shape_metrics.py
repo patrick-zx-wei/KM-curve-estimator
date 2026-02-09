@@ -1,8 +1,9 @@
 """Shape comparison metrics for KM curves."""
 
 from bisect import bisect_right
+from collections.abc import Sequence
+
 import numpy as np
-from typing import Sequence
 
 
 def _build_lookup(curve: Sequence[tuple[float, float]]) -> tuple[list[float], list[float]]:

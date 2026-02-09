@@ -27,7 +27,6 @@ from km_estimator.utils.tiered_extractor import (
     extract_ocr_tiered_async,
 )
 
-
 _NUM_RE = re.compile(r"-?\d+(?:\.\d+)?")
 FAST_PHASE_TIMEOUT_SECONDS = 12
 FAST_PHASE_MAX_RETRIES = 1
@@ -54,7 +53,9 @@ DOWNWARD_DIRECTION_HINTS = (
 )
 
 
-def _mmpu_retry_phases(api_timeout_seconds: int, api_max_retries: int) -> list[tuple[str, int, int]]:
+def _mmpu_retry_phases(
+    api_timeout_seconds: int, api_max_retries: int
+) -> list[tuple[str, int, int]]:
     """Bounded two-phase retry policy: fast attempt, then one recovery attempt."""
     fast_timeout = max(8, min(FAST_PHASE_TIMEOUT_SECONDS, api_timeout_seconds))
     recovery_timeout = max(fast_timeout, api_timeout_seconds)
@@ -111,8 +112,7 @@ def _infer_curve_direction(
     upward_hits = sum(1 for hint in UPWARD_DIRECTION_HINTS if hint in combined)
     downward_hits = sum(1 for hint in DOWNWARD_DIRECTION_HINTS if hint in combined)
     explicit_upward = any(
-        phrase in combined
-        for phrase in ("cumulative incidence", "incidence", "cumulative event")
+        phrase in combined for phrase in ("cumulative incidence", "incidence", "cumulative event")
     )
     explicit_downward = any(
         phrase in combined
@@ -135,7 +135,11 @@ def _infer_curve_direction(
     elif downward_hits >= 2 and downward_hits >= upward_hits + 2:
         inferred = "downward"
 
-    current = plot_metadata.curve_direction if plot_metadata.curve_direction in ("downward", "upward") else "downward"
+    current = (
+        plot_metadata.curve_direction
+        if plot_metadata.curve_direction in ("downward", "upward")
+        else "downward"
+    )
 
     # Avoid overcorrecting explicit incidence/survival metadata unless opposite evidence is strong.
     if (
@@ -568,7 +572,8 @@ def _reconcile_axis_ticks(
     if changed_ticks or changed_interval:
         warnings.append(
             f"Reconciled {axis_name} ticks via {best_source} "
-            f"(n={len(old_ticks)}->{len(best_ticks)}, interval={tick_interval}->{resolved_interval})"
+            f"(n={len(old_ticks)}->{len(best_ticks)}, "
+            f"interval={tick_interval}->{resolved_interval})"
         )
 
     return best_ticks, resolved_interval
@@ -610,14 +615,16 @@ def _maybe_reconcile_axis_tick_values(
     if not _lists_close(_unique_sorted(x_axis.tick_values), new_x_ticks, tol=1e-4):
         updated_x = updated_x.model_copy(update={"tick_values": new_x_ticks})
     if new_x_interval is not None and (
-        x_axis.tick_interval is None or abs(float(new_x_interval) - float(x_axis.tick_interval)) > 1e-4
+        x_axis.tick_interval is None
+        or abs(float(new_x_interval) - float(x_axis.tick_interval)) > 1e-4
     ):
         updated_x = updated_x.model_copy(update={"tick_interval": float(new_x_interval)})
 
     if not _lists_close(_unique_sorted(y_axis.tick_values), new_y_ticks, tol=1e-4):
         updated_y = updated_y.model_copy(update={"tick_values": new_y_ticks})
     if new_y_interval is not None and (
-        y_axis.tick_interval is None or abs(float(new_y_interval) - float(y_axis.tick_interval)) > 1e-4
+        y_axis.tick_interval is None
+        or abs(float(new_y_interval) - float(y_axis.tick_interval)) > 1e-4
     ):
         updated_y = updated_y.model_copy(update={"tick_interval": float(new_y_interval)})
 
@@ -730,10 +737,10 @@ def _infer_y_axis_start_from_geometry(
         return None
 
     h, w = image.shape[:2]
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blur, 50, 150)
-    lines = cv2.HoughLinesP(
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # type: ignore[arg-type]
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)  # type: ignore[arg-type]
+    edges = cv2.Canny(blur, 50, 150)  # type: ignore[arg-type]
+    lines = cv2.HoughLinesP(  # type: ignore[arg-type]
         edges,
         1,
         np.pi / 180,
@@ -821,9 +828,7 @@ def _maybe_correct_y_axis_start(
         return plot_metadata
 
     valid_evidence = [
-        (value, source, weight)
-        for value, source, weight in evidence
-        if -0.1 <= value <= y_axis.end
+        (value, source, weight) for value, source, weight in evidence if -0.1 <= value <= y_axis.end
     ]
     if not valid_evidence:
         return plot_metadata
@@ -842,9 +847,7 @@ def _maybe_correct_y_axis_start(
     scored_candidates: list[tuple[float, float]] = []
     for candidate in candidate_values:
         support = sum(
-            weight
-            for value, _, weight in valid_evidence
-            if abs(value - candidate) <= consensus_tol
+            weight for value, _, weight in valid_evidence if abs(value - candidate) <= consensus_tol
         )
         scored_candidates.append((support, candidate))
 
@@ -868,9 +871,7 @@ def _maybe_correct_y_axis_start(
         )
 
     source = "consensus ticks/OCR"
-    warnings.append(
-        f"Corrected y_axis.start from {y_axis.start} to {corrected_start} ({source})"
-    )
+    warnings.append(f"Corrected y_axis.start from {y_axis.start} to {corrected_start} ({source})")
     return plot_metadata.model_copy(
         update={"y_axis": y_axis.model_copy(update={"start": corrected_start})}
     )
@@ -1189,6 +1190,7 @@ def mmpu(state: PipelineState) -> PipelineState:
                 f"OCR {phase_name} phase failed ({ocr_result.error.error_type}); escalating"
             )
 
+    assert ocr_result is not None  # phases list is always non-empty
     warnings.extend(ocr_result.warnings)
     if ocr_result.gpt_tokens:
         total_cost += _calculate_cost(ocr_result.gpt_tokens, ocr_result.gemini_used)
@@ -1266,6 +1268,7 @@ def mmpu(state: PipelineState) -> PipelineState:
                 f"({metadata_result.error.error_type}); escalating"
             )
 
+    assert metadata_result is not None  # phases list is always non-empty
     warnings.extend(metadata_result.warnings)
     if metadata_result.gpt_tokens:
         total_cost += _calculate_cost(metadata_result.gpt_tokens, metadata_result.gemini_used)
@@ -1381,7 +1384,8 @@ def mmpu(state: PipelineState) -> PipelineState:
             "extraction_route": metadata_result.route.value,
             "gpt_confidence": metadata_result.gpt_confidence,
             "verification_similarity": metadata_result.similarity_score,
-            "flagged_for_review": ocr_result.flagged_for_review or metadata_result.flagged_for_review,
+            "flagged_for_review": ocr_result.flagged_for_review
+            or metadata_result.flagged_for_review,
             "extraction_cost_usd": total_cost,
             "gpt_tokens_used": metadata_result.gpt_tokens,
             "mmpu_warnings": warnings,
@@ -1445,6 +1449,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                 f"OCR {phase_name} phase failed ({ocr_result.error.error_type}); escalating"
             )
 
+    assert ocr_result is not None  # phases list is always non-empty
     warnings.extend(ocr_result.warnings)
     if ocr_result.gpt_tokens:
         total_cost += _calculate_cost(ocr_result.gpt_tokens, ocr_result.gemini_used)
@@ -1477,15 +1482,19 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
 
     ocr_tokens = ocr_result.result
     if len(ocr_tokens.x_tick_labels) < 2 or len(ocr_tokens.y_tick_labels) < 2:
-        recovered_x, recovered_y, axis_warnings, axis_tokens, axis_gemini_used = (
-            await _recover_axis_ticks_from_crops_async(
-                image_path=image_path,
-                confidence_threshold=cfg.tiered_confidence_threshold,
-                similarity_threshold=cfg.tiered_similarity_threshold,
-                timeout=min(cfg.api_timeout_seconds, FAST_PHASE_TIMEOUT_SECONDS),
-                max_retries=FAST_PHASE_MAX_RETRIES,
-                skip_verification=cfg.single_model_mode,
-            )
+        (
+            recovered_x,
+            recovered_y,
+            axis_warnings,
+            axis_tokens,
+            axis_gemini_used,
+        ) = await _recover_axis_ticks_from_crops_async(
+            image_path=image_path,
+            confidence_threshold=cfg.tiered_confidence_threshold,
+            similarity_threshold=cfg.tiered_similarity_threshold,
+            timeout=min(cfg.api_timeout_seconds, FAST_PHASE_TIMEOUT_SECONDS),
+            max_retries=FAST_PHASE_MAX_RETRIES,
+            skip_verification=cfg.single_model_mode,
         )
         warnings.extend(axis_warnings)
         if axis_tokens is not None:
@@ -1522,6 +1531,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                 f"({metadata_result.error.error_type}); escalating"
             )
 
+    assert metadata_result is not None  # phases list is always non-empty
     warnings.extend(metadata_result.warnings)
     if metadata_result.gpt_tokens:
         total_cost += _calculate_cost(metadata_result.gpt_tokens, metadata_result.gemini_used)
@@ -1604,9 +1614,7 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
                         )
                         warnings.extend(ocr_crop.warnings)
                         if ocr_crop.gpt_tokens:
-                            total_cost += _calculate_cost(
-                                ocr_crop.gpt_tokens, ocr_crop.gemini_used
-                            )
+                            total_cost += _calculate_cost(ocr_crop.gpt_tokens, ocr_crop.gemini_used)
                         if ocr_crop.result is not None and ocr_crop.error is None:
                             crop_rt = _parse_risk_table_from_ocr(ocr_crop.result, curve_names)
                             score = _risk_table_quality(crop_rt)
@@ -1664,7 +1672,8 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
             "extraction_route": metadata_result.route.value,
             "gpt_confidence": metadata_result.gpt_confidence,
             "verification_similarity": metadata_result.similarity_score,
-            "flagged_for_review": ocr_result.flagged_for_review or metadata_result.flagged_for_review,
+            "flagged_for_review": ocr_result.flagged_for_review
+            or metadata_result.flagged_for_review,
             "extraction_cost_usd": total_cost,
             "gpt_tokens_used": metadata_result.gpt_tokens,
             "mmpu_warnings": warnings,

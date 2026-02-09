@@ -20,7 +20,6 @@ from km_estimator.utils.gemini_client import (
     extract_ocr_async,
 )
 from km_estimator.utils.openai_client import (
-    GPTResult,
     extract_metadata_gpt,
     extract_metadata_gpt_async,
     extract_ocr_gpt,
@@ -273,9 +272,7 @@ def extract_metadata_tiered(
     warnings: list[str] = []
 
     # Step 1: GPT-5 Mini primary extraction
-    gpt_result = extract_metadata_gpt(
-        path, ocr, timeout=timeout, max_retries=max_retries
-    )
+    gpt_result = extract_metadata_gpt(path, ocr, timeout=timeout, max_retries=max_retries)
     gpt_tokens = (gpt_result.input_tokens, gpt_result.output_tokens)
 
     if gpt_result.error:
@@ -289,9 +286,7 @@ def extract_metadata_tiered(
                 warnings=["GPT metadata extraction failed, verification skipped"],
             )
         warnings.append(f"GPT metadata extraction failed: {gpt_result.error.message}")
-        gemini_result = extract_metadata(
-            path, ocr, timeout=timeout, max_retries=max_retries
-        )
+        gemini_result = extract_metadata(path, ocr, timeout=timeout, max_retries=max_retries)
         if isinstance(gemini_result, ProcessingError):
             return TieredResult(
                 None,
@@ -329,9 +324,7 @@ def extract_metadata_tiered(
     warnings.append(
         f"Low GPT metadata confidence ({metadata_confidence:.2f}), verifying with Gemini"
     )
-    gemini_result = extract_metadata(
-        path, ocr, timeout=timeout, max_retries=max_retries
-    )
+    gemini_result = extract_metadata(path, ocr, timeout=timeout, max_retries=max_retries)
 
     if isinstance(gemini_result, ProcessingError):
         warnings.append("Gemini verification failed, using low-confidence GPT result")
@@ -390,9 +383,7 @@ async def extract_ocr_tiered_async(
     warnings: list[str] = []
 
     # Step 1: GPT-5 Mini primary extraction
-    gpt_result = await extract_ocr_gpt_async(
-        path, timeout=timeout, max_retries=max_retries
-    )
+    gpt_result = await extract_ocr_gpt_async(path, timeout=timeout, max_retries=max_retries)
     gpt_tokens = (gpt_result.input_tokens, gpt_result.output_tokens)
 
     if gpt_result.error:
@@ -406,9 +397,7 @@ async def extract_ocr_tiered_async(
                 warnings=["GPT extraction failed, verification skipped"],
             )
         warnings.append(f"GPT extraction failed: {gpt_result.error.message}")
-        gemini_result = await extract_ocr_async(
-            path, timeout=timeout, max_retries=max_retries
-        )
+        gemini_result = await extract_ocr_async(path, timeout=timeout, max_retries=max_retries)
         if isinstance(gemini_result, ProcessingError):
             return TieredResult(
                 None,
@@ -439,9 +428,7 @@ async def extract_ocr_tiered_async(
 
     # Step 3: Low confidence - verify with Gemini
     warnings.append(f"Low GPT confidence ({gpt_result.confidence:.2f}), verifying with Gemini")
-    gemini_result = await extract_ocr_async(
-        path, timeout=timeout, max_retries=max_retries
-    )
+    gemini_result = await extract_ocr_async(path, timeout=timeout, max_retries=max_retries)
 
     if isinstance(gemini_result, ProcessingError):
         warnings.append("Gemini verification failed, using low-confidence GPT result")

@@ -44,7 +44,7 @@ def _draw_tick_overlay(
         px = int(np.clip(px, x0, x1 - 1))
         py = int(np.clip(py, y0, y1 - 1))
         cv2.drawMarker(
-            out,
+            out,  # type: ignore[arg-type]
             (px, py),
             color=(255, 255, 0),
             markerType=cv2.MARKER_CROSS,
@@ -70,7 +70,7 @@ def _draw_tick_overlay(
         px = int(np.clip(px, x0, x1 - 1))
         py = int(np.clip(py, y0, y1 - 1))
         cv2.drawMarker(
-            out,
+            out,  # type: ignore[arg-type]
             (px, py),
             color=(0, 165, 255),
             markerType=cv2.MARKER_TILTED_CROSS,

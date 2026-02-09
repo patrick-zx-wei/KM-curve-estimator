@@ -1,12 +1,15 @@
 """Censoring mark detection via robust multi-template matching."""
 
+from typing import Any
+
 import cv2
 import numpy as np
 from numpy.typing import NDArray
+
 try:
-    from scipy.spatial import cKDTree
+    from scipy.spatial import cKDTree  # type: ignore[attr-defined]
 except Exception:  # pragma: no cover - optional dependency fallback
-    cKDTree = None  # type: ignore[assignment]
+    cKDTree = None  # type: ignore[assignment]  # noqa: N816
 
 from km_estimator.nodes.axis_calibration import AxisMapping
 
@@ -59,7 +62,7 @@ def _edge_mark_candidates(gray: NDArray[np.uint8]) -> list[tuple[int, int, float
         area = int(stats[i, cv2.CC_STAT_AREA])
         if area < EDGE_MIN_AREA or area > EDGE_MAX_AREA:
             continue
-        x, y, w, h = (
+        _, _, w, h = (
             int(stats[i, cv2.CC_STAT_LEFT]),
             int(stats[i, cv2.CC_STAT_TOP]),
             int(stats[i, cv2.CC_STAT_WIDTH]),
@@ -100,7 +103,7 @@ def _template_candidates(gray: NDArray[np.uint8]) -> list[tuple[int, int, float]
     """Collect candidate marks from multi-shape template matching."""
     candidates: list[tuple[int, int, float]] = []
     for template, threshold in _build_mark_templates():
-        result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+        result = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)  # type: ignore[arg-type]
         ys, xs = np.where(result >= threshold)
         offset_x = template.shape[1] // 2
         offset_y = template.shape[0] // 2
@@ -156,7 +159,7 @@ def detect_censoring(
     roi_width = x1 - x0
     max_dist = max(9, int(roi_width * 0.018))
 
-    curve_trees: dict[str, cKDTree | None] = {}
+    curve_trees: dict[str, Any] = {}
     curve_arrays: dict[str, NDArray[np.float32] | None] = {}
     for name, pixels in curves.items():
         if pixels and cKDTree is not None:

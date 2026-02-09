@@ -155,9 +155,7 @@ def _invoke_gpt(
 
 def extract_ocr_gpt(path: str, **kw) -> GPTResult[RawOCRTokens]:
     """Extract OCR tokens using GPT-5 Mini with model-specific prompt."""
-    return _invoke_gpt(
-        path, config.OCR_PROMPT_GPT, RawOCRTokens, ProcessingStage.MMPU, **kw
-    )
+    return _invoke_gpt(path, config.OCR_PROMPT_GPT, RawOCRTokens, ProcessingStage.MMPU, **kw)
 
 
 def extract_metadata_gpt(path: str, ocr: RawOCRTokens, **kw) -> GPTResult[PlotMetadata]:
@@ -246,9 +244,7 @@ async def _ainvoke_gpt(
 
 async def extract_ocr_gpt_async(path: str, **kw) -> GPTResult[RawOCRTokens]:
     """Async: Extract OCR tokens using GPT-5 Mini with model-specific prompt."""
-    return await _ainvoke_gpt(
-        path, config.OCR_PROMPT_GPT, RawOCRTokens, ProcessingStage.MMPU, **kw
-    )
+    return await _ainvoke_gpt(path, config.OCR_PROMPT_GPT, RawOCRTokens, ProcessingStage.MMPU, **kw)
 
 
 async def extract_metadata_gpt_async(path: str, ocr: RawOCRTokens, **kw) -> GPTResult[PlotMetadata]:

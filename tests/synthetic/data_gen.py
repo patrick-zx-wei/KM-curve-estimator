@@ -6,14 +6,13 @@ computes KM step functions, risk tables, and confidence intervals.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 
 from km_estimator.models.ipd_output import PatientRecord
 from km_estimator.models.plot_metadata import (
     AxisConfig,
-    CurveInfo,
     RiskGroup,
     RiskTable,
 )
@@ -527,9 +526,7 @@ def generate_test_case(
         min_sep = _minimum_curve_separation(curves, max_time)
         sep_ok = (not enforce_curve_separation) or min_sep >= min_curve_separation
 
-        travel_ends = [
-            c.step_coords[-1][0] for c in curves if len(c.step_coords) > 1
-        ]
+        travel_ends = [c.step_coords[-1][0] for c in curves if len(c.step_coords) > 1]
         if travel_ends:
             travel_ok = (
                 min(travel_ends) >= min_travel_fraction * max_time
@@ -581,7 +578,9 @@ def generate_test_case(
     )
 
     y_axis = AxisConfig(
-        label=("Cumulative Incidence" if inferred_direction == "upward" else "Survival Probability"),
+        label=(
+            "Cumulative Incidence" if inferred_direction == "upward" else "Survival Probability"
+        ),
         start=y_axis_start,
         end=1.0,
         tick_interval=0.2,

@@ -69,19 +69,22 @@ def _route_validate(state: PipelineState) -> str:
     # Max retries exhausted with validation still failing - add warning
     if state.output:
         failed_curves = [
-            c.group_name for c in state.output.curves
+            c.group_name
+            for c in state.output.curves
             if c.validation_mae is None or c.validation_mae > cfg.validation_mae_threshold
         ]
-        state.errors.append(ProcessingError(
-            stage=ProcessingStage.VALIDATE,
-            error_type="validation_threshold_exceeded",
-            recoverable=True,
-            message=(
-                f"Validation MAE threshold ({cfg.validation_mae_threshold}) "
-                f"exceeded after {cfg.max_validation_retries} retries"
-            ),
-            details={"failed_curves": failed_curves},
-        ))
+        state.errors.append(
+            ProcessingError(
+                stage=ProcessingStage.VALIDATE,
+                error_type="validation_threshold_exceeded",
+                recoverable=True,
+                message=(
+                    f"Validation MAE threshold ({cfg.validation_mae_threshold}) "
+                    f"exceeded after {cfg.max_validation_retries} retries"
+                ),
+                details={"failed_curves": failed_curves},
+            )
+        )
     return END
 
 
@@ -98,12 +101,8 @@ def create_pipeline():
     # Preprocess first to improve input_guard accuracy on noisy/low-res images
     graph.set_entry_point("preprocess")
 
-    graph.add_conditional_edges(
-        "preprocess", _route_preprocess, {"mmpu": "input_guard", END: END}
-    )
-    graph.add_conditional_edges(
-        "input_guard", _route_input_guard, {"preprocess": "mmpu", END: END}
-    )
+    graph.add_conditional_edges("preprocess", _route_preprocess, {"mmpu": "input_guard", END: END})
+    graph.add_conditional_edges("input_guard", _route_input_guard, {"preprocess": "mmpu", END: END})
     graph.add_conditional_edges("mmpu", _route_mmpu, {"digitize": "digitize", END: END})
     graph.add_conditional_edges(
         "digitize", _route_digitize, {"reconstruct": "reconstruct", END: END}
@@ -111,9 +110,7 @@ def create_pipeline():
     graph.add_conditional_edges(
         "reconstruct", _route_reconstruct, {"validate": "validate", END: END}
     )
-    graph.add_conditional_edges(
-        "validate", _route_validate, {"digitize": "digitize", END: END}
-    )
+    graph.add_conditional_edges("validate", _route_validate, {"digitize": "digitize", END: END})
 
     return graph.compile()
 
@@ -138,12 +135,8 @@ def create_async_pipeline():
     # Preprocess first to improve input_guard accuracy on noisy/low-res images
     graph.set_entry_point("preprocess")
 
-    graph.add_conditional_edges(
-        "preprocess", _route_preprocess, {"mmpu": "input_guard", END: END}
-    )
-    graph.add_conditional_edges(
-        "input_guard", _route_input_guard, {"preprocess": "mmpu", END: END}
-    )
+    graph.add_conditional_edges("preprocess", _route_preprocess, {"mmpu": "input_guard", END: END})
+    graph.add_conditional_edges("input_guard", _route_input_guard, {"preprocess": "mmpu", END: END})
     graph.add_conditional_edges("mmpu", _route_mmpu, {"digitize": "digitize", END: END})
     graph.add_conditional_edges(
         "digitize", _route_digitize, {"reconstruct": "reconstruct", END: END}
@@ -151,9 +144,7 @@ def create_async_pipeline():
     graph.add_conditional_edges(
         "reconstruct", _route_reconstruct, {"validate": "validate", END: END}
     )
-    graph.add_conditional_edges(
-        "validate", _route_validate, {"digitize": "digitize", END: END}
-    )
+    graph.add_conditional_edges("validate", _route_validate, {"digitize": "digitize", END: END})
 
     return graph.compile()
 

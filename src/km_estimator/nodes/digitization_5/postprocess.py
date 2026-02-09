@@ -83,7 +83,9 @@ def _soft_monotone(
     return out, n_fix, False
 
 
-def _to_survival_value(y_real: float, y_start: float, y_end: float, direction: CurveDirection) -> float:
+def _to_survival_value(
+    y_real: float, y_start: float, y_end: float, direction: CurveDirection
+) -> float:
     if direction != "upward":
         return float(y_real)
     denom = max(1e-9, float(y_end - y_start))
