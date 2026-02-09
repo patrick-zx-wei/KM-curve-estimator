@@ -2,555 +2,69 @@
   "case_name": "case_050",
   "difficulty": 1,
   "n_curves": 2,
-  "pipeline_errors": [],
+  "pipeline_errors": [
+    {
+      "stage": "input_guard",
+      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": {
+        "errors": [
+          {
+            "type": "value_error",
+            "loc": [],
+            "msg": "Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable.",
+            "input": {
+              "model": "gemini-3-flash-preview",
+              "max_retries": 3,
+              "timeout": 30,
+              "model_kwargs": {}
+            },
+            "ctx": {
+              "error": "API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable."
+            },
+            "url": "https://errors.pydantic.dev/2.12/v/value_error"
+          }
+        ]
+      }
+    }
+  ],
   "mmpu": {
-    "x_axis_start_error": 0.0,
-    "x_axis_end_error": 0.0,
-    "y_axis_start_error": 0.0,
-    "y_axis_end_error": 0.0,
-    "x_tick_interval_error": 0.0,
-    "y_tick_interval_error": 0.0,
-    "x_tick_count_detected": 7,
-    "x_tick_count_expected": 7,
-    "y_tick_count_detected": 6,
-    "y_tick_count_expected": 6,
-    "x_tick_values_mae": 0.0,
-    "y_tick_values_mae": 0.0,
-    "x_tick_coverage_detected": 1.0,
-    "x_tick_coverage_expected": 1.0,
-    "y_tick_coverage_detected": 1.0,
-    "y_tick_coverage_expected": 1.0,
-    "n_curves_detected": 2,
-    "n_curves_expected": 2,
-    "curves_match": true,
-    "curve_direction_detected": "downward",
-    "curve_direction_expected": "downward",
-    "curve_direction_match": true,
-    "risk_table_detected": true,
-    "risk_table_expected": true
+    "error": "no plot_metadata extracted"
   },
   "digitize": {
-    "Control": {
-      "mae": 0.008057283380965778,
-      "rmse": 0.01727693708979625,
-      "dtw": 0.0031363639536772254,
-      "frechet": 0.15695487866282865,
-      "max_error": 0.1918156624588877
-    },
-    "Treatment": {
-      "mae": 0.07469740421495678,
-      "rmse": 0.0866685795715213,
-      "dtw": 0.01856382359846337,
-      "frechet": 0.2003014362378524,
-      "max_error": 0.1691623659488397
-    }
+    "error": "no digitized_curves produced"
   },
   "hard_points": {
-    "Control": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.5485,
-          "actual": 0.4523,
-          "error": 0.0962,
-          "expected_plot_y": 0.5485,
-          "actual_plot_y": 0.4523,
-          "plot_error": 0.0962,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.1762,
-          "actual": 0.1091,
-          "error": 0.0671,
-          "expected_plot_y": 0.1762,
-          "actual_plot_y": 0.1091,
-          "plot_error": 0.0671,
-          "pass": false
-        }
-      ],
-      "all_pass": false,
-      "evaluation_space": "survival",
-      "plot_space": "survival"
-    },
-    "Treatment": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.6411,
-          "actual": 0.5444,
-          "error": 0.0967,
-          "expected_plot_y": 0.6411,
-          "actual_plot_y": 0.5444,
-          "plot_error": 0.0967,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.3228,
-          "actual": 0.2226,
-          "error": 0.1002,
-          "expected_plot_y": 0.3228,
-          "actual_plot_y": 0.2226,
-          "plot_error": 0.1002,
-          "pass": false
-        }
-      ],
-      "all_pass": false,
-      "evaluation_space": "survival",
-      "plot_space": "survival"
-    }
+    "error": "no pipeline output"
   },
   "reconstruction": {
-    "Control": {
-      "mae": 0.07546081062912322,
-      "rmse": 0.08648034132961886,
-      "dtw": 0.0012961400049091203,
-      "frechet": 0.06711625788463547,
-      "max_error": 0.1732039815459323
-    },
-    "Treatment": {
-      "mae": 0.07650460944998627,
-      "rmse": 0.08705416559980923,
-      "dtw": 0.0055262330688593975,
-      "frechet": 0.10016775101760989,
-      "max_error": 0.16555509365528182
-    }
+    "error": "no pipeline output"
   },
   "validation": {
-    "Control": {
-      "mae": 0.0721240473739936,
-      "dtw": null,
-      "rmse": null
-    },
-    "Treatment": {
-      "mae": 0.029045432094126432,
-      "dtw": null,
-      "rmse": null
-    }
+    "error": "no pipeline output"
   },
   "reconstruction_meta": {
-    "mode": "full",
-    "patient_counts": {
-      "Control": 481,
-      "Treatment": 481
-    },
-    "warnings": [
-      "GPT metadata extraction failed: Request timed out.",
-      "Using Gemini fallback",
-      "I_TICK_DETECT_RAW_X:8:4.907",
-      "I_TICK_DETECT_RAW_Y:6:19.968",
-      "I_TICK_HOTSPOT_X:5:0.648",
-      "I_TICK_HOTSPOT_Y:6:0.532",
-      "I_TICK_X_CLIPPED_TO_AXIS:8->7",
-      "I_TICK_Y_CLIPPED_TO_AXIS:6->5",
-      "I_TICK_MATCH_X:7:1.00:1.0:7",
-      "I_TICK_MATCH_Y:6:1.00:2.0:5",
-      "I_TICK_DETECT_Y:6:0.797:549.0",
-      "I_TICK_CAL_X:7:0.238:0.0:0.00:0.095",
-      "I_TICK_CAL_Y:6:0.846:1.0:0.17:0.389",
-      "I_TICK_CAL_SOURCE:independent_detect",
-      "I_HARDPOINT_SOURCE_RISK_TABLE:groups=2",
-      "I_HARDPOINT_GUIDANCE_DISABLED_FOR_TRACING",
-      "W_COLOR_PRIOR_REJECTED:Control:106.1",
-      "W_COLOR_PRIOR_REJECTED:Treatment:99.0",
-      "I_HSL_KMEDOIDS_USED:2:2007",
-      "I_FRAME_PENALTY_APPLIED:1:1",
-      "I_STRAIGHT_LINE_PENALTY:6:0.0106",
-      "I_COLOR_RMSE_RELAX:Control:17.44:0.227:1801",
-      "I_HSV_STRICT_LOCK:Control:0.0028:0.0034:0.872:0.920:104.0:4.90:679:1.00:0.711:56.0",
-      "I_COLOR_STRICT_LOCK:Control:0.0004:0.262:0.705",
-      "W_CURVE_COMPONENT_PRUNE_EMPTY:Control:220",
-      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Control",
-      "I_COLOR_RMSE_RELAX:Treatment:31.71:0.821:24",
-      "I_HSV_STRICT_LOCK:Treatment:0.0025:0.0034:0.857:0.920:102.0:4.00:18:0.00:0.620:56.0",
-      "W_COLOR_STRICT_SPARSE_SKIP:Treatment:0.0000:0.013:0.586",
-      "W_CURVE_COMPONENT_PRUNE_EMPTY:Treatment:574",
-      "W_PRIMARY_COMPONENT_LOCK_SKIPPED:Treatment",
-      "I_ARM_EXCLUSIVE_LOCK:Control:0.0004:0.262:0.060",
-      "I_ARM_EXCLUSIVE_LOCK:Treatment:0.0015:0.764:0.060",
-      "I_TRACE_ARMS:2:Control,Treatment",
-      "W_CROSSING_DISABLED_CAP:85:536:1739",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:9:17",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:21:34",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:39:44",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:52:63",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:606:618",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:850:981",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1573:1574",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1578:1594",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1598:1601",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1606:1635",
-      "W_LOCAL_CARRY_JOINT:2",
-      "W_LOCAL_CARRY_JOINT:3",
-      "W_LOCAL_CARRY_JOINT:4",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:5",
-      "W_LOCAL_CARRY_JOINT:5",
-      "W_LOCAL_CARRY_JOINT:1506",
-      "W_LOCAL_CARRY_JOINT:1507",
-      "W_LOCAL_CARRY_JOINT:1730",
-      "W_LOCAL_CARRY_JOINT:1731",
-      "W_LOCAL_CARRY_JOINT:1733",
-      "W_LOCAL_CARRY_JOINT:1734",
-      "W_LOCAL_CARRY_JOINT:1735",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1736",
-      "W_LOCAL_CARRY_JOINT:1736",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1737",
-      "W_LOCAL_CARRY_JOINT:1737",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1738",
-      "W_LOCAL_CARRY_JOINT:1738",
-      "W_LOW_MARGIN_HIGH:Control:0.435",
-      "I_LOCAL_CARRY_FRAC:Control:0.008",
-      "I_LOCAL_RETRY_FRAC:Control:0.009",
-      "I_LOCAL_RESEED_FRAC:Control:0.001",
-      "I_LOCAL_CARRY_BREAK_FRAC:Control:0.002",
-      "I_LOCAL_CARRY_FRAC:Treatment:0.008",
-      "I_LOCAL_RETRY_FRAC:Treatment:0.009",
-      "I_LOCAL_RESEED_FRAC:Treatment:0.001",
-      "I_LOCAL_CARRY_BREAK_FRAC:Treatment:0.002",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "W_CROSSING_DISABLED_CAP:84:342:1739",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:9:34",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:38:45",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:52:52",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:56:63",
-      "W_LOCAL_CARRY_JOINT:463",
-      "W_LOCAL_CARRY_JOINT:1508",
-      "W_LOCAL_CARRY_JOINT:1511",
-      "W_LOCAL_CARRY_JOINT:1512",
-      "W_LOCAL_CARRY_JOINT:1513",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1514",
-      "W_LOCAL_CARRY_JOINT:1514",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1515",
-      "W_LOCAL_CARRY_JOINT:1515",
-      "W_LOCAL_CARRY_STREAK_BREAK_JOINT:1516",
-      "W_LOCAL_CARRY_JOINT:1516",
-      "I_LOCAL_CARRY_FRAC:Control:0.007",
-      "I_LOCAL_RETRY_FRAC:Control:0.010",
-      "I_LOCAL_RESEED_FRAC:Control:0.007",
-      "I_LOCAL_CARRY_FRAC:Treatment:0.007",
-      "I_LOCAL_RETRY_FRAC:Treatment:0.010",
-      "I_LOCAL_RESEED_FRAC:Treatment:0.007",
-      "W_SOFT_MONOTONE_ADJUST:Control:15",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
-      "W_COLOR_REJECT_PENALTY:2",
-      "E_HARD_FAIL_CROSSING_OVERFIRE",
-      "W_HARD_FAIL_REVIEW_ONLY",
-      "W_NEEDS_MANUAL_REVIEW:0.182",
-      "I_DIGITIZATION_V5_CONFIDENCE:0.182",
-      "I_HARDPOINT_SOURCE_RISK_TABLE:groups=2",
-      "Control: applied 7 hardpoint anchors before reconstruction",
-      "Added 50 terminal right-censored survivors at t=12.0",
-      "Control: used censoring-mark hints in 6 intervals",
-      "Control: adjusted event/censor split from censoring hints in 3 intervals",
-      "Control: hardpoint residual mean=0.0075, max=0.0131, tol=0.0100",
-      "Control: full-mode objective 0.1643 (fit=0.0302, interval=0.0000, landmark=0.0228)",
-      "Control: hardpoint residual (mean=0.0075, max=0.0131, tol=0.0100)",
-      "Treatment: applied 7 hardpoint anchors before reconstruction",
-      "Added 103 terminal right-censored survivors at t=12.0",
-      "Treatment: used censoring-mark hints in 6 intervals",
-      "Treatment: adjusted event/censor split from censoring hints in 3 intervals",
-      "Treatment: hardpoint residual mean=0.0078, max=0.0121, tol=0.0100",
-      "Treatment: full-mode objective 0.1448 (fit=0.0286, interval=0.0000, landmark=0.0205)",
-      "Treatment: hardpoint residual (mean=0.0078, max=0.0121, tol=0.0100)"
-    ]
+    "error": "no pipeline output",
+    "warnings": [],
+    "flagged_for_review": false
   },
-  "benchmark_track": "full_track",
+  "benchmark_track": "cv_only_track",
   "diagnostics": {
-    "per_arm": {
-      "Control": {
-        "digitize_mae": 0.008057283380965778,
-        "reconstruction_mae": 0.07546081062912322,
-        "delta_reconstruction_minus_digitize": 0.06740352724815743,
-        "hard_fail_count": 2,
-        "stage_attribution": "reconstruction_limited",
-        "failed_landmarks": [
-          {
-            "time": 6,
-            "expected": 0.5485,
-            "actual": 0.4523,
-            "error": 0.0962,
-            "bias": -0.0962
-          },
-          {
-            "time": 12,
-            "expected": 0.1762,
-            "actual": 0.1091,
-            "error": 0.0671,
-            "bias": -0.0671
-          }
-        ]
-      },
-      "Treatment": {
-        "digitize_mae": 0.07469740421495678,
-        "reconstruction_mae": 0.07650460944998627,
-        "delta_reconstruction_minus_digitize": 0.0018072052350294882,
-        "hard_fail_count": 2,
-        "stage_attribution": "digitization_limited",
-        "failed_landmarks": [
-          {
-            "time": 6,
-            "expected": 0.6411,
-            "actual": 0.5444,
-            "error": 0.0967,
-            "bias": -0.0967
-          },
-          {
-            "time": 12,
-            "expected": 0.3228,
-            "actual": 0.2226,
-            "error": 0.1002,
-            "bias": -0.1002
-          }
-        ]
-      }
-    },
-    "stage_attribution_counts": {
-      "reconstruction_limited": 1,
-      "digitization_limited": 1
-    },
-    "hard_fail_times": {
-      "6": 2,
-      "12": 2
-    }
+    "per_arm": {},
+    "stage_attribution_counts": {},
+    "hard_fail_times": {}
   },
   "stage_mae": {
-    "arms": {
-      "Control": {
-        "digitize_mae": 0.008057283380965778,
-        "reconstruction_mae": 0.07546081062912322,
-        "delta_reconstruction_minus_digitize": 0.06740352724815743,
-        "stage_attribution": "reconstruction_limited"
-      },
-      "Treatment": {
-        "digitize_mae": 0.07469740421495678,
-        "reconstruction_mae": 0.07650460944998627,
-        "delta_reconstruction_minus_digitize": 0.0018072052350294882,
-        "stage_attribution": "digitization_limited"
-      }
-    },
-    "mean_digitize_mae": 0.04137734379796128,
-    "mean_reconstruction_mae": 0.07598271003955474,
-    "mean_delta_reconstruction_minus_digitize": 0.03460536624159346
+    "arms": {},
+    "mean_digitize_mae": null,
+    "mean_reconstruction_mae": null,
+    "mean_delta_reconstruction_minus_digitize": null
   },
   "interval_debug": {
-    "per_curve": {
-      "Control": {
-        "reconstruction_mae": 0.07546081062912322,
-        "intervals": [
-          {
-            "t_start": 0.0,
-            "t_end": 2.0,
-            "n_start": 481,
-            "n_end": 394,
-            "risk_table_loss": 87,
-            "events_reconstructed": 83,
-            "censors_reconstructed": 4,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 1.0,
-            "digitized_s_end": 0.8723,
-            "reconstructed_s_end": 0.827,
-            "expected_s_end": 0.8863
-          },
-          {
-            "t_start": 2.0,
-            "t_end": 4.0,
-            "n_start": 394,
-            "n_end": 293,
-            "risk_table_loss": 101,
-            "events_reconstructed": 97,
-            "censors_reconstructed": 4,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.8723,
-            "digitized_s_end": 0.6921,
-            "reconstructed_s_end": 0.6222,
-            "expected_s_end": 0.6904
-          },
-          {
-            "t_start": 4.0,
-            "t_end": 6.0,
-            "n_start": 293,
-            "n_end": 213,
-            "risk_table_loss": 80,
-            "events_reconstructed": 80,
-            "censors_reconstructed": 0,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.6921,
-            "digitized_s_end": 0.5524,
-            "reconstructed_s_end": 0.4523,
-            "expected_s_end": 0.5485
-          },
-          {
-            "t_start": 6.0,
-            "t_end": 8.0,
-            "n_start": 213,
-            "n_end": 152,
-            "risk_table_loss": 61,
-            "events_reconstructed": 61,
-            "censors_reconstructed": 0,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.5524,
-            "digitized_s_end": 0.4233,
-            "reconstructed_s_end": 0.3228,
-            "expected_s_end": 0.4216
-          },
-          {
-            "t_start": 8.0,
-            "t_end": 10.0,
-            "n_start": 152,
-            "n_end": 97,
-            "risk_table_loss": 55,
-            "events_reconstructed": 52,
-            "censors_reconstructed": 3,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.4233,
-            "digitized_s_end": 0.2874,
-            "reconstructed_s_end": 0.2116,
-            "expected_s_end": 0.2993
-          },
-          {
-            "t_start": 10.0,
-            "t_end": 12.0,
-            "n_start": 97,
-            "n_end": 50,
-            "risk_table_loss": 47,
-            "events_reconstructed": 47,
-            "censors_reconstructed": 0,
-            "terminal_carryover_censors": 50,
-            "digitized_s_start": 0.2874,
-            "digitized_s_end": 0.0193,
-            "reconstructed_s_end": 0.1091,
-            "expected_s_end": 0.1762
-          }
-        ],
-        "hardpoint_deltas": [
-          {
-            "time": 6,
-            "expected": 0.5485,
-            "actual": 0.4523,
-            "error": 0.0962,
-            "pass": false
-          },
-          {
-            "time": 12,
-            "expected": 0.1762,
-            "actual": 0.1091,
-            "error": 0.0671,
-            "pass": false
-          }
-        ]
-      },
-      "Treatment": {
-        "reconstruction_mae": 0.07650460944998627,
-        "intervals": [
-          {
-            "t_start": 0.0,
-            "t_end": 2.0,
-            "n_start": 481,
-            "n_end": 403,
-            "risk_table_loss": 78,
-            "events_reconstructed": 73,
-            "censors_reconstructed": 5,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.9832,
-            "digitized_s_end": 0.8618,
-            "reconstructed_s_end": 0.8477,
-            "expected_s_end": 0.8841
-          },
-          {
-            "t_start": 2.0,
-            "t_end": 4.0,
-            "n_start": 403,
-            "n_end": 322,
-            "risk_table_loss": 81,
-            "events_reconstructed": 81,
-            "censors_reconstructed": 0,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.8618,
-            "digitized_s_end": 0.6868,
-            "reconstructed_s_end": 0.6773,
-            "expected_s_end": 0.7681
-          },
-          {
-            "t_start": 4.0,
-            "t_end": 6.0,
-            "n_start": 322,
-            "n_end": 256,
-            "risk_table_loss": 66,
-            "events_reconstructed": 63,
-            "censors_reconstructed": 3,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.6868,
-            "digitized_s_end": 0.5418,
-            "reconstructed_s_end": 0.5444,
-            "expected_s_end": 0.6411
-          },
-          {
-            "t_start": 6.0,
-            "t_end": 8.0,
-            "n_start": 256,
-            "n_end": 195,
-            "risk_table_loss": 61,
-            "events_reconstructed": 61,
-            "censors_reconstructed": 0,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.5418,
-            "digitized_s_end": 0.418,
-            "reconstructed_s_end": 0.4146,
-            "expected_s_end": 0.5148
-          },
-          {
-            "t_start": 8.0,
-            "t_end": 10.0,
-            "n_start": 195,
-            "n_end": 147,
-            "risk_table_loss": 48,
-            "events_reconstructed": 48,
-            "censors_reconstructed": 0,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.418,
-            "digitized_s_end": 0.28,
-            "reconstructed_s_end": 0.3126,
-            "expected_s_end": 0.4217
-          },
-          {
-            "t_start": 10.0,
-            "t_end": 12.0,
-            "n_start": 147,
-            "n_end": 103,
-            "risk_table_loss": 44,
-            "events_reconstructed": 42,
-            "censors_reconstructed": 2,
-            "terminal_carryover_censors": 103,
-            "digitized_s_start": 0.28,
-            "digitized_s_end": 0.1225,
-            "reconstructed_s_end": 0.2226,
-            "expected_s_end": 0.3228
-          }
-        ],
-        "hardpoint_deltas": [
-          {
-            "time": 6,
-            "expected": 0.6411,
-            "actual": 0.5444,
-            "error": 0.0967,
-            "pass": false
-          },
-          {
-            "time": 12,
-            "expected": 0.3228,
-            "actual": 0.2226,
-            "error": 0.1002,
-            "pass": false
-          }
-        ]
-      }
-    }
+    "error": "no pipeline output"
   },
   "artifacts": {
-    "overlay_results": "overlay_results.png"
+    "overlay_results": null,
+    "error": "no plot_metadata"
   },
   "passed": false
 }

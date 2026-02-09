@@ -401,6 +401,8 @@ def generate_test_case(
     min_curve_separation: float = 0.08,
     max_curve_generation_attempts: int = 6,
     gap_pattern: str | None = None,
+    min_travel_fraction: float = 2 / 3,
+    min_longest_travel_fraction: float = 0.9,
 ) -> SyntheticTestCase:
     """Generate a complete synthetic test case.
 
@@ -461,14 +463,10 @@ def generate_test_case(
     x_tick_interval = risk_time_points[1] if len(risk_time_points) > 1 else max_time / 6
     x_ticks = _ensure_endpoint_tick(risk_time_points, max_time)
 
-    attempts = (
-        max(1, max_curve_generation_attempts)
-        if enforce_curve_separation and n_curves > 1
-        else 1
-    )
+    attempts = max(1, max_curve_generation_attempts)
     best_curves: list[SyntheticCurveData] = []
     best_risk_groups: list[RiskGroup] = []
-    best_sep = -1.0
+    best_score = -1e9
 
     for _ in range(attempts):
         curves: list[SyntheticCurveData] = []
@@ -525,12 +523,29 @@ def generate_test_case(
                 )
             )
 
+        # --- quality checks: separation + travel distance ---
         min_sep = _minimum_curve_separation(curves, max_time)
-        if min_sep > best_sep:
+        sep_ok = (not enforce_curve_separation) or min_sep >= min_curve_separation
+
+        travel_ends = [
+            c.step_coords[-1][0] for c in curves if len(c.step_coords) > 1
+        ]
+        if travel_ends:
+            travel_ok = (
+                min(travel_ends) >= min_travel_fraction * max_time
+                and max(travel_ends) >= min_longest_travel_fraction * max_time
+            )
+        else:
+            travel_ok = False
+
+        # Score: prefer candidates that satisfy both constraints; break ties
+        # by separation quality.
+        score = min_sep + (10.0 if travel_ok else 0.0)
+        if score > best_score:
             best_curves = curves
             best_risk_groups = risk_groups
-            best_sep = min_sep
-        if not enforce_curve_separation or min_sep >= min_curve_separation:
+            best_score = score
+        if sep_ok and travel_ok:
             break
 
     curves = best_curves

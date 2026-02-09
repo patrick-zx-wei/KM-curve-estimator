@@ -17,7 +17,7 @@ LAB_PRIOR_MISMATCH_THRESHOLD = 28.0
 LAB_PRIOR_REJECT_THRESHOLD = 70.0
 MIN_OBSERVED_COLOR_PIXELS = 300
 OBSERVED_SATURATION_MIN = 38
-OBSERVED_VALUE_MAX = 245
+OBSERVED_VALUE_MAX = 255
 
 
 def _rgb01_to_lab(color: tuple[float, float, float]) -> tuple[float, float, float]:
@@ -73,16 +73,30 @@ def _collect_observed_centers(
         return []
 
     samples = lab[ys, xs]
-    # Deterministic downsample for speed.
-    if samples.shape[0] > 25000:
-        step = int(np.ceil(samples.shape[0] / 25000))
-        samples = samples[::step]
-    samples = np.asarray(samples, dtype=np.float32)
+    # Hue-stratified downsample: cap per-hue-bin to prevent any single color
+    # from dominating k-means (e.g., bright orange at V=255 outnumbering green).
+    hues = hsv[:, :, 0][ys, xs]
+    budget = 25000
+    n_bins = 12
+    bin_edges = np.linspace(0, 180, n_bins + 1)
+    bin_idx = np.clip(np.digitize(hues, bin_edges) - 1, 0, n_bins - 1)
+    populated = np.unique(bin_idx)
+    per_bin = max(1, budget // max(1, len(populated)))
+    keep = np.zeros(samples.shape[0], dtype=bool)
+    for b in populated:
+        mask_b = bin_idx == b
+        idxs = np.where(mask_b)[0]
+        if idxs.size <= per_bin:
+            keep[idxs] = True
+        else:
+            step = int(np.ceil(idxs.size / per_bin))
+            keep[idxs[::step]] = True
+    samples = np.asarray(samples[keep], dtype=np.float32)
 
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 25, 0.2)
     compactness, labels, centers = cv2.kmeans(
         samples,
-        K=max(1, n_centers),
+        K=max(1, min(n_centers + 2, samples.shape[0])),
         bestLabels=None,
         criteria=criteria,
         attempts=1,
