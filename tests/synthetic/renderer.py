@@ -16,14 +16,11 @@ from .modifiers import (
     Annotations,
     BackgroundStyle,
     CensoringMarks,
-    CompressedTimeAxis,
     CurveDirection,
     FontTypography,
     FrameLayout,
-    GaussianBlur,
     GridLines,
     JPEGArtifacts,
-    LegendPlacement,
     LowResolution,
     Modifier,
     ModifierStage,
@@ -281,9 +278,6 @@ def render_test_case(
                         markeredgewidth=1.5,
                     )
 
-        elif isinstance(mod, LegendPlacement):
-            pass  # handled below when setting legend
-
         elif isinstance(mod, Annotations):
             for i, text in enumerate(mod.texts):
                 ax.annotate(
@@ -293,16 +287,6 @@ def render_test_case(
                     fontsize=9,
                     bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.5),
                 )
-
-        elif isinstance(mod, CompressedTimeAxis):
-            x_ticks = list(
-                np.linspace(
-                    test_case.x_axis.start, test_case.x_axis.end, mod.n_ticks
-                )
-            )
-            test_case.x_axis = test_case.x_axis.model_copy(
-                update={"tick_values": [round(t, 1) for t in x_ticks]}
-            )
 
     # Axis configuration
     ax.set_xlim(test_case.x_axis.start, test_case.x_axis.end)
@@ -323,12 +307,7 @@ def render_test_case(
         ax.set_title(test_case.title)
 
     # Legend
-    legend_loc = "best"
-    for mod in figure_mods:
-        if isinstance(mod, LegendPlacement):
-            legend_loc = mod.location
-            break
-    ax.legend(loc=legend_loc)
+    ax.legend(loc="best")
 
     # Risk table below plot
     if ax_table is not None and test_case.risk_table:
@@ -420,11 +399,5 @@ def _apply_post_render_modifiers(image_path: Path, modifiers: list[Modifier]) ->
             rng = np.random.default_rng(42)
             noise = rng.normal(0, mod.sigma, img.shape).astype(np.float32)
             img = np.clip(img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
-
-        elif isinstance(mod, GaussianBlur):
-            k = mod.kernel_size
-            if k % 2 == 0:
-                k += 1
-            img = cv2.GaussianBlur(img, (k, k), 0)
 
     cv2.imwrite(str(image_path), img)

@@ -75,28 +75,12 @@ class RiskTableDisplay(Modifier):
 
 
 @dataclass
-class LegendPlacement(Modifier):
-    """Control legend location."""
-
-    location: str = "best"
-    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
-
-
-@dataclass
 class Annotations(Modifier):
     """Add text annotations (p-values, hazard ratios)."""
 
     texts: list[str] = field(
         default_factory=lambda: ["HR=0.65 (95% CI 0.45-0.94)", "p=0.021"]
     )
-    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
-
-
-@dataclass
-class CompressedTimeAxis(Modifier):
-    """Many tick marks on the time axis (crowded labels)."""
-
-    n_ticks: int = 20
     stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
 
 
@@ -173,14 +157,6 @@ class NoisyBackground(Modifier):
     """Add Gaussian noise to the image."""
 
     sigma: float = 15.0
-    stage: ModifierStage = field(default=ModifierStage.POST_RENDER, init=False)
-
-
-@dataclass
-class GaussianBlur(Modifier):
-    """Apply Gaussian blur."""
-
-    kernel_size: int = 5
     stage: ModifierStage = field(default=ModifierStage.POST_RENDER, init=False)
 
 

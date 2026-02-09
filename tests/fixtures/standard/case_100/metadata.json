@@ -1,6 +1,6 @@
 {
   "name": "case_100",
-  "seed": 1277,
+  "seed": 1251,
   "n_groups": 3,
   "n_patients_per_arm": 127,
   "groups": [
@@ -12,7 +12,7 @@
   "y_axis_start": 0.0,
   "difficulty": 4,
   "tier": "legacy",
-  "gap_pattern": "converging",
+  "gap_pattern": "diverging",
   "background_style": "sas_gray",
   "curve_direction": "upward",
   "frame_layout": "l_axis",
@@ -28,7 +28,6 @@
     "Annotations",
     "ThickLines",
     "LowResolution",
-    "JPEGArtifacts",
     "NoisyBackground"
   ],
   "title": "Cumulative Incidence Curve",
@@ -67,7 +66,7 @@
     "scale": "linear"
   },
   "total_patients": 381,
-  "total_events": 18,
+  "total_events": 164,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

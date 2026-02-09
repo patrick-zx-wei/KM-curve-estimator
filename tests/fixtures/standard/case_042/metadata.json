@@ -1,6 +1,6 @@
 {
   "name": "case_042",
-  "seed": 1193,
+  "seed": 1141,
   "n_groups": 2,
   "n_patients_per_arm": 97,
   "groups": [
@@ -11,7 +11,7 @@
   "y_axis_start": 0.0,
   "difficulty": 1,
   "tier": "pristine",
-  "gap_pattern": "parallel",
+  "gap_pattern": "diverging",
   "background_style": "sas_gray",
   "curve_direction": "downward",
   "frame_layout": "full_box",
@@ -63,7 +63,7 @@
     "scale": "linear"
   },
   "total_patients": 194,
-  "total_events": 51,
+  "total_events": 65,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

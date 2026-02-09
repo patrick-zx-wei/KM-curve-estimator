@@ -62,7 +62,7 @@
     "scale": "linear"
   },
   "total_patients": 726,
-  "total_events": 294,
+  "total_events": 298,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

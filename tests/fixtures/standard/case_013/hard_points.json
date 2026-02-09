@@ -3,33 +3,33 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7872,
-        "plot_y": 0.7872,
+        "survival": 0.8124,
+        "plot_y": 0.8124,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.6635,
-        "plot_y": 0.6635,
+        "survival": 0.6836,
+        "plot_y": 0.6836,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.4641,
-        "plot_y": 0.4641,
+        "survival": 0.4932,
+        "plot_y": 0.4932,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.2721,
-        "plot_y": 0.2721,
+        "survival": 0.3055,
+        "plot_y": 0.3055,
         "description": "3-year value"
       }
     ],
-    "median_survival": 21.73,
+    "median_survival": 23.24,
     "quartiles": {
-      "25pct": 7.58,
-      "50pct": 21.73
+      "25pct": 8.8,
+      "50pct": 23.24
     },
     "curve_direction": "downward",
     "plot_space": "survival",
@@ -39,33 +39,33 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8366,
-        "plot_y": 0.8366,
+        "survival": 0.8483,
+        "plot_y": 0.8483,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.7191,
-        "plot_y": 0.7191,
+        "survival": 0.7297,
+        "plot_y": 0.7297,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.544,
-        "plot_y": 0.544,
+        "survival": 0.6,
+        "plot_y": 0.6,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.4167,
-        "plot_y": 0.4167,
+        "survival": 0.4607,
+        "plot_y": 0.4607,
         "description": "3-year value"
       }
     ],
-    "median_survival": 27.87,
+    "median_survival": 30.99,
     "quartiles": {
-      "25pct": 9.96,
-      "50pct": 27.87
+      "25pct": 10.99,
+      "50pct": 30.99
     },
     "curve_direction": "downward",
     "plot_space": "survival",

@@ -27,11 +27,8 @@ from .ground_truth import (
 from .modifiers import (
     Annotations,
     CensoringMarks,
-    CompressedTimeAxis,
-    GaussianBlur,
     GridLines,
     JPEGArtifacts,
-    LegendPlacement,
     LowResolution,
     Modifier,
     NoisyBackground,
@@ -72,11 +69,8 @@ __all__ = [
     "ThinLines",
     "CensoringMarks",
     "RiskTableDisplay",
-    "LegendPlacement",
     "Annotations",
-    "CompressedTimeAxis",
     "LowResolution",
     "JPEGArtifacts",
     "NoisyBackground",
-    "GaussianBlur",
 ]

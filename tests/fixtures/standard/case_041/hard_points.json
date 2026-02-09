@@ -3,21 +3,21 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6583,
-        "plot_y": 0.6583,
+        "survival": 0.6618,
+        "plot_y": 0.6618,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.4869,
-        "plot_y": 0.4869,
+        "survival": 0.4892,
+        "plot_y": 0.4892,
         "description": "1-year value"
       }
     ],
-    "median_survival": 11.2,
+    "median_survival": 11.97,
     "quartiles": {
-      "25pct": 3.6,
-      "50pct": 11.2
+      "25pct": 3.73,
+      "50pct": 11.97
     },
     "curve_direction": "downward",
     "plot_space": "survival",

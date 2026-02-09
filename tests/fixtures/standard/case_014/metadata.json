@@ -1,6 +1,6 @@
 {
   "name": "case_014",
-  "seed": 1165,
+  "seed": 1113,
   "n_groups": 3,
   "n_patients_per_arm": 167,
   "groups": [
@@ -10,7 +10,7 @@
   ],
   "max_time": 48.0,
   "y_axis_start": 0.0,
-  "difficulty": 3,
+  "difficulty": 2,
   "tier": "pristine",
   "gap_pattern": "converging",
   "background_style": "white",
@@ -60,7 +60,7 @@
     "scale": "linear"
   },
   "total_patients": 501,
-  "total_events": 138,
+  "total_events": 188,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

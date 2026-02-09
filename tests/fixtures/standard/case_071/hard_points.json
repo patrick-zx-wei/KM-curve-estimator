@@ -3,34 +3,33 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7802,
-        "plot_y": 0.7802,
+        "survival": 0.7317,
+        "plot_y": 0.7317,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.6477,
-        "plot_y": 0.6477,
+        "survival": 0.59,
+        "plot_y": 0.59,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.3743,
-        "plot_y": 0.3743,
+        "survival": 0.453,
+        "plot_y": 0.453,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.2396,
-        "plot_y": 0.2396,
+        "survival": 0.3168,
+        "plot_y": 0.3168,
         "description": "3-year value"
       }
     ],
-    "median_survival": 19.05,
+    "median_survival": 18.83,
     "quartiles": {
-      "25pct": 7.34,
-      "50pct": 19.05,
-      "75pct": 34.78
+      "25pct": 5.2,
+      "50pct": 18.83
     },
     "curve_direction": "downward",
     "plot_space": "survival",
@@ -40,27 +39,33 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7831,
-        "plot_y": 0.7831,
+        "survival": 0.8979,
+        "plot_y": 0.8979,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.6364,
-        "plot_y": 0.6364,
+        "survival": 0.7753,
+        "plot_y": 0.7753,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.4763,
-        "plot_y": 0.4763,
+        "survival": 0.5898,
+        "plot_y": 0.5898,
         "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.4433,
+        "plot_y": 0.4433,
+        "description": "3-year value"
       }
     ],
-    "median_survival": 22.14,
+    "median_survival": 31.48,
     "quartiles": {
-      "25pct": 7.38,
-      "50pct": 22.14
+      "25pct": 13.43,
+      "50pct": 31.48
     },
     "curve_direction": "downward",
     "plot_space": "survival",

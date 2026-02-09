@@ -1,6 +1,6 @@
 {
   "name": "case_058",
-  "seed": 1157,
+  "seed": 1209,
   "n_groups": 2,
   "n_patients_per_arm": 172,
   "groups": [
@@ -9,7 +9,7 @@
   ],
   "max_time": 60.0,
   "y_axis_start": 0.0,
-  "difficulty": 4,
+  "difficulty": 2,
   "tier": "standard",
   "gap_pattern": "converging",
   "background_style": "sas_gray",
@@ -63,7 +63,7 @@
     "scale": "linear"
   },
   "total_patients": 344,
-  "total_events": 53,
+  "total_events": 159,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

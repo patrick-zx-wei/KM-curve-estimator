@@ -3,21 +3,27 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7571,
-        "plot_y": 0.2429,
+        "survival": 0.7773,
+        "plot_y": 0.2227,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.6059,
-        "plot_y": 0.3941,
+        "survival": 0.6148,
+        "plot_y": 0.3852,
         "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.324,
+        "plot_y": 0.676,
+        "description": "2-year value"
       }
     ],
-    "median_survival": 15.99,
+    "median_survival": 16.46,
     "quartiles": {
-      "25pct": 6.06,
-      "50pct": 15.99
+      "25pct": 6.78,
+      "50pct": 16.46
     },
     "curve_direction": "upward",
     "plot_space": "incidence",
@@ -27,21 +33,21 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9123,
-        "plot_y": 0.0877,
+        "survival": 0.8849,
+        "plot_y": 0.1151,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.7261,
-        "plot_y": 0.2739,
+        "survival": 0.6937,
+        "plot_y": 0.3063,
         "description": "1-year value"
       }
     ],
-    "median_survival": 19.3,
+    "median_survival": 19.37,
     "quartiles": {
-      "25pct": 9.12,
-      "50pct": 19.3
+      "25pct": 9.03,
+      "50pct": 19.37
     },
     "curve_direction": "upward",
     "plot_space": "incidence",
