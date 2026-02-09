@@ -2,464 +2,69 @@
   "case_name": "case_066",
   "difficulty": 2,
   "n_curves": 2,
-  "pipeline_errors": [],
+  "pipeline_errors": [
+    {
+      "stage": "input_guard",
+      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": {
+        "errors": [
+          {
+            "type": "value_error",
+            "loc": [],
+            "msg": "Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable.",
+            "input": {
+              "model": "gemini-3-flash-preview",
+              "max_retries": 3,
+              "timeout": 30,
+              "model_kwargs": {}
+            },
+            "ctx": {
+              "error": "API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable."
+            },
+            "url": "https://errors.pydantic.dev/2.12/v/value_error"
+          }
+        ]
+      }
+    }
+  ],
   "mmpu": {
-    "x_axis_start_error": 0.0,
-    "x_axis_end_error": 0.0,
-    "y_axis_start_error": 0.0,
-    "y_axis_end_error": 0.0,
-    "x_tick_interval_error": 0.0,
-    "y_tick_interval_error": 0.0,
-    "x_tick_count_detected": 6,
-    "x_tick_count_expected": 6,
-    "y_tick_count_detected": 6,
-    "y_tick_count_expected": 6,
-    "x_tick_values_mae": 0.0,
-    "y_tick_values_mae": 0.0,
-    "x_tick_coverage_detected": 1.0,
-    "x_tick_coverage_expected": 1.0,
-    "y_tick_coverage_detected": 1.0,
-    "y_tick_coverage_expected": 1.0,
-    "n_curves_detected": 2,
-    "n_curves_expected": 2,
-    "curves_match": true,
-    "curve_direction_detected": "downward",
-    "curve_direction_expected": "downward",
-    "curve_direction_match": true,
-    "risk_table_detected": true,
-    "risk_table_expected": true
+    "error": "no plot_metadata extracted"
   },
   "digitize": {
-    "Control": {
-      "mae": 0.07219605548966287,
-      "rmse": 0.09576208389366736,
-      "dtw": 0.008449108108357925,
-      "frechet": 0.21164875970960229,
-      "max_error": 0.21487456308484643
-    },
-    "Treatment": {
-      "mae": 0.09241978003896366,
-      "rmse": 0.18250273864879307,
-      "dtw": 0.05161588950906848,
-      "frechet": 0.3196000393878408,
-      "max_error": 0.6459158000003287
-    }
+    "error": "no digitized_curves produced"
   },
   "hard_points": {
-    "Control": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.94,
-          "actual": 0.9034,
-          "error": 0.0366,
-          "expected_plot_y": 0.94,
-          "actual_plot_y": 0.9034,
-          "plot_error": 0.0366,
-          "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.8672,
-          "actual": 0.8364,
-          "error": 0.0308,
-          "expected_plot_y": 0.8672,
-          "actual_plot_y": 0.8364,
-          "plot_error": 0.0308,
-          "pass": true
-        }
-      ],
-      "all_pass": true,
-      "evaluation_space": "survival",
-      "plot_space": "survival"
-    },
-    "Treatment": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.8749,
-          "actual": 1.0,
-          "error": 0.1251,
-          "expected_plot_y": 0.8749,
-          "actual_plot_y": 1.0,
-          "plot_error": 0.1251,
-          "pass": false
-        },
-        {
-          "time": 12,
-          "expected": 0.8093,
-          "actual": 0.9855,
-          "error": 0.1762,
-          "expected_plot_y": 0.8093,
-          "actual_plot_y": 0.9855,
-          "plot_error": 0.1762,
-          "pass": false
-        },
-        {
-          "time": 24,
-          "expected": 0.8093,
-          "actual": 0.3221,
-          "error": 0.4872,
-          "expected_plot_y": 0.8093,
-          "actual_plot_y": 0.3221,
-          "plot_error": 0.4872,
-          "pass": false
-        },
-        {
-          "time": 36,
-          "expected": 0.7082,
-          "actual": 0.3221,
-          "error": 0.3861,
-          "expected_plot_y": 0.7082,
-          "actual_plot_y": 0.3221,
-          "plot_error": 0.3861,
-          "pass": false
-        }
-      ],
-      "all_pass": false,
-      "evaluation_space": "survival",
-      "plot_space": "survival"
-    }
+    "error": "no pipeline output"
   },
   "reconstruction": {
-    "Control": {
-      "mae": 0.028293457390479216,
-      "rmse": 0.03804978260327013,
-      "dtw": 0.011335167412182249,
-      "frechet": 0.048093495039094325,
-      "max_error": 0.08268247893616176
-    },
-    "Treatment": {
-      "mae": 0.09267702068201865,
-      "rmse": 0.1302257532022578,
-      "dtw": 0.04015552004400091,
-      "frechet": 0.20433830960881616,
-      "max_error": 0.3861072083729337
-    }
+    "error": "no pipeline output"
   },
   "validation": {
-    "Control": {
-      "mae": 0.08548345034154867,
-      "dtw": null,
-      "rmse": null
-    },
-    "Treatment": {
-      "mae": 0.36283262557553975,
-      "dtw": null,
-      "rmse": null
-    }
+    "error": "no pipeline output"
   },
   "reconstruction_meta": {
-    "mode": "full",
-    "patient_counts": {
-      "Control": 122,
-      "Treatment": 122
-    },
-    "warnings": [
-      "Metadata fast phase failed (ServerError); escalating",
-      "Low GPT metadata confidence (0.70), verifying with Gemini",
-      "GPT/Gemini metadata disagreement (similarity=0.60), using Gemini",
-      "GPT extraction failed: Request timed out.",
-      "Using Gemini fallback",
-      "Cropped risk-table OCR could not be parsed into structured table",
-      "Reconciled x_axis ticks via metadata (n=6->6, interval=None->20.0)",
-      "I_TICK_DETECT_RAW_X:1:13.889",
-      "I_TICK_DETECT_RAW_Y:2:9.238",
-      "I_TICK_MATCH_X:6:0.00:0.0:1",
-      "I_TICK_MATCH_Y:6:0.17:0.0:2",
-      "W_TICK_MATCH_X_WEAK",
-      "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:6:0.158:444.0",
-      "I_TICK_DETECT_Y:6:0.217:367.0",
-      "I_TICK_CAL_X:6:0.298:0.0:0.00:0.054",
-      "I_TICK_CAL_Y:6:0.385:0.0:0.17:0.167",
-      "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:117.1",
-      "W_COLOR_PRIOR_MISMATCH:Treatment:39.6",
-      "I_HSL_KMEDOIDS_USED:2:2256",
-      "W_CROSSING_DISABLED_CAP:3:1152:1740",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1736:1738",
-      "W_LOW_MARGIN_HIGH:Control:0.432",
-      "W_LOW_MARGIN_HIGH:Treatment:0.500",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1059:1069",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1082:1092",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1111:1112",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1297:1303",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1321:1322",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1737:1738",
-      "W_CROSSING_AMBIGUOUS:0:55",
-      "W_LOW_MARGIN_HIGH:Treatment:0.567",
-      "W_SOFT_MONOTONE_ADJUST:Control:15",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
-      "E_HARD_FAIL_LOW_MARGIN:Treatment:0.567",
-      "W_COLOR_REJECT_PENALTY:1",
-      "E_HARD_FAIL_CROSSING_OVERFIRE",
-      "W_HARD_FAIL_REVIEW_ONLY",
-      "I_DIGITIZATION_V3_CONFIDENCE:0.702",
-      "I_TICK_DETECT_RAW_X:1:13.889",
-      "I_TICK_DETECT_RAW_Y:2:9.238",
-      "I_TICK_MATCH_X:6:0.00:0.0:1",
-      "I_TICK_MATCH_Y:6:0.17:0.0:2",
-      "W_TICK_MATCH_X_WEAK",
-      "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:6:0.158:444.0",
-      "I_TICK_DETECT_Y:6:0.217:367.0",
-      "I_TICK_CAL_X:6:0.298:0.0:0.00:0.054",
-      "I_TICK_CAL_Y:6:0.385:0.0:0.17:0.167",
-      "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:117.1",
-      "W_COLOR_PRIOR_MISMATCH:Treatment:39.6",
-      "I_HSL_KMEDOIDS_USED:2:2256",
-      "W_CROSSING_DISABLED_CAP:3:1152:1740",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1736:1738",
-      "W_LOW_MARGIN_HIGH:Control:0.432",
-      "W_LOW_MARGIN_HIGH:Treatment:0.500",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1059:1069",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1082:1092",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1111:1112",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1297:1303",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1321:1322",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1737:1738",
-      "W_CROSSING_AMBIGUOUS:0:55",
-      "W_LOW_MARGIN_HIGH:Treatment:0.567",
-      "W_SOFT_MONOTONE_ADJUST:Control:15",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
-      "E_HARD_FAIL_LOW_MARGIN:Treatment:0.567",
-      "W_COLOR_REJECT_PENALTY:2",
-      "E_HARD_FAIL_CROSSING_OVERFIRE",
-      "W_HARD_FAIL_REVIEW_ONLY",
-      "I_DIGITIZATION_V3_CONFIDENCE:0.652",
-      "I_TICK_DETECT_RAW_X:1:13.889",
-      "I_TICK_DETECT_RAW_Y:2:9.238",
-      "I_TICK_MATCH_X:6:0.00:0.0:1",
-      "I_TICK_MATCH_Y:6:0.17:0.0:2",
-      "W_TICK_MATCH_X_WEAK",
-      "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:6:0.158:444.0",
-      "I_TICK_DETECT_Y:6:0.217:367.0",
-      "I_TICK_CAL_X:6:0.298:0.0:0.00:0.054",
-      "I_TICK_CAL_Y:6:0.385:0.0:0.17:0.167",
-      "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:117.1",
-      "W_COLOR_PRIOR_MISMATCH:Treatment:39.6",
-      "I_HSL_KMEDOIDS_USED:2:2256",
-      "W_CROSSING_DISABLED_CAP:3:1152:1740",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1736:1738",
-      "W_LOW_MARGIN_HIGH:Control:0.432",
-      "W_LOW_MARGIN_HIGH:Treatment:0.500",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1059:1069",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1082:1092",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1111:1112",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1297:1303",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1321:1322",
-      "W_CLOSE_PARALLEL_AMBIGUOUS:1737:1738",
-      "W_CROSSING_AMBIGUOUS:0:55",
-      "W_LOW_MARGIN_HIGH:Treatment:0.567",
-      "W_SOFT_MONOTONE_ADJUST:Control:15",
-      "E_NEEDS_RETRACE_MONOTONE:Treatment",
-      "I_DETERMINISTIC_RETRACE_ACCEPTED",
-      "E_HARD_FAIL_LOW_MARGIN:Treatment:0.567",
-      "W_COLOR_REJECT_PENALTY:3",
-      "E_HARD_FAIL_CROSSING_OVERFIRE",
-      "W_HARD_FAIL_REVIEW_ONLY",
-      "I_DIGITIZATION_V3_CONFIDENCE:0.602",
-      "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_066/hard_points.json",
-      "Loaded hardpoint constraints: 2 groups from tests/fixtures/standard/case_066/hard_points.json (tol=0.010)",
-      "Control: applied 2 hardpoint anchors before reconstruction",
-      "Added 8 terminal right-censored survivors at t=20.0",
-      "Control: used censoring-mark hints in 1 intervals",
-      "Control: hardpoint residual mean=0.0337, max=0.0366, tol=0.0100",
-      "Control: full-mode objective 0.8478 (fit=0.0291, interval=0.0000, landmark=0.0308)",
-      "Control: hardpoint residual (mean=0.0337, max=0.0366, tol=0.0100)",
-      "Treatment: applied 4 hardpoint anchors before reconstruction",
-      "Added 9 terminal right-censored survivors at t=20.0",
-      "Treatment: used censoring-mark hints in 1 intervals",
-      "Treatment: adjusted event/censor split from censoring hints in 1 intervals",
-      "Treatment: hardpoint residual mean=0.2937, max=0.4872, tol=0.0100",
-      "Treatment: full-mode objective 12.5063 (fit=0.3591, interval=0.0000, landmark=0.4600)",
-      "Treatment: hardpoint residual (mean=0.2937, max=0.4872, tol=0.0100)"
-    ]
+    "error": "no pipeline output",
+    "warnings": [],
+    "flagged_for_review": false
   },
-  "benchmark_track": "full_track",
+  "benchmark_track": "cv_only_track",
   "diagnostics": {
-    "per_arm": {
-      "Control": {
-        "digitize_mae": 0.07219605548966287,
-        "reconstruction_mae": 0.028293457390479216,
-        "delta_reconstruction_minus_digitize": -0.04390259809918366,
-        "hard_fail_count": 0,
-        "stage_attribution": "digitization_warning",
-        "failed_landmarks": []
-      },
-      "Treatment": {
-        "digitize_mae": 0.09241978003896366,
-        "reconstruction_mae": 0.09267702068201865,
-        "delta_reconstruction_minus_digitize": 0.00025724064305499006,
-        "hard_fail_count": 4,
-        "stage_attribution": "digitization_limited",
-        "failed_landmarks": [
-          {
-            "time": 6,
-            "expected": 0.8749,
-            "actual": 1.0,
-            "error": 0.1251,
-            "bias": 0.1251
-          },
-          {
-            "time": 12,
-            "expected": 0.8093,
-            "actual": 0.9855,
-            "error": 0.1762,
-            "bias": 0.1762
-          },
-          {
-            "time": 24,
-            "expected": 0.8093,
-            "actual": 0.3221,
-            "error": 0.4872,
-            "bias": -0.4872
-          },
-          {
-            "time": 36,
-            "expected": 0.7082,
-            "actual": 0.3221,
-            "error": 0.3861,
-            "bias": -0.3861
-          }
-        ]
-      }
-    },
-    "stage_attribution_counts": {
-      "digitization_warning": 1,
-      "digitization_limited": 1
-    },
-    "hard_fail_times": {
-      "6": 1,
-      "12": 1,
-      "24": 1,
-      "36": 1
-    }
+    "per_arm": {},
+    "stage_attribution_counts": {},
+    "hard_fail_times": {}
   },
   "stage_mae": {
-    "arms": {
-      "Control": {
-        "digitize_mae": 0.07219605548966287,
-        "reconstruction_mae": 0.028293457390479216,
-        "delta_reconstruction_minus_digitize": -0.04390259809918366,
-        "stage_attribution": "digitization_warning"
-      },
-      "Treatment": {
-        "digitize_mae": 0.09241978003896366,
-        "reconstruction_mae": 0.09267702068201865,
-        "delta_reconstruction_minus_digitize": 0.00025724064305499006,
-        "stage_attribution": "digitization_limited"
-      }
-    },
-    "mean_digitize_mae": 0.08230791776431326,
-    "mean_reconstruction_mae": 0.06048523903624893,
-    "mean_delta_reconstruction_minus_digitize": -0.021822678728064336
+    "arms": {},
+    "mean_digitize_mae": null,
+    "mean_reconstruction_mae": null,
+    "mean_delta_reconstruction_minus_digitize": null
   },
   "interval_debug": {
-    "per_curve": {
-      "Control": {
-        "reconstruction_mae": 0.028293457390479216,
-        "intervals": [
-          {
-            "t_start": 0.0,
-            "t_end": 20.0,
-            "n_start": 122,
-            "n_end": 8,
-            "risk_table_loss": 114,
-            "events_reconstructed": 16,
-            "censors_reconstructed": 98,
-            "terminal_carryover_censors": 8,
-            "digitized_s_start": 1.0032,
-            "digitized_s_end": 1.0032,
-            "reconstructed_s_end": 0.8364,
-            "expected_s_end": 0.7884
-          }
-        ],
-        "hardpoint_deltas": [
-          {
-            "time": 6,
-            "expected": 0.94,
-            "actual": 0.9034,
-            "error": 0.0366,
-            "pass": true
-          },
-          {
-            "time": 12,
-            "expected": 0.8672,
-            "actual": 0.8364,
-            "error": 0.0308,
-            "pass": true
-          }
-        ]
-      },
-      "Treatment": {
-        "reconstruction_mae": 0.09267702068201865,
-        "intervals": [
-          {
-            "t_start": 0.0,
-            "t_end": 20.0,
-            "n_start": 122,
-            "n_end": 9,
-            "risk_table_loss": 113,
-            "events_reconstructed": 34,
-            "censors_reconstructed": 79,
-            "terminal_carryover_censors": 9,
-            "digitized_s_start": 0.8032,
-            "digitized_s_end": 0.7821,
-            "reconstructed_s_end": 0.3221,
-            "expected_s_end": 0.8093
-          }
-        ],
-        "hardpoint_deltas": [
-          {
-            "time": 6,
-            "expected": 0.8749,
-            "actual": 1.0,
-            "error": 0.1251,
-            "pass": false
-          },
-          {
-            "time": 12,
-            "expected": 0.8093,
-            "actual": 0.9855,
-            "error": 0.1762,
-            "pass": false
-          },
-          {
-            "time": 24,
-            "expected": 0.8093,
-            "actual": 0.3221,
-            "error": 0.4872,
-            "pass": false
-          },
-          {
-            "time": 36,
-            "expected": 0.7082,
-            "actual": 0.3221,
-            "error": 0.3861,
-            "pass": false
-          }
-        ]
-      }
-    }
+    "error": "no pipeline output"
   },
   "artifacts": {
-    "overlay_results": "overlay_results.png"
+    "overlay_results": null,
+    "error": "no plot_metadata"
   },
   "passed": false
 }

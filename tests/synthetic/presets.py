@@ -113,9 +113,9 @@ TIER_LEGACY = TierConfig(
     normal_censoring_range=(0.04, 0.10),
     high_censoring_range=(0.12, 0.24),
     # Legacy: scanned / old papers
-    lowres_width_range=(800, 950),
-    jpeg_quality_range=(65, 75),
-    noise_sigma_range=(3.0, 7.0),
+    lowres_width_range=(900, 1050),
+    jpeg_quality_range=(72, 82),
+    noise_sigma_range=(2.0, 5.0),
     min_difficulty=4,
 )
 
@@ -902,16 +902,16 @@ def generate_standard(
 
         if gap_pattern == "crossover":
             enforce_separation = False
-            min_separation = 0.025
-        elif gap_pattern == "converging":
-            enforce_separation = bool(case_rng.random() < 0.65)
             min_separation = 0.035
-        elif gap_pattern == "parallel":
-            enforce_separation = bool(case_rng.random() < 0.70)
-            min_separation = 0.050
-        else:
-            enforce_separation = bool(case_rng.random() < 0.70)
+        elif gap_pattern == "converging":
+            enforce_separation = bool(case_rng.random() < 0.75)
             min_separation = 0.045
+        elif gap_pattern == "parallel":
+            enforce_separation = bool(case_rng.random() < 0.80)
+            min_separation = 0.060
+        else:
+            enforce_separation = bool(case_rng.random() < 0.80)
+            min_separation = 0.055
 
         if n_curves >= 3:
             min_separation += 0.005

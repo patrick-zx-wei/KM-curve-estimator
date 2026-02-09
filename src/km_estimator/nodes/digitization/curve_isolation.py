@@ -11,19 +11,19 @@ from .axis_calibration import AxisMapping
 
 # Common color names to RGB (normalized 0-1)
 COLOR_MAP: dict[str, tuple[float, float, float]] = {
-    "red": (1.0, 0.0, 0.0),
-    "blue": (0.0, 0.0, 1.0),
-    "green": (0.0, 0.5, 0.0),
+    "red": (0.84, 0.15, 0.16),
+    "blue": (0.12, 0.47, 0.71),
+    "green": (0.17, 0.63, 0.17),
     "black": (0.0, 0.0, 0.0),
-    "orange": (1.0, 0.65, 0.0),
-    "purple": (0.5, 0.0, 0.5),
-    "brown": (0.6, 0.3, 0.0),
-    "pink": (1.0, 0.75, 0.8),
+    "orange": (1.0, 0.50, 0.05),
+    "purple": (0.58, 0.40, 0.74),
+    "brown": (0.55, 0.34, 0.29),
+    "pink": (0.89, 0.47, 0.76),
     "gray": (0.5, 0.5, 0.5),
     "grey": (0.5, 0.5, 0.5),
-    "cyan": (0.0, 1.0, 1.0),
-    "magenta": (1.0, 0.0, 1.0),
-    "yellow": (1.0, 1.0, 0.0),
+    "cyan": (0.09, 0.75, 0.81),
+    "magenta": (0.89, 0.10, 0.89),
+    "yellow": (0.74, 0.74, 0.13),
 }
 
 MAX_KMEDOIDS_FIT_SAMPLES = 15_000

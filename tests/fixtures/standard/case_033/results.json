@@ -2,375 +2,69 @@
   "case_name": "case_033",
   "difficulty": 1,
   "n_curves": 1,
-  "pipeline_errors": [],
+  "pipeline_errors": [
+    {
+      "stage": "input_guard",
+      "message": "1 validation error for ChatGoogleGenerativeAI\n  Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable. [type=value_error, input_value={'model': 'gemini-3-flash... 30, 'model_kwargs': {}}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": {
+        "errors": [
+          {
+            "type": "value_error",
+            "loc": [],
+            "msg": "Value error, API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable.",
+            "input": {
+              "model": "gemini-3-flash-preview",
+              "max_retries": 3,
+              "timeout": 30,
+              "model_kwargs": {}
+            },
+            "ctx": {
+              "error": "API key required for Gemini Developer API. Provide api_key parameter or set GOOGLE_API_KEY/GEMINI_API_KEY environment variable."
+            },
+            "url": "https://errors.pydantic.dev/2.12/v/value_error"
+          }
+        ]
+      }
+    }
+  ],
   "mmpu": {
-    "x_axis_start_error": 0.0,
-    "x_axis_end_error": 0.0,
-    "y_axis_start_error": 0.0,
-    "y_axis_end_error": 0.0,
-    "x_tick_interval_error": 0.0,
-    "y_tick_interval_error": 0.0,
-    "x_tick_count_detected": 7,
-    "x_tick_count_expected": 7,
-    "y_tick_count_detected": 6,
-    "y_tick_count_expected": 6,
-    "x_tick_values_mae": 0.0,
-    "y_tick_values_mae": 0.0,
-    "x_tick_coverage_detected": 1.0,
-    "x_tick_coverage_expected": 1.0,
-    "y_tick_coverage_detected": 1.0,
-    "y_tick_coverage_expected": 1.0,
-    "n_curves_detected": 1,
-    "n_curves_expected": 1,
-    "curves_match": true,
-    "curve_direction_detected": "upward",
-    "curve_direction_expected": "upward",
-    "curve_direction_match": true,
-    "risk_table_detected": true,
-    "risk_table_expected": true
+    "error": "no plot_metadata extracted"
   },
   "digitize": {
-    "Control": {
-      "mae": 0.04782075177476771,
-      "rmse": 0.1224143831016532,
-      "dtw": 0.07569417598366086,
-      "frechet": 0.3644916702010059,
-      "max_error": 0.3856872796185016
-    }
+    "error": "no digitized_curves produced"
   },
   "hard_points": {
-    "Control": {
-      "landmarks": [
-        {
-          "time": 6,
-          "expected": 0.8745,
-          "actual": 0.857,
-          "error": 0.0175,
-          "expected_plot_y": 0.1255,
-          "actual_plot_y": 0.143,
-          "plot_error": 0.0175,
-          "pass": true
-        },
-        {
-          "time": 12,
-          "expected": 0.7567,
-          "actual": 0.7368,
-          "error": 0.0199,
-          "expected_plot_y": 0.2433,
-          "actual_plot_y": 0.2632,
-          "plot_error": 0.0199,
-          "pass": true
-        },
-        {
-          "time": 24,
-          "expected": 0.5068,
-          "actual": 0.5619,
-          "error": 0.0551,
-          "expected_plot_y": 0.4932,
-          "actual_plot_y": 0.4381,
-          "plot_error": 0.0551,
-          "pass": false
-        },
-        {
-          "time": 36,
-          "expected": 0.3904,
-          "actual": 0.4477,
-          "error": 0.0573,
-          "expected_plot_y": 0.6096,
-          "actual_plot_y": 0.5523,
-          "plot_error": 0.0573,
-          "pass": false
-        }
-      ],
-      "all_pass": false,
-      "evaluation_space": "survival",
-      "plot_space": "incidence"
-    }
+    "error": "no pipeline output"
   },
   "reconstruction": {
-    "Control": {
-      "mae": 0.02452630662100766,
-      "rmse": 0.03365801191571342,
-      "dtw": 0.005174095205486379,
-      "frechet": 0.05729903559206001,
-      "max_error": 0.09384595617043423
-    }
+    "error": "no pipeline output"
   },
   "validation": {
-    "Control": {
-      "mae": 0.18347321374315248,
-      "dtw": null,
-      "rmse": null
-    }
+    "error": "no pipeline output"
   },
   "reconstruction_meta": {
-    "mode": "full",
-    "patient_counts": {
-      "Control": 187
-    },
-    "warnings": [
-      "Low GPT metadata confidence (0.70), verifying with Gemini",
-      "Gemini verification failed, using low-confidence GPT result",
-      "W_DIRECTION_AMBIGUOUS_TEXT",
-      "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:2:3.997",
-      "I_TICK_DETECT_RAW_Y:1:13.421",
-      "I_TICK_MATCH_X:7:0.14:0.0:2",
-      "I_TICK_MATCH_Y:6:0.00:0.0:1",
-      "W_TICK_MATCH_X_WEAK",
-      "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:7:0.202:667.0",
-      "I_TICK_DETECT_Y:6:0.077:385.0",
-      "I_TICK_CAL_X:7:0.204:0.0:0.00:0.071",
-      "I_TICK_CAL_Y:6:0.231:0.0:0.17:0.013",
-      "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:112.3",
-      "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "I_HSL_KMEDOIDS_USED:1:2413",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_SKIPPED",
-      "W_COLOR_REJECT_PENALTY:1",
-      "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V3_CONFIDENCE:0.737",
-      "W_DIRECTION_AMBIGUOUS_TEXT",
-      "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:2:3.997",
-      "I_TICK_DETECT_RAW_Y:1:13.421",
-      "I_TICK_MATCH_X:7:0.14:0.0:2",
-      "I_TICK_MATCH_Y:6:0.00:0.0:1",
-      "W_TICK_MATCH_X_WEAK",
-      "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:7:0.202:667.0",
-      "I_TICK_DETECT_Y:6:0.077:385.0",
-      "I_TICK_CAL_X:7:0.204:0.0:0.00:0.071",
-      "I_TICK_CAL_Y:6:0.231:0.0:0.17:0.013",
-      "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:112.3",
-      "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "I_HSL_KMEDOIDS_USED:1:2413",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_SKIPPED",
-      "W_COLOR_REJECT_PENALTY:2",
-      "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V3_CONFIDENCE:0.687",
-      "W_DIRECTION_AMBIGUOUS_TEXT",
-      "I_DIRECTION_FALLBACK_METADATA:upward",
-      "I_TICK_DETECT_RAW_X:2:3.997",
-      "I_TICK_DETECT_RAW_Y:1:13.421",
-      "I_TICK_MATCH_X:7:0.14:0.0:2",
-      "I_TICK_MATCH_Y:6:0.00:0.0:1",
-      "W_TICK_MATCH_X_WEAK",
-      "W_TICK_MATCH_Y_WEAK",
-      "I_TICK_DETECT_X:7:0.202:667.0",
-      "I_TICK_DETECT_Y:6:0.077:385.0",
-      "I_TICK_CAL_X:7:0.204:0.0:0.00:0.071",
-      "I_TICK_CAL_Y:6:0.231:0.0:0.17:0.013",
-      "I_TICK_CAL_SOURCE:refine_fallback",
-      "W_COLOR_PRIOR_REJECTED:Control:112.3",
-      "I_AXIS_PENALTY_SOFTENED_UPWARD",
-      "I_HSL_KMEDOIDS_USED:1:2413",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_TRIGGERED",
-      "E_NEEDS_RETRACE_MONOTONE:Control",
-      "W_UPWARD_REFLECTED_TO_SURVIVAL",
-      "I_DETERMINISTIC_RETRACE_SKIPPED",
-      "W_COLOR_REJECT_PENALTY:3",
-      "W_DIRECTION_AMBIGUOUS_PENALTY",
-      "I_DIGITIZATION_V3_CONFIDENCE:0.637",
-      "Auto-enabled hardpoint constraints from sibling file: tests/fixtures/standard/case_033/hard_points.json",
-      "Loaded hardpoint constraints: 1 groups from tests/fixtures/standard/case_033/hard_points.json (tol=0.010)",
-      "Control: applied 4 hardpoint anchors before reconstruction",
-      "Added 32 terminal right-censored survivors at t=36.0",
-      "Control: used censoring-mark hints in 6 intervals",
-      "Control: adjusted event/censor split from censoring hints in 6 intervals",
-      "Control: residual-map correction improved objective to 1.9487",
-      "Control: hardpoint residual mean=0.0374, max=0.0573, tol=0.0100",
-      "Control: full-mode objective 1.5503 (fit=0.1833, interval=0.0000, landmark=0.2194)",
-      "Control: hardpoint residual (mean=0.0374, max=0.0573, tol=0.0100)"
-    ]
+    "error": "no pipeline output",
+    "warnings": [],
+    "flagged_for_review": false
   },
-  "benchmark_track": "full_track",
+  "benchmark_track": "cv_only_track",
   "diagnostics": {
-    "per_arm": {
-      "Control": {
-        "digitize_mae": 0.04782075177476771,
-        "reconstruction_mae": 0.02452630662100766,
-        "delta_reconstruction_minus_digitize": -0.02329444515376005,
-        "hard_fail_count": 2,
-        "stage_attribution": "reconstruction_limited",
-        "failed_landmarks": [
-          {
-            "time": 24,
-            "expected": 0.5068,
-            "actual": 0.5619,
-            "error": 0.0551,
-            "bias": 0.0551
-          },
-          {
-            "time": 36,
-            "expected": 0.3904,
-            "actual": 0.4477,
-            "error": 0.0573,
-            "bias": 0.0573
-          }
-        ]
-      }
-    },
-    "stage_attribution_counts": {
-      "reconstruction_limited": 1
-    },
-    "hard_fail_times": {
-      "24": 1,
-      "36": 1
-    }
+    "per_arm": {},
+    "stage_attribution_counts": {},
+    "hard_fail_times": {}
   },
   "stage_mae": {
-    "arms": {
-      "Control": {
-        "digitize_mae": 0.04782075177476771,
-        "reconstruction_mae": 0.02452630662100766,
-        "delta_reconstruction_minus_digitize": -0.02329444515376005,
-        "stage_attribution": "reconstruction_limited"
-      }
-    },
-    "mean_digitize_mae": 0.04782075177476771,
-    "mean_reconstruction_mae": 0.02452630662100766,
-    "mean_delta_reconstruction_minus_digitize": -0.02329444515376005
+    "arms": {},
+    "mean_digitize_mae": null,
+    "mean_reconstruction_mae": null,
+    "mean_delta_reconstruction_minus_digitize": null
   },
   "interval_debug": {
-    "per_curve": {
-      "Control": {
-        "reconstruction_mae": 0.02452630662100766,
-        "intervals": [
-          {
-            "t_start": 0.0,
-            "t_end": 6.0,
-            "n_start": 187,
-            "n_end": 142,
-            "risk_table_loss": 45,
-            "events_reconstructed": 25,
-            "censors_reconstructed": 20,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.9767,
-            "digitized_s_end": 0.8677,
-            "reconstructed_s_end": 0.857,
-            "expected_s_end": 0.8745
-          },
-          {
-            "t_start": 6.0,
-            "t_end": 12.0,
-            "n_start": 142,
-            "n_end": 108,
-            "risk_table_loss": 34,
-            "events_reconstructed": 19,
-            "censors_reconstructed": 15,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.8677,
-            "digitized_s_end": 0.76,
-            "reconstructed_s_end": 0.7368,
-            "expected_s_end": 0.7567
-          },
-          {
-            "t_start": 12.0,
-            "t_end": 18.0,
-            "n_start": 108,
-            "n_end": 74,
-            "risk_table_loss": 34,
-            "events_reconstructed": 18,
-            "censors_reconstructed": 16,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.76,
-            "digitized_s_end": 0.5725,
-            "reconstructed_s_end": 0.6032,
-            "expected_s_end": 0.5815
-          },
-          {
-            "t_start": 18.0,
-            "t_end": 24.0,
-            "n_start": 74,
-            "n_end": 58,
-            "risk_table_loss": 16,
-            "events_reconstructed": 5,
-            "censors_reconstructed": 11,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.5725,
-            "digitized_s_end": 0.1676,
-            "reconstructed_s_end": 0.5619,
-            "expected_s_end": 0.5068
-          },
-          {
-            "t_start": 24.0,
-            "t_end": 30.0,
-            "n_start": 58,
-            "n_end": 46,
-            "risk_table_loss": 12,
-            "events_reconstructed": 4,
-            "censors_reconstructed": 8,
-            "terminal_carryover_censors": 0,
-            "digitized_s_start": 0.1676,
-            "digitized_s_end": 0.4434,
-            "reconstructed_s_end": 0.5188,
-            "expected_s_end": 0.4443
-          },
-          {
-            "t_start": 30.0,
-            "t_end": 36.0,
-            "n_start": 46,
-            "n_end": 32,
-            "risk_table_loss": 14,
-            "events_reconstructed": 6,
-            "censors_reconstructed": 8,
-            "terminal_carryover_censors": 32,
-            "digitized_s_start": 0.4434,
-            "digitized_s_end": 0.3937,
-            "reconstructed_s_end": 0.4477,
-            "expected_s_end": 0.3904
-          }
-        ],
-        "hardpoint_deltas": [
-          {
-            "time": 6,
-            "expected": 0.8745,
-            "actual": 0.857,
-            "error": 0.0175,
-            "pass": true
-          },
-          {
-            "time": 12,
-            "expected": 0.7567,
-            "actual": 0.7368,
-            "error": 0.0199,
-            "pass": true
-          },
-          {
-            "time": 24,
-            "expected": 0.5068,
-            "actual": 0.5619,
-            "error": 0.0551,
-            "pass": false
-          },
-          {
-            "time": 36,
-            "expected": 0.3904,
-            "actual": 0.4477,
-            "error": 0.0573,
-            "pass": false
-          }
-        ]
-      }
-    }
+    "error": "no pipeline output"
   },
   "artifacts": {
-    "overlay_results": "overlay_results.png"
+    "overlay_results": null,
+    "error": "no plot_metadata"
   },
   "passed": false
 }

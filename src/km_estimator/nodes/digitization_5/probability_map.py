@@ -28,7 +28,7 @@ HORIZONTAL_SUPPORT_KERNEL_RATIO = 0.012
 FRAME_LINE_DENSITY_MIN = 0.11
 FRAME_BAND_RATIO = 0.012
 FRAME_TOP_X_EXEMPT_RATIO = 0.06
-COLOR_GOOD_DISTANCE = 14.0
+COLOR_GOOD_DISTANCE = 25.0
 COLOR_ANTI_WEIGHT = 2.90
 COLOR_STRICT_RELIABILITY = 0.30
 COLOR_STRICT_MIN_LIKELIHOOD = 0.75
@@ -54,7 +54,7 @@ HSV_SAT_MIN = 56.0
 HSV_SAT_MIN_LOW_RELIABILITY = 46.0
 HSV_STRICT_MIN_DENSITY = 0.00025
 HSV_STRICT_MIN_COLUMN_COVERAGE = 0.08
-HSV_HUE_MIN_THR = 4.0
+HSV_HUE_MIN_THR = 8.0
 HSV_HUE_MAX_THR = 16.0
 HSV_HUE_MAX_THR_LOW_RELIABILITY = 22.0
 HSV_HUE_SEED_MIN = 18
@@ -876,9 +876,15 @@ def build_evidence_cube(
     text_pen_raw = _text_penalty(gray)
     text_region_pen = _text_region_penalty(text_pen_raw)
     text_pen = np.maximum(text_pen_raw, 0.75 * text_region_pen).astype(np.float32)
+    # Colorful pixels (high saturation) cannot be text — text is always black/gray.
+    # Suppress both text penalties at saturated pixels to prevent dense KM step
+    # patterns and censoring marks from being misclassified as text blobs.
+    sat_not_text = sat_chan >= 50.0
+    text_pen = np.where(sat_not_text, text_pen * 0.10, text_pen).astype(np.float32)
+    text_region_pen = np.where(sat_not_text, text_region_pen * 0.10, text_region_pen).astype(np.float32)
     frame_pen, has_top_frame, has_right_frame = _frame_penalty(gray)
     prelim_mask = (
-        (ridge > max(0.10, CANDIDATE_RIDGE_THRESH * 0.7))
+        ((ridge > max(0.10, CANDIDATE_RIDGE_THRESH * 0.7)) | sat_not_text)
         & (text_pen < min(0.65, CANDIDATE_TEXT_THRESH + 0.20))
         & (text_region_pen < min(0.70, CANDIDATE_TEXT_REGION_THRESH + 0.20))
         & (frame_pen < 0.65)
@@ -922,7 +928,7 @@ def build_evidence_cube(
     structure_map = _normalize01(structure_base)
 
     candidate_mask = (
-        (ridge > CANDIDATE_RIDGE_THRESH)
+        ((ridge > CANDIDATE_RIDGE_THRESH) | sat_not_text)
         & (axis_pen_f < candidate_axis_thresh)
         & (text_pen < CANDIDATE_TEXT_THRESH)
         & (text_region_pen < CANDIDATE_TEXT_REGION_THRESH)
@@ -947,7 +953,7 @@ def build_evidence_cube(
         if relaxed_density >= 0.001:
             candidate_mask = relaxed.astype(np.bool_)
         else:
-            # Last fallback: highest-ridge dark pixels only, still respecting axis/tick suppression.
+            # Last fallback: highest-ridge pixels, still respecting axis/tick suppression.
             ridge_thr = float(np.quantile(ridge, 0.92))
             fallback = (
                 (ridge >= ridge_thr)
@@ -1041,7 +1047,19 @@ def build_evidence_cube(
 
         # Strong color-lock mode when color model is reliable and dense enough:
         # keep candidates near the arm's color signature and demote off-color pixels.
-        arm_mask = candidate_mask.copy()
+        # When the color model is highly reliable, augment the structural candidate mask
+        # with color-confirmed pixels to compensate for weak ridge detection on certain colors.
+        if model.reliability >= 0.90 and ref_lab is not None:
+            color_augment = (
+                (color_like_raw >= 0.45)
+                & (sat_chan >= HSV_SAT_MIN)
+                & (axis_pen_f < min(0.85, candidate_axis_thresh + 0.25))
+                & (text_pen < min(0.90, CANDIDATE_TEXT_THRESH + 0.30))
+                & (frame_pen < 0.75)
+            )
+            arm_mask = np.logical_or(candidate_mask, color_augment)
+        else:
+            arm_mask = candidate_mask.copy()
 
         # Color-first lock for synthetic benchmark: strict saturation + hue gating.
         ref_hsv = _reference_hsv_from_lab(ref_lab)
@@ -1061,11 +1079,11 @@ def build_evidence_cube(
             if hue_center is not None:
                 hue_dist = _hue_distance(hue_chan, hue_center)
                 hue_mask = hue_dist <= float(hue_thr)
-                hsv_mask = candidate_mask & sat_mask & hue_mask
+                hsv_mask = arm_mask & sat_mask & hue_mask
                 hsv_density = float(np.mean(hsv_mask))
                 hsv_cov = _mask_column_coverage(hsv_mask.astype(np.bool_))
-                sat_density = float(np.mean(candidate_mask & sat_mask))
-                sat_cov = _mask_column_coverage((candidate_mask & sat_mask).astype(np.bool_))
+                sat_density = float(np.mean(arm_mask & sat_mask))
+                sat_cov = _mask_column_coverage((arm_mask & sat_mask).astype(np.bool_))
                 warnings.append(
                     f"I_HSV_STRICT_LOCK:{arm_name}:{hsv_density:.4f}:{sat_density:.4f}:{hsv_cov:.3f}:{sat_cov:.3f}:{hue_center:.1f}:{hue_thr:.2f}:{hue_seed_n}:{hue_mad:.2f}:{hue_seed_thr:.3f}:{sat_min:.1f}"
                 )
@@ -1077,7 +1095,7 @@ def build_evidence_cube(
                         base - (2.80 * (1.0 - 0.30 * color_relax)),
                     ).astype(np.float32)
                 elif sat_density >= HSV_STRICT_MIN_DENSITY and sat_cov >= HSV_STRICT_MIN_COLUMN_COVERAGE:
-                    sat_only = candidate_mask & sat_mask
+                    sat_only = arm_mask & sat_mask
                     arm_mask = np.logical_and(arm_mask, sat_only)
                     base = np.where(
                         sat_only,
@@ -1207,6 +1225,17 @@ def build_evidence_cube(
                 warnings.append(f"I_HARDPOINT_WINDOW_LOCK:{arm_name}:{guide_density:.4f}:{guide_cov:.3f}")
             else:
                 warnings.append(f"W_HARDPOINT_WINDOW_SPARSE:{arm_name}:{guide_density:.4f}:{guide_cov:.3f}")
+
+        # Bridge small gaps between adjacent KM step fragments before pruning.
+        # The arm_mask is already color-locked so closing only connects same-arm steps.
+        close_k = max(3, int(round(roi.shape[1] * 0.006)))
+        if close_k % 2 == 0:
+            close_k += 1
+        close_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (close_k, 3))
+        arm_mask_u8 = cv2.morphologyEx(
+            arm_mask.astype(np.uint8) * 255, cv2.MORPH_CLOSE, close_kern,
+        )
+        arm_mask = arm_mask_u8 > 0
 
         # Connectivity prune: drop disconnected UI/text components that are not
         # plausible curve fragments.
