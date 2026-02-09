@@ -70,8 +70,8 @@ CANDIDATE_RIDGE_THRESH = 0.24
 COMPONENT_MIN_AREA_RATIO = 0.00003
 COMPONENT_START_STRIP_RATIO = 0.14
 COMPONENT_START_BAND_RATIO = 0.22
-COMPONENT_XSPAN_KEEP_RATIO = 0.28
-COMPONENT_XMIN_KEEP_RATIO = 0.22
+COMPONENT_XSPAN_KEEP_RATIO = 0.10
+COMPONENT_XMIN_KEEP_RATIO = 0.40
 PRIMARY_COMPONENT_MIN_XSPAN_RATIO = 0.05
 HSL_KMEDOIDS_MAX_POINTS = 2600
 HSL_KMEDOIDS_MAX_ITERS = 6
@@ -490,14 +490,16 @@ def _color_likelihood(
     roi_lab: NDArray[np.float32],
     reference_lab: tuple[float, float, float] | None,
     reliability: float,
+    good_dist: float | None = None,
 ) -> NDArray[np.float32]:
     if reference_lab is None or reliability <= 0.0:
         return np.zeros(roi_lab.shape[:2], dtype=np.float32)
 
+    gd = good_dist if good_dist is not None else COLOR_GOOD_DISTANCE
     ref = np.asarray(reference_lab, dtype=np.float32)
     dist = np.linalg.norm(roi_lab - ref[None, None, :], axis=2).astype(np.float32)
     # Saturating positive-only color contribution.
-    likelihood = np.clip((COLOR_GOOD_DISTANCE - dist) / COLOR_GOOD_DISTANCE, 0.0, 1.0)
+    likelihood = np.clip((gd - dist) / gd, 0.0, 1.0)
     return likelihood.astype(np.float32)
 
 
@@ -1228,7 +1230,11 @@ def build_evidence_cube(
 
         # Bridge small gaps between adjacent KM step fragments before pruning.
         # The arm_mask is already color-locked so closing only connects same-arm steps.
-        close_k = max(3, int(round(roi.shape[1] * 0.006)))
+        # For very sparse masks (thin lines + noise), use a larger closing kernel.
+        arm_mask_density = float(np.mean(arm_mask))
+        sparse_arm = arm_mask_density < 0.003
+        close_ratio = 0.04 if sparse_arm else 0.02
+        close_k = max(3, int(round(roi.shape[1] * close_ratio)))
         if close_k % 2 == 0:
             close_k += 1
         close_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (close_k, 3))
@@ -1239,29 +1245,36 @@ def build_evidence_cube(
 
         # Connectivity prune: drop disconnected UI/text components that are not
         # plausible curve fragments.
-        pruned_mask, kept_components, dropped_components = _prune_curve_components(
-            arm_mask.astype(np.bool_),
-            direction=direction,
-        )
-        if kept_components > 0:
-            arm_mask = pruned_mask
+        # Skip pruning for very sparse masks — the color lock already filtered to
+        # arm-specific pixels, and pruning destroys the little signal we have.
+        if sparse_arm:
             warnings.append(
-                f"I_CURVE_COMPONENT_PRUNE:{arm_name}:{kept_components}:{dropped_components}"
+                f"I_SPARSE_ARM_PRUNE_SKIP:{arm_name}:{arm_mask_density:.5f}"
             )
-        elif dropped_components > 0:
-            warnings.append(f"W_CURVE_COMPONENT_PRUNE_EMPTY:{arm_name}:{dropped_components}")
-
-        # Enforce one component per arm to prevent curve hopping.
-        if model.reliability >= COLOR_STRICT_RELIABILITY:
-            primary_mask, selected, xspan = _select_primary_component(
+        else:
+            pruned_mask, kept_components, dropped_components = _prune_curve_components(
                 arm_mask.astype(np.bool_),
                 direction=direction,
             )
-            if selected:
-                arm_mask = primary_mask
-                warnings.append(f"I_PRIMARY_COMPONENT_LOCK:{arm_name}:{xspan:.3f}")
-            else:
-                warnings.append(f"W_PRIMARY_COMPONENT_LOCK_SKIPPED:{arm_name}")
+            if kept_components > 0:
+                arm_mask = pruned_mask
+                warnings.append(
+                    f"I_CURVE_COMPONENT_PRUNE:{arm_name}:{kept_components}:{dropped_components}"
+                )
+            elif dropped_components > 0:
+                warnings.append(f"W_CURVE_COMPONENT_PRUNE_EMPTY:{arm_name}:{dropped_components}")
+
+            # Enforce one component per arm to prevent curve hopping.
+            if model.reliability >= COLOR_STRICT_RELIABILITY:
+                primary_mask, selected, xspan = _select_primary_component(
+                    arm_mask.astype(np.bool_),
+                    direction=direction,
+                )
+                if selected:
+                    arm_mask = primary_mask
+                    warnings.append(f"I_PRIMARY_COMPONENT_LOCK:{arm_name}:{xspan:.3f}")
+                else:
+                    warnings.append(f"W_PRIMARY_COMPONENT_LOCK_SKIPPED:{arm_name}")
 
         # Ridge-first candidates: attenuate non-candidates when dense enough.
         if cand_density >= 0.01:

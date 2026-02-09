@@ -11,7 +11,7 @@
   "y_axis_start": 0.0,
   "difficulty": 4,
   "tier": "legacy",
-  "gap_pattern": "parallel",
+  "gap_pattern": "diverging",
   "background_style": "white",
   "curve_direction": "downward",
   "frame_layout": "l_axis",
@@ -27,7 +27,6 @@
     "GridLines",
     "ThickLines",
     "LowResolution",
-    "JPEGArtifacts",
     "NoisyBackground"
   ],
   "title": "Kaplan-Meier Survival Curve",
@@ -66,7 +65,7 @@
     "scale": "linear"
   },
   "total_patients": 924,
-  "total_events": 51,
+  "total_events": 386,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

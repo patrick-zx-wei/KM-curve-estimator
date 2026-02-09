@@ -1,6 +1,6 @@
 {
   "name": "case_093",
-  "seed": 1231,
+  "seed": 1205,
   "n_groups": 3,
   "n_patients_per_arm": 316,
   "groups": [
@@ -12,7 +12,7 @@
   "y_axis_start": 0.0,
   "difficulty": 4,
   "tier": "legacy",
-  "gap_pattern": "parallel",
+  "gap_pattern": "converging",
   "background_style": "white",
   "curve_direction": "downward",
   "frame_layout": "l_axis",
@@ -27,7 +27,6 @@
     "RiskTableDisplay",
     "GridLines",
     "Annotations",
-    "LowResolution",
     "JPEGArtifacts",
     "NoisyBackground"
   ],
@@ -65,7 +64,7 @@
     "scale": "linear"
   },
   "total_patients": 948,
-  "total_events": 287,
+  "total_events": 401,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

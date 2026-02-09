@@ -311,6 +311,48 @@ def _build_hardpoint_guides(
     return guides, warnings
 
 
+def _trim_unsupported_right_edge(
+    pixel_curves: dict[str, list[tuple[int, int]]],
+    arm_candidate_masks: dict[str, np.ndarray],
+    max_gap: int = 5,
+    min_coverage: float = 0.80,
+) -> dict[str, list[tuple[int, int]]]:
+    """Remove traced points beyond the last column with arm mask support.
+
+    At the right edge of full-box plots, frame lines and JPEG compression can
+    destroy curve pixels so the arm mask has zero coverage.  The tracer still
+    produces rows for those columns, but they are unreliable.  Trimming them
+    lets downstream evaluation fall back to the last well-supported value.
+
+    Only applied when the mask has broad coverage (>= min_coverage of columns)
+    but drops out at the very end — this indicates a frame/edge artifact, not a
+    sparse curve.
+    """
+    trimmed: dict[str, list[tuple[int, int]]] = {}
+    for name, pts in pixel_curves.items():
+        mask = arm_candidate_masks.get(name)
+        if mask is None or not pts:
+            trimmed[name] = pts
+            continue
+        col_has_mask = np.any(mask, axis=0)
+        cols_with_mask = np.where(col_has_mask)[0]
+        if cols_with_mask.size == 0:
+            trimmed[name] = pts
+            continue
+        total_cols = mask.shape[1]
+        coverage = float(cols_with_mask.size) / float(max(1, total_cols))
+        last_supported = int(cols_with_mask[-1])
+        right_gap = total_cols - 1 - last_supported
+        # Only trim when the mask covers most columns but a small gap exists at
+        # the right edge (frame line / JPEG damage).  Don't trim sparse curves.
+        if coverage >= min_coverage and right_gap > 0 and right_gap <= int(total_cols * 0.03):
+            cutoff = last_supported + max_gap
+            trimmed[name] = [(c, r) for c, r in pts if c <= cutoff]
+        else:
+            trimmed[name] = pts
+    return trimmed
+
+
 def digitize_v5(state: PipelineState) -> PipelineState:
     """Run the new digitization_5 pipeline."""
     if state.plot_metadata is None:
@@ -369,9 +411,15 @@ def digitize_v5(state: PipelineState) -> PipelineState:
     )
     all_warnings.extend(trace.warning_codes)
 
+    # Trim traced points beyond the last column with arm mask support.
+    trimmed_pixel_curves = _trim_unsupported_right_edge(
+        trace.pixel_curves,
+        evidence.arm_candidate_masks,
+    )
+
     # Convert to reconstruction-compatible survival coordinates.
     digitized_curves, post_warnings = convert_pixel_curves_to_survival(
-        trace.pixel_curves,
+        trimmed_pixel_curves,
         plot_model=plot_model,
         direction=plot_model.curve_direction,
     )
@@ -411,8 +459,12 @@ def digitize_v5(state: PipelineState) -> PipelineState:
             hardpoint_guides=None,
         )
         all_warnings.extend(retrace.warning_codes)
-        retrace_curves, retrace_post_warnings = convert_pixel_curves_to_survival(
+        retrace_trimmed = _trim_unsupported_right_edge(
             retrace.pixel_curves,
+            evidence.arm_candidate_masks,
+        )
+        retrace_curves, retrace_post_warnings = convert_pixel_curves_to_survival(
+            retrace_trimmed,
             plot_model=plot_model,
             direction=plot_model.curve_direction,
         )

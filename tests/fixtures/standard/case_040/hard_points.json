@@ -3,16 +3,16 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6414,
-        "plot_y": 0.6414,
+        "survival": 0.5468,
+        "plot_y": 0.5468,
         "description": "6-month value"
       }
     ],
-    "median_survival": 8.14,
+    "median_survival": 6.78,
     "quartiles": {
-      "25pct": 4.95,
-      "50pct": 8.14,
-      "75pct": 10.91
+      "25pct": 3.52,
+      "50pct": 6.78,
+      "75pct": 11.33
     },
     "curve_direction": "downward",
     "plot_space": "survival",
@@ -22,15 +22,14 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7708,
-        "plot_y": 0.7708,
+        "survival": 0.8003,
+        "plot_y": 0.8003,
         "description": "6-month value"
       }
     ],
-    "median_survival": 10.96,
+    "median_survival": null,
     "quartiles": {
-      "25pct": 6.27,
-      "50pct": 10.96
+      "25pct": 7.09
     },
     "curve_direction": "downward",
     "plot_space": "survival",

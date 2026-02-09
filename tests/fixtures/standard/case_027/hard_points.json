@@ -3,34 +3,39 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.796,
-        "plot_y": 0.204,
+        "survival": 0.8314,
+        "plot_y": 0.1686,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.5991,
-        "plot_y": 0.4009,
+        "survival": 0.7276,
+        "plot_y": 0.2724,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.3806,
-        "plot_y": 0.6194,
+        "survival": 0.5883,
+        "plot_y": 0.4117,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.3045,
-        "plot_y": 0.6955,
+        "survival": 0.4324,
+        "plot_y": 0.5676,
         "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.3524,
+        "plot_y": 0.6476,
+        "description": "4-year value"
       }
     ],
-    "median_survival": 15.61,
+    "median_survival": 29.5,
     "quartiles": {
-      "25pct": 7.16,
-      "50pct": 15.61,
-      "75pct": 45.84
+      "25pct": 8.17,
+      "50pct": 29.5
     },
     "curve_direction": "upward",
     "plot_space": "incidence",
@@ -40,34 +45,33 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.9036,
-        "plot_y": 0.0964,
+        "survival": 0.9833,
+        "plot_y": 0.0167,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.7812,
-        "plot_y": 0.2188,
+        "survival": 0.845,
+        "plot_y": 0.155,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.654,
-        "plot_y": 0.346,
+        "survival": 0.6932,
+        "plot_y": 0.3068,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.4169,
-        "plot_y": 0.5831,
+        "survival": 0.4861,
+        "plot_y": 0.5139,
         "description": "3-year value"
       }
     ],
-    "median_survival": 31.79,
+    "median_survival": 34.86,
     "quartiles": {
-      "25pct": 16.9,
-      "50pct": 31.79,
-      "75pct": 43.66
+      "25pct": 16.35,
+      "50pct": 34.86
     },
     "curve_direction": "upward",
     "plot_space": "incidence",

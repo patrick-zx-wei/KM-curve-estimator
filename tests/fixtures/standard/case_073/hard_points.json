@@ -3,21 +3,21 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6358,
-        "plot_y": 0.6358,
+        "survival": 0.6637,
+        "plot_y": 0.6637,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.4532,
-        "plot_y": 0.4532,
+        "survival": 0.4983,
+        "plot_y": 0.4983,
         "description": "1-year value"
       }
     ],
-    "median_survival": 10.44,
+    "median_survival": 11.73,
     "quartiles": {
-      "25pct": 3.59,
-      "50pct": 10.44
+      "25pct": 3.74,
+      "50pct": 11.73
     },
     "curve_direction": "downward",
     "plot_space": "survival",
@@ -27,21 +27,21 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6763,
-        "plot_y": 0.6763,
+        "survival": 0.7364,
+        "plot_y": 0.7364,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.5856,
-        "plot_y": 0.5856,
+        "survival": 0.6149,
+        "plot_y": 0.6149,
         "description": "1-year value"
       }
     ],
-    "median_survival": 17.84,
+    "median_survival": 19.01,
     "quartiles": {
-      "25pct": 5.16,
-      "50pct": 17.84
+      "25pct": 5.71,
+      "50pct": 19.01
     },
     "curve_direction": "downward",
     "plot_space": "survival",
@@ -51,21 +51,27 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.6563,
-        "plot_y": 0.6563,
+        "survival": 0.8035,
+        "plot_y": 0.8035,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.4985,
-        "plot_y": 0.4985,
+        "survival": 0.6942,
+        "plot_y": 0.6942,
         "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.4359,
+        "plot_y": 0.4359,
+        "description": "2-year value"
       }
     ],
-    "median_survival": 10.48,
+    "median_survival": 20.74,
     "quartiles": {
-      "25pct": 4.29,
-      "50pct": 10.48
+      "25pct": 8.06,
+      "50pct": 20.74
     },
     "curve_direction": "downward",
     "plot_space": "survival",

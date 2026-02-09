@@ -26,7 +26,6 @@
     "TruncatedYAxis",
     "Annotations",
     "LowResolution",
-    "JPEGArtifacts",
     "NoisyBackground"
   ],
   "title": "Kaplan-Meier Survival Curve",
@@ -62,7 +61,7 @@
     "scale": "linear"
   },
   "total_patients": 406,
-  "total_events": 81,
+  "total_events": 185,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

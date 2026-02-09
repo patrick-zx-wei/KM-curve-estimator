@@ -19,7 +19,7 @@ from km_estimator.models.plot_metadata import AxisConfig, CurveInfo, PlotMetadat
 from km_estimator.nodes.digitization_5 import digitize_v5
 
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "standard"
-CASES = ["case_001", "case_020", "case_040", "case_060", "case_080", "case_100"]
+CASES = ["case_004", "case_014", "case_015", "case_018", "case_029", "case_032", "case_036", "case_082", "case_087", "case_095"]
 
 COLOR_NAMES = ["blue", "orange", "green", "red", "purple"]
 LINE_STYLES = ["solid", "dashed"]
@@ -87,7 +87,11 @@ def _compute_arm_mae(
         errors = []
         for lm in landmarks:
             t = lm["time"]
-            expected = lm["plot_y"]
+            expected = lm["survival"]
+            # Skip landmarks where the expected value is below the visible
+            # Y-axis range — these cannot be digitized from the plot image.
+            if expected < y_start:
+                continue
             if len(times) == 0:
                 errors.append(abs(expected))
                 continue

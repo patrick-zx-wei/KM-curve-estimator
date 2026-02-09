@@ -3,45 +3,45 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.7638,
-        "plot_y": 0.7638,
+        "survival": 0.7844,
+        "plot_y": 0.7844,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.6351,
-        "plot_y": 0.6351,
+        "survival": 0.6682,
+        "plot_y": 0.6682,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.501,
-        "plot_y": 0.501,
+        "survival": 0.5262,
+        "plot_y": 0.5262,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.3698,
-        "plot_y": 0.3698,
+        "survival": 0.3904,
+        "plot_y": 0.3904,
         "description": "3-year value"
       },
       {
         "time": 48,
-        "survival": 0.3228,
-        "plot_y": 0.3228,
+        "survival": 0.3522,
+        "plot_y": 0.3522,
         "description": "4-year value"
       },
       {
         "time": 60,
-        "survival": 0.2893,
-        "plot_y": 0.2893,
+        "survival": 0.2879,
+        "plot_y": 0.2879,
         "description": "5-year value"
       }
     ],
-    "median_survival": 24.16,
+    "median_survival": 26.22,
     "quartiles": {
-      "25pct": 6.5,
-      "50pct": 24.16
+      "25pct": 7.11,
+      "50pct": 26.22
     },
     "curve_direction": "downward",
     "plot_space": "survival",
@@ -51,39 +51,39 @@
     "landmarks": [
       {
         "time": 6,
-        "survival": 0.8106,
-        "plot_y": 0.8106,
+        "survival": 0.8209,
+        "plot_y": 0.8209,
         "description": "6-month value"
       },
       {
         "time": 12,
-        "survival": 0.6988,
-        "plot_y": 0.6988,
+        "survival": 0.71,
+        "plot_y": 0.71,
         "description": "1-year value"
       },
       {
         "time": 24,
-        "survival": 0.5634,
-        "plot_y": 0.5634,
+        "survival": 0.5894,
+        "plot_y": 0.5894,
         "description": "2-year value"
       },
       {
         "time": 36,
-        "survival": 0.4529,
-        "plot_y": 0.4529,
+        "survival": 0.4774,
+        "plot_y": 0.4774,
         "description": "3-year value"
       },
       {
         "time": 48,
-        "survival": 0.3912,
-        "plot_y": 0.3912,
+        "survival": 0.4093,
+        "plot_y": 0.4093,
         "description": "4-year value"
       }
     ],
-    "median_survival": 29.04,
+    "median_survival": 32.2,
     "quartiles": {
-      "25pct": 9.35,
-      "50pct": 29.04
+      "25pct": 9.84,
+      "50pct": 32.2
     },
     "curve_direction": "downward",
     "plot_space": "survival",

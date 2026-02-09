@@ -1,6 +1,6 @@
 {
   "name": "case_020",
-  "seed": 1119,
+  "seed": 1132,
   "n_groups": 2,
   "n_patients_per_arm": 72,
   "groups": [
@@ -61,7 +61,7 @@
     "scale": "linear"
   },
   "total_patients": 144,
-  "total_events": 81,
+  "total_events": 71,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }

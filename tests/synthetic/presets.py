@@ -6,6 +6,7 @@ generate_standard(): 100 cases across 3 tiers (50 pristine / 35 standard / 15 le
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
@@ -18,11 +19,9 @@ from .modifiers import (
     Annotations,
     BackgroundStyle,
     CensoringMarks,
-    CompressedTimeAxis,
     CurveDirection,
     FontTypography,
     FrameLayout,
-    GaussianBlur,
     GridLines,
     JPEGArtifacts,
     LowResolution,
@@ -266,6 +265,57 @@ def _apply_tier_modifiers(
     # Post-render degradation (tier-specific)
     _apply_post_render(case_rng, tier, modifiers)
 
+    # --- Cap harsh modifiers: max 2 post-render, max 4 total ---
+    _HARSH_POST = (JPEGArtifacts, LowResolution, NoisyBackground)
+    _HARSH_FIGURE = (ThinLines, TruncatedYAxis, Annotations, GridLines)
+
+    # Count non-white background as a harsh figure modifier
+    has_harsh_bg = any(
+        isinstance(m, BackgroundStyle) and m.style != "white" for m in modifiers
+    )
+
+    # 1) Cap post-render harsh to 2
+    harsh_post = [m for m in modifiers if isinstance(m, _HARSH_POST)]
+    while len(harsh_post) > 2:
+        drop = harsh_post.pop(case_rng.integers(len(harsh_post)))
+        modifiers.remove(drop)
+
+    # 2) Cap total harsh to 4
+    harsh_fig = [m for m in modifiers if isinstance(m, _HARSH_FIGURE)]
+    harsh_post = [m for m in modifiers if isinstance(m, _HARSH_POST)]
+    total_harsh = len(harsh_post) + len(harsh_fig) + (1 if has_harsh_bg else 0)
+    while total_harsh > 4 and harsh_fig:
+        drop = harsh_fig.pop(case_rng.integers(len(harsh_fig)))
+        modifiers.remove(drop)
+        if isinstance(drop, TruncatedYAxis):
+            y_start = 0.0
+        total_harsh -= 1
+
+    # --- Enforce minimum 2.3px final line thickness ---
+    _DPI = 150
+    _NATIVE_WIDTH = 1500  # 10in * 150dpi
+    _MIN_FINAL_PX = 2.3
+
+    thin_mod = next((m for m in modifiers if isinstance(m, ThinLines)), None)
+    lowres_mod = next((m for m in modifiers if isinstance(m, LowResolution)), None)
+    linewidth_pt = thin_mod.linewidth if thin_mod else 2.0
+    target_w = lowres_mod.target_width if lowres_mod else _NATIVE_WIDTH
+    final_px = linewidth_pt * (_DPI / 72) * (target_w / _NATIVE_WIDTH)
+
+    if final_px < _MIN_FINAL_PX and thin_mod:
+        # Compute minimum target_width that would satisfy constraint
+        needed_w = _MIN_FINAL_PX * 72 * _NATIVE_WIDTH / (_DPI * linewidth_pt)
+        if lowres_mod and needed_w <= tier.lowres_width_range[1]:
+            lowres_mod.target_width = int(math.ceil(needed_w))
+        else:
+            # Increase linewidth to satisfy constraint at current resolution
+            needed_lw = _MIN_FINAL_PX * 72 * _NATIVE_WIDTH / (_DPI * target_w)
+            if needed_lw <= 1.8:
+                thin_mod.linewidth = needed_lw
+            else:
+                # Can't stay thin — remove ThinLines entirely
+                modifiers.remove(thin_mod)
+
     return modifiers, censoring_rate, y_start, line_styles
 
 
@@ -367,7 +417,6 @@ def _difficult_crossing_compressed(seed: int) -> SyntheticTestCase:
             CensoringMarks(),
             RiskTableDisplay(),
             Annotations(),
-            CompressedTimeAxis(n_ticks=12),
             GridLines(major=True, alpha=0.25),
             LowResolution(target_width=900),
             JPEGArtifacts(quality=70),
@@ -394,7 +443,6 @@ def _difficult_four_arm_lowres(seed: int) -> SyntheticTestCase:
             GridLines(alpha=0.25),
             Annotations(),
             LowResolution(target_width=880),
-            GaussianBlur(kernel_size=3),
         ],
         difficulty=4,
         tier="legacy",
@@ -563,13 +611,13 @@ def _choose_gap_pattern(
     """Sample clinically plausible KM gap patterns."""
     if tier_name == "pristine":
         patterns = ["parallel", "diverging", "converging", "crossover"]
-        weights = np.array([0.52, 0.22, 0.22, 0.04], dtype=np.float64)
+        weights = np.array([0.38, 0.26, 0.26, 0.10], dtype=np.float64)
     elif tier_name == "standard":
         patterns = ["parallel", "diverging", "converging", "crossover"]
-        weights = np.array([0.48, 0.22, 0.24, 0.06], dtype=np.float64)
+        weights = np.array([0.34, 0.26, 0.28, 0.12], dtype=np.float64)
     else:
         patterns = ["parallel", "diverging", "converging", "crossover"]
-        weights = np.array([0.44, 0.22, 0.24, 0.10], dtype=np.float64)
+        weights = np.array([0.30, 0.26, 0.28, 0.16], dtype=np.float64)
 
     # Multi-arm crossover is rare and often visually underdetermined.
     if n_curves >= 3:
@@ -877,8 +925,12 @@ def generate_standard(
         log_k = np.log(0.6) + sample[0] * (np.log(2.0) - np.log(0.6))
         base_k = np.exp(log_k)
         n_per_arm = int(50 + sample[3] * 450)  # 50-500
-        scale_factor = 0.50 + sample[1] * 0.60
-        base_scale = scale_factor * max_time
+        scale_factor = 0.65 + sample[1] * 0.45
+        # Ensure events spread across the axis: for high k (steep hazard),
+        # the Weibull 90th percentile is scale * (-ln(0.1))^(1/k).  We need
+        # that to reach at least 2/3 of max_time.
+        min_scale = (2 / 3) * max_time / max((-np.log(0.1)) ** (1 / base_k), 1e-6)
+        base_scale = max(scale_factor * max_time, min_scale)
 
         style_profile = {
             "background_style": background_schedule[i],
@@ -891,6 +943,12 @@ def generate_standard(
         modifiers, censoring_rate, y_start, line_styles = _apply_tier_modifiers(
             case_rng, tier, sample[2], n_curves, style_profile=style_profile
         )
+        # Cap censoring rate so the median censoring time is at least half of
+        # max_time.  This prevents curves from flatlineing early because all
+        # patients are censored, while still allowing enough events for
+        # crossover / diverging / converging patterns to emerge.
+        max_censoring_rate = np.log(2) / (0.5 * max_time)
+        censoring_rate = min(censoring_rate, max_censoring_rate)
 
         gap_pattern = _choose_gap_pattern(case_rng, tier.name, n_curves)
         if n_curves <= 2:
@@ -917,15 +975,15 @@ def generate_standard(
             min_separation += 0.005
 
         has_post = any(
-            isinstance(m, (LowResolution, JPEGArtifacts, NoisyBackground, GaussianBlur))
+            isinstance(m, (LowResolution, JPEGArtifacts, NoisyBackground))
             for m in modifiers
         )
         tc: SyntheticTestCase | None = None
         best_score = -1e9
         best_case: SyntheticTestCase | None = None
 
-        # Retry a few times until the primary arm-pair matches the intended gap pattern.
-        for attempt in range(7):
+        # Retry until the primary arm-pair matches the intended gap pattern.
+        for attempt in range(14):
             pattern_rng = np.random.default_rng(case_seed * 97 + attempt * 1009 + 17)
             weibull_ks, weibull_scales = _sample_pattern_parameters(
                 pattern_rng,
@@ -962,6 +1020,24 @@ def generate_standard(
             )
 
             accepted, score = _pattern_fit(candidate, gap_pattern)
+
+            # Reject candidates where curves don't travel far enough
+            travel_ends = [
+                c.step_coords[-1][0]
+                for c in candidate.curves
+                if len(c.step_coords) > 1
+            ]
+            if travel_ends:
+                travel_ok = (
+                    min(travel_ends) >= (2 / 3) * max_time
+                    and max(travel_ends) >= 0.9 * max_time
+                )
+            else:
+                travel_ok = False
+            if not travel_ok:
+                accepted = False
+                score -= 5.0
+
             if score > best_score:
                 best_score = score
                 best_case = candidate

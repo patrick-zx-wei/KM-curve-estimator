@@ -11,7 +11,7 @@
   "y_axis_start": 0.0,
   "difficulty": 3,
   "tier": "standard",
-  "gap_pattern": "converging",
+  "gap_pattern": "diverging",
   "background_style": "ggplot_gray",
   "curve_direction": "downward",
   "frame_layout": "l_axis",
@@ -62,7 +62,7 @@
     "scale": "linear"
   },
   "total_patients": 240,
-  "total_events": 131,
+  "total_events": 114,
   "hard_points_space": "survival",
   "plot_space_for_upward": "incidence"
 }
