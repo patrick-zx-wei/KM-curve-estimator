@@ -19,7 +19,15 @@ from km_estimator.models.plot_metadata import AxisConfig, CurveInfo, PlotMetadat
 from km_estimator.nodes.digitization_5 import digitize_v5
 
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "standard"
-CASES = ["case_004", "case_014", "case_015", "case_018", "case_029", "case_032", "case_036", "case_082", "case_087", "case_095"]
+CASES = [
+    # All 3-arm cases (orange + green curves — key test for these changes)
+    "case_002", "case_012", "case_014", "case_017", "case_023", "case_026",
+    "case_029", "case_037", "case_049", "case_060", "case_067", "case_073",
+    "case_087", "case_093", "case_096", "case_100",
+    # 2-arm sample across difficulties
+    "case_004", "case_015", "case_018", "case_032", "case_036",
+    "case_050", "case_070", "case_080", "case_082", "case_095",
+]
 
 COLOR_NAMES = ["blue", "orange", "green", "red", "purple"]
 LINE_STYLES = ["solid", "dashed"]
