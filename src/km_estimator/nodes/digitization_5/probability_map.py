@@ -495,7 +495,8 @@ def _color_likelihood(
     if reference_lab is None or reliability <= 0.0:
         return np.zeros(roi_lab.shape[:2], dtype=np.float32)
 
-    gd = good_dist if good_dist is not None else COLOR_GOOD_DISTANCE
+    base_gd = good_dist if good_dist is not None else COLOR_GOOD_DISTANCE
+    gd = base_gd * (1.0 + 1.0 * max(0.0, 1.0 - reliability))
     ref = np.asarray(reference_lab, dtype=np.float32)
     dist = np.linalg.norm(roi_lab - ref[None, None, :], axis=2).astype(np.float32)
     # Saturating positive-only color contribution.
@@ -1009,7 +1010,8 @@ def build_evidence_cube(
         cluster_idx = cluster_assignment.get(arm_name)
         if isinstance(cluster_idx, int) and 0 <= cluster_idx < len(cluster_like_maps):
             cluster_like = cluster_like_maps[cluster_idx]
-        color_mix = np.maximum(color_like, 0.85 * cluster_like).astype(np.float32)
+        cluster_weight = 0.85 + 0.15 * max(0.0, 1.0 - model.reliability)
+        color_mix = np.maximum(color_like, cluster_weight * cluster_like).astype(np.float32)
         color_term = (
             COLOR_WEIGHT
             * np.clip(0.25 + 0.75 * model.reliability, 0.15, 1.0)
