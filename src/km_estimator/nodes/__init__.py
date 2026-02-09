@@ -28,33 +28,9 @@ def mmpu(state: PipelineState) -> PipelineState:
 
 
 def digitize(state: PipelineState) -> PipelineState:
-    from km_estimator.nodes.digitization import digitize as _digitize
+    from km_estimator.nodes.digitization_5 import digitize_v5 as _digitize
 
     return _digitize(state)
-
-
-def digitize_v2(state: PipelineState) -> PipelineState:
-    from km_estimator.nodes.digitization_2 import digitize_v2 as _digitize_v2
-
-    return _digitize_v2(state)
-
-
-def digitize_v3(state: PipelineState) -> PipelineState:
-    from km_estimator.nodes.digitization_3 import digitize_v3 as _digitize_v3
-
-    return _digitize_v3(state)
-
-
-def digitize_v4(state: PipelineState) -> PipelineState:
-    from km_estimator.nodes.digitization_4 import digitize_v4 as _digitize_v4
-
-    return _digitize_v4(state)
-
-
-def digitize_v5(state: PipelineState) -> PipelineState:
-    from km_estimator.nodes.digitization_5 import digitize_v5 as _digitize_v5
-
-    return _digitize_v5(state)
 
 
 def reconstruct(state: PipelineState) -> PipelineState:
@@ -71,10 +47,6 @@ def validate(state: PipelineState) -> PipelineState:
 
 __all__ = [
     "digitize",
-    "digitize_v2",
-    "digitize_v3",
-    "digitize_v4",
-    "digitize_v5",
     "input_guard",
     "mmpu",
     "preprocess",

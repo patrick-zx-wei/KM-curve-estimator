@@ -58,5 +58,8 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Debug output
+tests/debug_output/
+
 # uv
 uv.lock

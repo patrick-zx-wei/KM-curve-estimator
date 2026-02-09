@@ -8,7 +8,7 @@ try:
 except Exception:  # pragma: no cover - optional dependency fallback
     cKDTree = None  # type: ignore[assignment]
 
-from .axis_calibration import AxisMapping
+from km_estimator.nodes.axis_calibration import AxisMapping
 
 TEMPLATE_SIZES = (5, 7, 9, 11)
 PLUS_THRESHOLD = 0.56

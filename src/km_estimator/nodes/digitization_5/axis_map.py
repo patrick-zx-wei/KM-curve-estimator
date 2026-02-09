@@ -17,7 +17,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from km_estimator.models import PlotMetadata, ProcessingError, RawOCRTokens
-from km_estimator.nodes.digitization.axis_calibration import AxisMapping, calibrate_axes
+from km_estimator.nodes.axis_calibration import AxisMapping, calibrate_axes
 
 CurveDirection = Literal["downward", "upward", "unknown"]
 

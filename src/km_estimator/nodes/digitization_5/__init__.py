@@ -505,7 +505,7 @@ def digitize_v5(state: PipelineState) -> PipelineState:
         )
 
     try:
-        from km_estimator.nodes.digitization.censoring_detection import detect_censoring
+        from km_estimator.nodes.digitization_5.censoring_detection import detect_censoring
 
         censoring = detect_censoring(
             image=image,
@@ -518,22 +518,9 @@ def digitize_v5(state: PipelineState) -> PipelineState:
 
     # Optional debug artifacts.
     debug_enabled = os.getenv("KM_DIGITIZER_V5_DEBUG", "").lower() in {"1", "true", "yes"}
-    if not debug_enabled:
-        debug_enabled = os.getenv("KM_DIGITIZER_V3_DEBUG", "").lower() in {"1", "true", "yes"}
-    if not debug_enabled:
-        debug_enabled = os.getenv("KM_DIGITIZER_V2_DEBUG", "").lower() in {"1", "true", "yes"}
     if debug_enabled:
         out_dir = Path(
-            os.getenv(
-                "KM_DIGITIZER_V5_DEBUG_DIR",
-                os.getenv(
-                    "KM_DIGITIZER_V4_DEBUG_DIR",
-                    os.getenv(
-                    "KM_DIGITIZER_V3_DEBUG_DIR",
-                    os.getenv("KM_DIGITIZER_V2_DEBUG_DIR", "/tmp/km_digitization_v5"),
-                    ),
-                ),
-            )
+            os.getenv("KM_DIGITIZER_V5_DEBUG_DIR", "/tmp/km_digitization_v5")
         )
         prefix = Path(state.image_path).stem
         all_warnings.extend(

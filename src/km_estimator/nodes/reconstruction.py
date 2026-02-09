@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from km_estimator.nodes.digitization.axis_calibration import AxisMapping, calibrate_axes
+from km_estimator.nodes.axis_calibration import AxisMapping, calibrate_axes
 from km_estimator.utils.shape_metrics import (
     dtw_distance,
     frechet_distance,

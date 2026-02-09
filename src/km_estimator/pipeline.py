@@ -3,7 +3,7 @@
 from langgraph.graph import END, StateGraph
 
 from km_estimator.models import PipelineConfig, PipelineState, ProcessingError, ProcessingStage
-from km_estimator.nodes.digitization import digitize
+from km_estimator.nodes.digitization_5 import digitize_v5 as digitize
 from km_estimator.nodes.input_guard import input_guard, input_guard_async
 from km_estimator.nodes.mmpu import mmpu, mmpu_async
 from km_estimator.nodes.preprocessing import preprocess

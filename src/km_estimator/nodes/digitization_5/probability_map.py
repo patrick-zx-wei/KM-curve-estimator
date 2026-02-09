@@ -1115,7 +1115,7 @@ def build_evidence_cube(
         # Optional grayscale fallback (disabled by default).
         if _env_bool(
             "KM_DIGITIZER_V5_GRAY_GATE",
-            default=_env_bool("KM_DIGITIZER_V3_GRAY_GATE", default=APPLY_DYNAMIC_GRAY_GATE_DEFAULT),
+            default=APPLY_DYNAMIC_GRAY_GATE_DEFAULT,
         ):
             ref_gray = _reference_gray_from_lab(ref_lab)
             gray_center, gray_thr, gray_seed_n, gray_mad, gray_seed_thr = _dynamic_gray_gate(

@@ -9,9 +9,37 @@ import numpy as np
 from numpy.typing import NDArray
 
 from km_estimator.models import PlotMetadata
-from km_estimator.nodes.digitization.curve_isolation import parse_curve_color
 
 from .axis_map import PlotModel
+
+# Common color names to RGB (normalized 0-1)
+COLOR_MAP: dict[str, tuple[float, float, float]] = {
+    "red": (0.84, 0.15, 0.16),
+    "blue": (0.12, 0.47, 0.71),
+    "green": (0.17, 0.63, 0.17),
+    "black": (0.0, 0.0, 0.0),
+    "orange": (1.0, 0.50, 0.05),
+    "purple": (0.58, 0.40, 0.74),
+    "brown": (0.55, 0.34, 0.29),
+    "pink": (0.89, 0.47, 0.76),
+    "gray": (0.5, 0.5, 0.5),
+    "grey": (0.5, 0.5, 0.5),
+    "cyan": (0.09, 0.75, 0.81),
+    "magenta": (0.89, 0.10, 0.89),
+    "yellow": (0.74, 0.74, 0.13),
+}
+
+
+def parse_curve_color(color_description: str | None) -> tuple[float, float, float] | None:
+    """Extract RGB from color description like 'solid blue' or 'dashed red'."""
+    if not color_description:
+        return None
+    desc = color_description.lower()
+    for color_name, rgb in COLOR_MAP.items():
+        if color_name in desc:
+            return rgb
+    return None
+
 
 LAB_PRIOR_MISMATCH_THRESHOLD = 28.0
 LAB_PRIOR_REJECT_THRESHOLD = 70.0
