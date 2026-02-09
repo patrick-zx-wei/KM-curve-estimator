@@ -777,6 +777,14 @@ def _guyot_ikm(
     # Sort by time
     patients.sort(key=lambda p: p.time)
 
+    # Greedy per-interval event count correction to reduce MAE.
+    patients = _greedy_event_correction(
+        patients,
+        normalized_coords,
+        time_points,
+        list(n_at_risk),
+    )
+
     if used_hint_intervals > 0:
         warnings.append(
             f"{curve_name}: used censoring-mark hints in {used_hint_intervals} intervals"
@@ -788,6 +796,94 @@ def _guyot_ikm(
         )
 
     return patients, warnings
+
+
+GREEDY_CORRECTION_MAX_PASSES = 5
+GREEDY_CORRECTION_MIN_IMPROVEMENT = 0.0001
+
+
+def _greedy_event_correction(
+    patients: list[PatientRecord],
+    survival_coords: list[tuple[float, float]],
+    risk_time_points: list[float],
+    n_at_risk: list[int],
+) -> list[PatientRecord]:
+    """Greedy per-interval event count adjustment to minimize MAE.
+
+    After the initial Guyot pass, iterate through intervals and try converting
+    event→censoring or censoring→event.  Keep any change that reduces the
+    overall MAE against the target survival curve.  Tries both directions for
+    each interval and picks the best improvement.
+    """
+    if len(risk_time_points) < 2 or not patients:
+        return patients
+
+    best_patients = list(patients)
+    best_mae = _calculate_mae(survival_coords, _km_from_ipd(best_patients))
+
+    for _pass in range(GREEDY_CORRECTION_MAX_PASSES):
+        improved_this_pass = False
+
+        for j in range(len(risk_time_points) - 1):
+            t_start = float(risk_time_points[j])
+            t_end = float(risk_time_points[j + 1])
+            lost_total = max(0, int(n_at_risk[j]) - int(n_at_risk[j + 1]))
+            if lost_total <= 0:
+                continue
+
+            # Gather patients in this interval
+            ivl_events: list[int] = []
+            ivl_censors: list[int] = []
+            for idx, p in enumerate(best_patients):
+                pt = float(p.time)
+                if pt <= t_start or pt > t_end + 1e-9:
+                    continue
+                if bool(p.event):
+                    ivl_events.append(idx)
+                else:
+                    ivl_censors.append(idx)
+
+            mid = 0.5 * (t_start + t_end)
+            best_trial: list[PatientRecord] | None = None
+            best_trial_mae = best_mae
+
+            # Try converting one censoring → event (add event)
+            if ivl_censors and len(ivl_events) < lost_total:
+                c_idx = min(
+                    ivl_censors, key=lambda i: abs(float(best_patients[i].time) - mid)
+                )
+                trial = list(best_patients)
+                trial[c_idx] = PatientRecord(
+                    time=best_patients[c_idx].time, event=True
+                )
+                trial_mae = _calculate_mae(survival_coords, _km_from_ipd(trial))
+                if trial_mae + GREEDY_CORRECTION_MIN_IMPROVEMENT < best_trial_mae:
+                    best_trial = trial
+                    best_trial_mae = trial_mae
+
+            # Try converting one event → censoring (remove event)
+            if ivl_events:
+                e_idx = min(
+                    ivl_events, key=lambda i: abs(float(best_patients[i].time) - mid)
+                )
+                trial = list(best_patients)
+                trial[e_idx] = PatientRecord(
+                    time=best_patients[e_idx].time, event=False
+                )
+                trial_mae = _calculate_mae(survival_coords, _km_from_ipd(trial))
+                if trial_mae + GREEDY_CORRECTION_MIN_IMPROVEMENT < best_trial_mae:
+                    best_trial = trial
+                    best_trial_mae = trial_mae
+
+            if best_trial is not None:
+                best_patients = best_trial
+                best_mae = best_trial_mae
+                improved_this_pass = True
+
+        if not improved_this_pass:
+            break
+
+    return best_patients
 
 
 def _estimate_ipd(
