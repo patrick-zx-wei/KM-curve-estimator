@@ -1738,6 +1738,11 @@ def _calculate_mae(
 
 
 def reconstruct(state: PipelineState) -> PipelineState:
+    """Reconstruct individual patient data from digitized curves.
+
+    Uses Guyot's algorithm with the risk table when available (full mode),
+    otherwise estimates cohort size and generates IPD from curve shape alone.
+    """
     if not state.digitized_curves or not state.plot_metadata:
         return state.model_copy(
             update={
@@ -1994,6 +1999,10 @@ def reconstruct(state: PipelineState) -> PipelineState:
 
 
 def validate(state: PipelineState) -> PipelineState:
+    """Compare reconstructed KM curves against the original digitized curves.
+
+    Computes MAE and flags arms that exceed the validation threshold.
+    """
     if not state.output or not state.digitized_curves:
         return state.model_copy(
             update={

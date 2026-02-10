@@ -338,7 +338,12 @@ def _trim_unsupported_right_edge(
 
 
 def digitize_v5(state: PipelineState) -> PipelineState:
-    """Run the new digitization_5 pipeline."""
+    """Digitize curves from the preprocessed image using probability maps and DP tracing.
+
+    Builds per-arm evidence maps from color, ridge, and edge signals, then traces
+    all curves jointly via column-wise dynamic programming. Applies confidence
+    gating and detects censoring marks.
+    """
     if state.plot_metadata is None:
         err = ProcessingError(
             stage=ProcessingStage.DIGITIZE,

@@ -1,6 +1,6 @@
 # KM Curve Estimator
 
-This KM Curve Estimator solves the problem of translating KM curve images into workable digital data. The implementation follows [this paper](https://www.biorxiv.org/content/10.1101/2025.09.15.676421v1.full) while making improvements to digitization, reproducibility, and lower cost per image.
+This KM Curve Estimator solves the problem of translating KM curve images into workable digital data. The implementation takes inspiration from [this paper](https://www.biorxiv.org/content/10.1101/2025.09.15.676421v1.full) while making improvements to digitization, reproducibility, and lower cost per image.
 
 ## Installation
 
