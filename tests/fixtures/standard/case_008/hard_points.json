@@ -1,0 +1,97 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9696,
+        "plot_y": 0.9696,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.9301,
+        "plot_y": 0.9301,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.8404,
+        "plot_y": 0.8404,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.6795,
+        "plot_y": 0.6795,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.5758,
+        "plot_y": 0.5758,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.3906,
+        "plot_y": 0.3906,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": 53.04,
+    "quartiles": {
+      "25pct": 31.18,
+      "50pct": 53.04
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9938,
+        "plot_y": 0.9938,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.9603,
+        "plot_y": 0.9603,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.8863,
+        "plot_y": 0.8863,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.7941,
+        "plot_y": 0.7941,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.7057,
+        "plot_y": 0.7057,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.5573,
+        "plot_y": 0.5573,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": null,
+    "quartiles": {
+      "25pct": 42.42
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.8804,
+        "plot_y": 0.8804,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.8061,
+        "plot_y": 0.8061,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.7016,
+        "plot_y": 0.7016,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.569,
+        "plot_y": 0.569,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.5222,
+        "plot_y": 0.5222,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.4961,
+        "plot_y": 0.4961,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": 53.43,
+    "quartiles": {
+      "25pct": 21.45,
+      "50pct": 53.43
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9033,
+        "plot_y": 0.9033,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.8801,
+        "plot_y": 0.8801,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.7906,
+        "plot_y": 0.7906,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.7052,
+        "plot_y": 0.7052,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.6866,
+        "plot_y": 0.6866,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.5952,
+        "plot_y": 0.5952,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": null,
+    "quartiles": {
+      "25pct": 31.27
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  }
+}

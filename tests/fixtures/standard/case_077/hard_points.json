@@ -1,0 +1,109 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 1.0,
+        "plot_y": 0.0,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.9606,
+        "plot_y": 0.0394,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.9047,
+        "plot_y": 0.0953,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.8004,
+        "plot_y": 0.1996,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.7401,
+        "plot_y": 0.2599,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.6498,
+        "plot_y": 0.3502,
+        "description": "5-year value"
+      },
+      {
+        "time": 96,
+        "survival": 0.4201,
+        "plot_y": 0.5799,
+        "description": "8-year value"
+      }
+    ],
+    "median_survival": 81.98,
+    "quartiles": {
+      "25pct": 44.19,
+      "50pct": 81.98
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9912,
+        "plot_y": 0.0088,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.9912,
+        "plot_y": 0.0088,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.9598,
+        "plot_y": 0.0402,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.8731,
+        "plot_y": 0.1269,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.8315,
+        "plot_y": 0.1685,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.7872,
+        "plot_y": 0.2128,
+        "description": "5-year value"
+      },
+      {
+        "time": 96,
+        "survival": 0.6376,
+        "plot_y": 0.3624,
+        "description": "8-year value"
+      }
+    ],
+    "median_survival": null,
+    "quartiles": {
+      "25pct": 70.79
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
+  }
+}

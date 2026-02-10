@@ -1,0 +1,99 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9041,
+        "plot_y": 0.9041,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.8629,
+        "plot_y": 0.8629,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.7069,
+        "plot_y": 0.7069,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.5831,
+        "plot_y": 0.5831,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.4382,
+        "plot_y": 0.4382,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.3991,
+        "plot_y": 0.3991,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": 44.29,
+    "quartiles": {
+      "25pct": 21.14,
+      "50pct": 44.29,
+      "75pct": 90.67
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9804,
+        "plot_y": 0.9804,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.9493,
+        "plot_y": 0.9493,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.8118,
+        "plot_y": 0.8118,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.6916,
+        "plot_y": 0.6916,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.5753,
+        "plot_y": 0.5753,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.5423,
+        "plot_y": 0.5423,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": 78.88,
+    "quartiles": {
+      "25pct": 29.93,
+      "50pct": 78.88
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  }
+}

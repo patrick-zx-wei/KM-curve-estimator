@@ -1,0 +1,644 @@
+{
+  "case_name": "low_res_overlap",
+  "difficulty": 4,
+  "n_curves": 3,
+  "pipeline_errors": [],
+  "mmpu": {
+    "x_axis_start_error": 0.0,
+    "x_axis_end_error": 0.0,
+    "y_axis_start_error": 0.0,
+    "y_axis_end_error": 0.0,
+    "n_curves_detected": 3,
+    "n_curves_expected": 3,
+    "curves_match": true,
+    "risk_table_detected": true,
+    "risk_table_expected": true
+  },
+  "digitize": {
+    "Control": {
+      "mae": 0.02937172603010403,
+      "rmse": 0.0363999592243553,
+      "dtw": 0.0027086175808936244,
+      "frechet": 0.04998550637639032,
+      "max_error": 0.10757529346930483
+    },
+    "Treatment": {
+      "mae": 0.02345178874473809,
+      "rmse": 0.03732381863297989,
+      "dtw": 0.0016275399285701883,
+      "frechet": 0.060590999896389386,
+      "max_error": 0.15038106394731976
+    },
+    "Arm A": {
+      "mae": 0.02333577022460544,
+      "rmse": 0.028888034422362978,
+      "dtw": 0.0030171798395531913,
+      "frechet": 0.047329174864314594,
+      "max_error": 0.10607651284990055
+    }
+  },
+  "hard_points": {
+    "Control": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8047,
+          "actual": 0.8075,
+          "error": 0.0028,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6218,
+          "actual": 0.6905,
+          "error": 0.0687,
+          "pass": false
+        },
+        {
+          "time": 24,
+          "expected": 0.4699,
+          "actual": 0.4719,
+          "error": 0.002,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.3665,
+          "actual": 0.3989,
+          "error": 0.0324,
+          "pass": true
+        }
+      ],
+      "all_pass": false
+    },
+    "Treatment": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8476,
+          "actual": 0.8376,
+          "error": 0.01,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6864,
+          "actual": 0.6974,
+          "error": 0.011,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.4752,
+          "actual": 0.4777,
+          "error": 0.0025,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.3524,
+          "actual": 0.4529,
+          "error": 0.1005,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.2488,
+          "actual": 0.3187,
+          "error": 0.0699,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    },
+    "Arm A": {
+      "landmarks": [
+        {
+          "time": 6,
+          "expected": 0.8264,
+          "actual": 0.8193,
+          "error": 0.0071,
+          "pass": true
+        },
+        {
+          "time": 12,
+          "expected": 0.6745,
+          "actual": 0.6411,
+          "error": 0.0334,
+          "pass": true
+        },
+        {
+          "time": 24,
+          "expected": 0.4589,
+          "actual": 0.4673,
+          "error": 0.0084,
+          "pass": true
+        },
+        {
+          "time": 36,
+          "expected": 0.3591,
+          "actual": 0.4208,
+          "error": 0.0617,
+          "pass": false
+        },
+        {
+          "time": 48,
+          "expected": 0.2527,
+          "actual": 0.1913,
+          "error": 0.0614,
+          "pass": false
+        }
+      ],
+      "all_pass": false
+    }
+  },
+  "reconstruction": {
+    "Control": {
+      "mae": 0.034163012018555525,
+      "rmse": 0.04424028328497862,
+      "dtw": 0.0071243908985016745,
+      "frechet": 0.05478699737085002,
+      "max_error": 0.10401304242734444
+    },
+    "Treatment": {
+      "mae": 0.024765318327388253,
+      "rmse": 0.03853911875173754,
+      "dtw": 0.006541816475093201,
+      "frechet": 0.06984734888347416,
+      "max_error": 0.1439014799376308
+    },
+    "Arm A": {
+      "mae": 0.019637216394768325,
+      "rmse": 0.02584976697772189,
+      "dtw": 0.0050866468532169825,
+      "frechet": 0.0614365393089325,
+      "max_error": 0.09431943931985515
+    }
+  },
+  "validation": {
+    "Control": {
+      "mae": 0.020083754852192912,
+      "dtw": null,
+      "rmse": null
+    },
+    "Treatment": {
+      "mae": 0.01644890657075852,
+      "dtw": null,
+      "rmse": null
+    },
+    "Arm A": {
+      "mae": 0.015532240110911632,
+      "dtw": null,
+      "rmse": null
+    }
+  },
+  "reconstruction_meta": {
+    "mode": "full",
+    "patient_counts": {
+      "Control": 180,
+      "Treatment": 180,
+      "Arm A": 180
+    },
+    "warnings": [
+      "GPT extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "GPT metadata extraction failed: Request timed out.",
+      "Using Gemini fallback",
+      "Added 16 terminal right-censored survivors at t=48.0",
+      "Added 19 terminal right-censored survivors at t=48.0",
+      "Added 15 terminal right-censored survivors at t=48.0"
+    ]
+  },
+  "diagnostics": {
+    "per_arm": {
+      "Arm A": {
+        "digitize_mae": 0.02333577022460544,
+        "reconstruction_mae": 0.019637216394768325,
+        "delta_reconstruction_minus_digitize": -0.003698553829837116,
+        "hard_fail_count": 2,
+        "stage_attribution": "reconstruction_limited",
+        "failed_landmarks": [
+          {
+            "time": 36,
+            "expected": 0.3591,
+            "actual": 0.4208,
+            "error": 0.0617,
+            "bias": 0.0617
+          },
+          {
+            "time": 48,
+            "expected": 0.2527,
+            "actual": 0.1913,
+            "error": 0.0614,
+            "bias": -0.0614
+          }
+        ]
+      },
+      "Control": {
+        "digitize_mae": 0.02937172603010403,
+        "reconstruction_mae": 0.034163012018555525,
+        "delta_reconstruction_minus_digitize": 0.0047912859884514936,
+        "hard_fail_count": 1,
+        "stage_attribution": "reconstruction_limited",
+        "failed_landmarks": [
+          {
+            "time": 12,
+            "expected": 0.6218,
+            "actual": 0.6905,
+            "error": 0.0687,
+            "bias": 0.0687
+          }
+        ]
+      },
+      "Treatment": {
+        "digitize_mae": 0.02345178874473809,
+        "reconstruction_mae": 0.024765318327388253,
+        "delta_reconstruction_minus_digitize": 0.001313529582650165,
+        "hard_fail_count": 2,
+        "stage_attribution": "reconstruction_limited",
+        "failed_landmarks": [
+          {
+            "time": 36,
+            "expected": 0.3524,
+            "actual": 0.4529,
+            "error": 0.1005,
+            "bias": 0.1005
+          },
+          {
+            "time": 48,
+            "expected": 0.2488,
+            "actual": 0.3187,
+            "error": 0.0699,
+            "bias": 0.0699
+          }
+        ]
+      }
+    },
+    "stage_attribution_counts": {
+      "reconstruction_limited": 3
+    },
+    "hard_fail_times": {
+      "36": 2,
+      "48": 2,
+      "12": 1
+    }
+  },
+  "interval_debug": {
+    "per_curve": {
+      "Control": {
+        "reconstruction_mae": 0.034163012018555525,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 8.0,
+            "n_start": 180,
+            "n_end": 118,
+            "risk_table_loss": 62,
+            "events_reconstructed": 38,
+            "censors_reconstructed": 24,
+            "digitized_s_start": 1.0,
+            "digitized_s_end": 0.7904,
+            "reconstructed_s_end": 0.7699,
+            "expected_s_end": 0.7851
+          },
+          {
+            "t_start": 8.0,
+            "t_end": 16.0,
+            "n_start": 118,
+            "n_end": 76,
+            "risk_table_loss": 42,
+            "events_reconstructed": 32,
+            "censors_reconstructed": 10,
+            "digitized_s_start": 0.7904,
+            "digitized_s_end": 0.5624,
+            "reconstructed_s_end": 0.5503,
+            "expected_s_end": 0.5578
+          },
+          {
+            "t_start": 16.0,
+            "t_end": 24.0,
+            "n_start": 76,
+            "n_end": 54,
+            "risk_table_loss": 22,
+            "events_reconstructed": 10,
+            "censors_reconstructed": 12,
+            "digitized_s_start": 0.5624,
+            "digitized_s_end": 0.4828,
+            "reconstructed_s_end": 0.4719,
+            "expected_s_end": 0.4699
+          },
+          {
+            "t_start": 24.0,
+            "t_end": 32.0,
+            "n_start": 54,
+            "n_end": 37,
+            "risk_table_loss": 17,
+            "events_reconstructed": 7,
+            "censors_reconstructed": 10,
+            "digitized_s_start": 0.4828,
+            "digitized_s_end": 0.4183,
+            "reconstructed_s_end": 0.3989,
+            "expected_s_end": 0.4002
+          },
+          {
+            "t_start": 32.0,
+            "t_end": 40.0,
+            "n_start": 37,
+            "n_end": 29,
+            "risk_table_loss": 8,
+            "events_reconstructed": 6,
+            "censors_reconstructed": 2,
+            "digitized_s_start": 0.4183,
+            "digitized_s_end": 0.3462,
+            "reconstructed_s_end": 0.3305,
+            "expected_s_end": 0.3436
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 48.0,
+            "n_start": 29,
+            "n_end": 16,
+            "risk_table_loss": 13,
+            "events_reconstructed": 12,
+            "censors_reconstructed": 17,
+            "digitized_s_start": 0.3462,
+            "digitized_s_end": 0.2112,
+            "reconstructed_s_end": 0.1894,
+            "expected_s_end": 0.2047
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.8047,
+            "actual": 0.8075,
+            "error": 0.0028,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.6218,
+            "actual": 0.6905,
+            "error": 0.0687,
+            "pass": false
+          },
+          {
+            "time": 24,
+            "expected": 0.4699,
+            "actual": 0.4719,
+            "error": 0.002,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.3665,
+            "actual": 0.3989,
+            "error": 0.0324,
+            "pass": true
+          }
+        ]
+      },
+      "Treatment": {
+        "reconstruction_mae": 0.024765318327388253,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 8.0,
+            "n_start": 180,
+            "n_end": 122,
+            "risk_table_loss": 58,
+            "events_reconstructed": 39,
+            "censors_reconstructed": 19,
+            "digitized_s_start": 1.0,
+            "digitized_s_end": 0.7837,
+            "reconstructed_s_end": 0.7692,
+            "expected_s_end": 0.7957
+          },
+          {
+            "t_start": 8.0,
+            "t_end": 16.0,
+            "n_start": 122,
+            "n_end": 85,
+            "risk_table_loss": 37,
+            "events_reconstructed": 25,
+            "censors_reconstructed": 12,
+            "digitized_s_start": 0.7837,
+            "digitized_s_end": 0.6178,
+            "reconstructed_s_end": 0.6024,
+            "expected_s_end": 0.608
+          },
+          {
+            "t_start": 16.0,
+            "t_end": 24.0,
+            "n_start": 85,
+            "n_end": 62,
+            "risk_table_loss": 23,
+            "events_reconstructed": 17,
+            "censors_reconstructed": 6,
+            "digitized_s_start": 0.6178,
+            "digitized_s_end": 0.487,
+            "reconstructed_s_end": 0.4777,
+            "expected_s_end": 0.4752
+          },
+          {
+            "t_start": 24.0,
+            "t_end": 32.0,
+            "n_start": 62,
+            "n_end": 42,
+            "risk_table_loss": 20,
+            "events_reconstructed": 3,
+            "censors_reconstructed": 17,
+            "digitized_s_start": 0.487,
+            "digitized_s_end": 0.4593,
+            "reconstructed_s_end": 0.4529,
+            "expected_s_end": 0.4032
+          },
+          {
+            "t_start": 32.0,
+            "t_end": 40.0,
+            "n_start": 42,
+            "n_end": 27,
+            "risk_table_loss": 15,
+            "events_reconstructed": 0,
+            "censors_reconstructed": 15,
+            "digitized_s_start": 0.4593,
+            "digitized_s_end": 0.4593,
+            "reconstructed_s_end": 0.4529,
+            "expected_s_end": 0.309
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 48.0,
+            "n_start": 27,
+            "n_end": 19,
+            "risk_table_loss": 8,
+            "events_reconstructed": 8,
+            "censors_reconstructed": 19,
+            "digitized_s_start": 0.4593,
+            "digitized_s_end": 0.2632,
+            "reconstructed_s_end": 0.3187,
+            "expected_s_end": 0.2488
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.8476,
+            "actual": 0.8376,
+            "error": 0.01,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.6864,
+            "actual": 0.6974,
+            "error": 0.011,
+            "pass": true
+          },
+          {
+            "time": 24,
+            "expected": 0.4752,
+            "actual": 0.4777,
+            "error": 0.0025,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.3524,
+            "actual": 0.4529,
+            "error": 0.1005,
+            "pass": false
+          },
+          {
+            "time": 48,
+            "expected": 0.2488,
+            "actual": 0.3187,
+            "error": 0.0699,
+            "pass": false
+          }
+        ]
+      },
+      "Arm A": {
+        "reconstruction_mae": 0.019637216394768325,
+        "intervals": [
+          {
+            "t_start": 0.0,
+            "t_end": 8.0,
+            "n_start": 180,
+            "n_end": 122,
+            "risk_table_loss": 58,
+            "events_reconstructed": 39,
+            "censors_reconstructed": 19,
+            "digitized_s_start": 1.0,
+            "digitized_s_end": 0.7846,
+            "reconstructed_s_end": 0.7697,
+            "expected_s_end": 0.7774
+          },
+          {
+            "t_start": 8.0,
+            "t_end": 16.0,
+            "n_start": 122,
+            "n_end": 83,
+            "risk_table_loss": 39,
+            "events_reconstructed": 27,
+            "censors_reconstructed": 12,
+            "digitized_s_start": 0.7846,
+            "digitized_s_end": 0.6035,
+            "reconstructed_s_end": 0.593,
+            "expected_s_end": 0.5997
+          },
+          {
+            "t_start": 16.0,
+            "t_end": 24.0,
+            "n_start": 83,
+            "n_end": 53,
+            "risk_table_loss": 30,
+            "events_reconstructed": 15,
+            "censors_reconstructed": 15,
+            "digitized_s_start": 0.6035,
+            "digitized_s_end": 0.4853,
+            "reconstructed_s_end": 0.4673,
+            "expected_s_end": 0.4589
+          },
+          {
+            "t_start": 24.0,
+            "t_end": 32.0,
+            "n_start": 53,
+            "n_end": 36,
+            "risk_table_loss": 17,
+            "events_reconstructed": 5,
+            "censors_reconstructed": 12,
+            "digitized_s_start": 0.4853,
+            "digitized_s_end": 0.4325,
+            "reconstructed_s_end": 0.4208,
+            "expected_s_end": 0.3809
+          },
+          {
+            "t_start": 32.0,
+            "t_end": 40.0,
+            "n_start": 36,
+            "n_end": 24,
+            "risk_table_loss": 12,
+            "events_reconstructed": 9,
+            "censors_reconstructed": 3,
+            "digitized_s_start": 0.4325,
+            "digitized_s_end": 0.3227,
+            "reconstructed_s_end": 0.306,
+            "expected_s_end": 0.3264
+          },
+          {
+            "t_start": 40.0,
+            "t_end": 48.0,
+            "n_start": 24,
+            "n_end": 15,
+            "risk_table_loss": 9,
+            "events_reconstructed": 9,
+            "censors_reconstructed": 15,
+            "digitized_s_start": 0.3227,
+            "digitized_s_end": 0.2054,
+            "reconstructed_s_end": 0.1913,
+            "expected_s_end": 0.2527
+          }
+        ],
+        "hardpoint_deltas": [
+          {
+            "time": 6,
+            "expected": 0.8264,
+            "actual": 0.8193,
+            "error": 0.0071,
+            "pass": true
+          },
+          {
+            "time": 12,
+            "expected": 0.6745,
+            "actual": 0.6411,
+            "error": 0.0334,
+            "pass": true
+          },
+          {
+            "time": 24,
+            "expected": 0.4589,
+            "actual": 0.4673,
+            "error": 0.0084,
+            "pass": true
+          },
+          {
+            "time": 36,
+            "expected": 0.3591,
+            "actual": 0.4208,
+            "error": 0.0617,
+            "pass": false
+          },
+          {
+            "time": 48,
+            "expected": 0.2527,
+            "actual": 0.1913,
+            "error": 0.0614,
+            "pass": false
+          }
+        ]
+      }
+    }
+  },
+  "passed": false
+}

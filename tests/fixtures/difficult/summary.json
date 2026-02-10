@@ -1,0 +1,38 @@
+{
+  "total": 5,
+  "passed": 0,
+  "failed": 5,
+  "mean_mae": 0.0509,
+  "median_mae": 0.0254,
+  "worst_cases": [
+    "low_res_overlap",
+    "truncated_noisy",
+    "crossing_compressed",
+    "four_arm_lowres",
+    "sparse_degraded"
+  ],
+  "failure_breakdown": {
+    "hard_points_failed": 5,
+    "digitization_mae_failed": 3,
+    "risk_table_missed": 0,
+    "x_axis_end_misread": 0,
+    "curve_count_mismatch": 0,
+    "pipeline_crash": 0
+  },
+  "stage_attribution": {
+    "reconstruction_limited": 4,
+    "clean": 5,
+    "digitization_limited": 3,
+    "mixed": 1
+  },
+  "by_difficulty": {
+    "4": {
+      "n": 4,
+      "pass": 0
+    },
+    "5": {
+      "n": 1,
+      "pass": 0
+    }
+  }
+}

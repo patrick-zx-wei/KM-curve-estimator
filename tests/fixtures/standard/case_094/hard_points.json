@@ -1,0 +1,99 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.8582,
+        "plot_y": 0.8582,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.6773,
+        "plot_y": 0.6773,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.5109,
+        "plot_y": 0.5109,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.381,
+        "plot_y": 0.381,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.301,
+        "plot_y": 0.301,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.276,
+        "plot_y": 0.276,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": 28.74,
+    "quartiles": {
+      "25pct": 9.21,
+      "50pct": 28.74,
+      "75pct": 66.58
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9702,
+        "plot_y": 0.9702,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.9247,
+        "plot_y": 0.9247,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.7285,
+        "plot_y": 0.7285,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.6472,
+        "plot_y": 0.6472,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.6102,
+        "plot_y": 0.6102,
+        "description": "4-year value"
+      },
+      {
+        "time": 60,
+        "survival": 0.4649,
+        "plot_y": 0.4649,
+        "description": "5-year value"
+      }
+    ],
+    "median_survival": 55.01,
+    "quartiles": {
+      "25pct": 22.23,
+      "50pct": 55.01
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  }
+}

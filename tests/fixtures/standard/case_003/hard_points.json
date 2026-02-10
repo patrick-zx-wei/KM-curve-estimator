@@ -1,0 +1,38 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.5974,
+        "plot_y": 0.4026,
+        "description": "6-month value"
+      }
+    ],
+    "median_survival": 7.21,
+    "quartiles": {
+      "25pct": 3.49,
+      "50pct": 7.21
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.6928,
+        "plot_y": 0.3072,
+        "description": "6-month value"
+      }
+    ],
+    "median_survival": 9.77,
+    "quartiles": {
+      "25pct": 5.18,
+      "50pct": 9.77
+    },
+    "curve_direction": "upward",
+    "plot_space": "incidence",
+    "evaluation_space": "survival"
+  }
+}
