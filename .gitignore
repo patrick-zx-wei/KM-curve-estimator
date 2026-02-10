@@ -55,6 +55,9 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Claude Code
+.claude/
+
 # Debug output
 tests/debug_output/
 

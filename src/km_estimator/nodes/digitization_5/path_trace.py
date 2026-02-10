@@ -28,7 +28,7 @@ JUMP_HARD_RATIO = 0.12
 JUMP_PENALTY_WEIGHT = 3.0
 EXTREME_JUMP_PENALTY_WEIGHT = 8.0
 MONOTONE_TOLERANCE_RATIO = 0.006
-START_PRIOR_WEIGHT = 0.55
+START_PRIOR_WEIGHT = 1.2
 START_PRIOR_WINDOW_RATIO = 0.12
 OVERLAP_AMBIG_PENALTY = 0.30
 HARDPOINT_PENALTY_WEIGHT = 6.0
@@ -49,6 +49,7 @@ BREAK_RESEED_MULTIPLIER = 2.6
 TRACK_WINDOW_RATIO = 0.018
 TRACK_WINDOW_MAX_RATIO = 0.05
 SEED_MIN_SCORE = 0.18
+SEED_LOOKAHEAD_COLS = 10
 GRAPH_TOP_K = 10
 GRAPH_MIN_COLUMN_SCORE = 0.22
 GRAPH_MAX_SKIP_COLS = 3
@@ -316,6 +317,56 @@ def _column_candidates(
             items = [(int(source_idx[best_local]), best_score)]
     items.sort(key=lambda p: (p[1], -p[0]), reverse=True)
     return items
+
+
+def _inject_seed_candidates(
+    candidates: list[tuple[int, float]],
+    score_map: NDArray[np.float32],
+) -> list[tuple[int, float]]:
+    """Enrich x=0 candidates with y=0 default and lookahead-derived seeds.
+
+    KM survival curves always start at 1.0 (top of plot, y=0 in pixel space).
+    When the probability map has weak signal at x=0, the DP may only have
+    bottom-of-image candidates.  This injects y=0 and strong positions from
+    the first few columns so the start-anchor penalty can select correctly.
+
+    The y=0 candidate receives a boosted score (max of the top few rows across
+    the lookahead window, floored at MIN_COLUMN_SCORE) so it competes fairly
+    against candidates where actual curve signal appears.
+    """
+    h, w = score_map.shape
+    existing_ys = {y for y, _ in candidates}
+
+    # Compute boosted score for y=0 from the top region of the lookahead.
+    lookahead = min(SEED_LOOKAHEAD_COLS, w)
+    top_rows = min(5, h)
+    seed_score = float(score_map[0, 0])
+    for lx in range(lookahead):
+        for dy in range(top_rows):
+            seed_score = max(seed_score, float(score_map[dy, lx]))
+    seed_score = max(seed_score, MIN_COLUMN_SCORE)
+
+    if 0 not in existing_ys:
+        candidates.append((0, seed_score))
+        existing_ys.add(0)
+    else:
+        candidates = [
+            (y, max(s, seed_score)) if y == 0 else (y, s)
+            for y, s in candidates
+        ]
+
+    k = min(3, h)
+    for lx in range(1, lookahead):
+        col = score_map[:, lx]
+        top_idx = np.argpartition(col, -k)[-k:]
+        for yi in top_idx:
+            yi = int(yi)
+            if yi not in existing_ys and float(col[yi]) >= MIN_COLUMN_SCORE:
+                candidates.append((yi, float(score_map[yi, 0])))
+                existing_ys.add(yi)
+
+    candidates.sort(key=lambda p: (p[1], -p[0]), reverse=True)
+    return candidates
 
 
 def _extract_arm_diagnostics(
@@ -621,9 +672,9 @@ def _trace_single(
     parents: list[NDArray[np.int32]] = []
     first = candidates_by_x[0]
     if not first:
-        seed_y = 0
-        first = [(seed_y, float(score_map[seed_y, 0]))]
-        candidates_by_x[0] = first
+        first = [(0, float(score_map[0, 0]))]
+    first = _inject_seed_candidates(first, score_map)
+    candidates_by_x[0] = first
     first_cost = np.asarray(
         [
             -score
@@ -665,6 +716,10 @@ def _trace_single(
             hardpoints=hardpoint_guides,
         )
         track_win = _tracking_window_px(h, local_win)
+        start_window = max(8, int(round(w * START_PRIOR_WINDOW_RATIO)))
+        if x < start_window:
+            hard_cap = max(3, int(round(float(h) * HARD_TRANSITION_CAP_RATIO)))
+            track_win = max(track_win, hard_cap)
         if prev_cands and np.any(np.isfinite(prev_cost)):
             prev_best_idx = int(np.argmin(prev_cost))
             prev_best_idx = int(np.clip(prev_best_idx, 0, max(0, len(prev_cands) - 1)))
@@ -885,6 +940,8 @@ def _trace_joint_two(
         candidates_a[0] = [(0, float(map_a[0, 0]))]
     if not candidates_b[0]:
         candidates_b[0] = [(0, float(map_b[0, 0]))]
+    candidates_a[0] = _inject_seed_candidates(candidates_a[0], map_a)
+    candidates_b[0] = _inject_seed_candidates(candidates_b[0], map_b)
 
     # Initial deterministic expected ordering.
     y0a = candidates_a[0][0][0]
@@ -929,9 +986,11 @@ def _trace_joint_two(
     allow_swap = allow_swap_raw if not crossing_disabled else np.zeros((w,), dtype=np.bool_)
 
     states_by_x: list[list[tuple[int, int, float]]] = []
+    start_win = max(8, int(round(w * START_PRIOR_WINDOW_RATIO)))
     for x in range(w):
         raw_states: list[tuple[int, int, float]] = []
         coll_scale = max(2, int(round(h * COLLISION_DISTANCE_RATIO)))
+        coll_decay = min(1.0, float(x) / float(max(1, start_win)))
         for (ya, sa), (yb, sb) in product(candidates_a[x], candidates_b[x]):
             col_dist = abs(ya - yb)
             collision_penalty = max(0.0, 1.0 - (float(col_dist) / float(coll_scale)))
@@ -969,7 +1028,7 @@ def _trace_joint_two(
                     if overlap_consensus_map is not None
                     else 0.0
                 )
-                + 0.25 * collision_penalty
+                + 0.25 * collision_penalty * coll_decay
             )
             raw_states.append((ya, yb, unary))
         raw_states.sort(key=lambda s: (s[2], s[0], s[1]))
@@ -1001,6 +1060,11 @@ def _trace_joint_two(
         )
         track_win_a = _tracking_window_px(h, local_win_a)
         track_win_b = _tracking_window_px(h, local_win_b)
+        start_window = max(8, int(round(w * START_PRIOR_WINDOW_RATIO)))
+        if x < start_window:
+            hard_cap = max(3, int(round(float(h) * HARD_TRANSITION_CAP_RATIO)))
+            track_win_a = max(track_win_a, hard_cap)
+            track_win_b = max(track_win_b, hard_cap)
         if prev_states and np.any(np.isfinite(prev_cost)) and curr_states:
             best_prev_idx = int(np.argmin(prev_cost))
             best_prev_idx = int(np.clip(best_prev_idx, 0, max(0, len(prev_states) - 1)))
@@ -1277,6 +1341,10 @@ def _trace_joint_three(
     cands1 = _arm_candidates(maps[1], candidate_masks[1], hardpoint_guides[1])
     cands2 = _arm_candidates(maps[2], candidate_masks[2], hardpoint_guides[2])
     candidates_by_x = [cands0, cands1, cands2]
+    for arm_idx, arm_map in enumerate(maps):
+        candidates_by_x[arm_idx][0] = _inject_seed_candidates(
+            candidates_by_x[arm_idx][0], arm_map,
+        )
 
     init_ys = [int(cands[0][0][0]) for cands in candidates_by_x]
     pair_signs: dict[tuple[int, int], int] = {}
@@ -1310,13 +1378,15 @@ def _trace_joint_three(
             )
             if overlap_consensus_map is not None:
                 unary += OVERLAP_AMBIG_PENALTY * (1.0 - float(overlap_consensus_map[ys[i], x]))
+        start_win = max(8, int(round(w * START_PRIOR_WINDOW_RATIO)))
+        coll_decay = min(1.0, float(x) / float(max(1, start_win)))
         for i, j in ((0, 1), (0, 2), (1, 2)):
             coll = max(0.0, 1.0 - (abs(int(ys[i]) - int(ys[j])) / float(coll_scale)))
-            unary += 0.25 * coll
+            unary += 0.25 * coll * coll_decay
             cur_sign = -1 if int(ys[i]) <= int(ys[j]) else 1
             exp_sign = pair_signs[(i, j)]
             if cur_sign != exp_sign:
-                unary += ORDER_LOCK_PENALTY * cfg.order_lock_multiplier
+                unary += ORDER_LOCK_PENALTY * cfg.order_lock_multiplier * coll_decay
         return float(unary)
 
     states_by_x: list[list[tuple[int, int, int, float]]] = []
@@ -1358,6 +1428,10 @@ def _trace_joint_three(
             for i in range(3)
         ]
         track_wins = [_tracking_window_px(h, lw) for lw in local_wins]
+        start_window = max(8, int(round(w * START_PRIOR_WINDOW_RATIO)))
+        if x < start_window:
+            hard_cap = max(3, int(round(float(h) * HARD_TRANSITION_CAP_RATIO)))
+            track_wins = [max(tw, hard_cap) for tw in track_wins]
         if prev_states and np.any(np.isfinite(prev_cost)) and curr_states:
             best_prev_idx = int(np.argmin(prev_cost))
             best_prev_idx = int(np.clip(best_prev_idx, 0, max(0, len(prev_states) - 1)))
