@@ -6,7 +6,7 @@ Key Differentiators:
 1. Zero-LLM digitization step -> reproducible and deterministic through DP tracing
 2. Cost-per-image -> lower by using cheaper models, fewer calls, and offloading work to other processes
 3. Synthetic test robustness -> Contains strong degradation to test robustness
-4. High test accuracy -> Beats KM-GPT by 2x on harder tests (0.0082 IAE)
+4. High test accuracy -> Beats preprint KM-GPT by 2x on harder tests (0.0082 IAE)
 
 ## Installation
 
@@ -112,7 +112,7 @@ Reconstructs KM curve from previous step and compares against digitized curve. I
 
 1. Zero-LLM digitization:
 
-Digitization is done using a probability map and column-based dynamic programming. This is reproducible significantly cheaper per image since all processing is done without use of APIs.
+Digitization is done using a probability map and column-based dynamic programming. This is reproducible and significantly cheaper per image since all processing is done without use of APIs.
 
 2. Multi-arm DP:
 
