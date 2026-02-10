@@ -2,6 +2,12 @@
 
 This KM Curve Estimator solves the problem of translating KM curve images into workable digital data. The implementation takes inspiration from [this paper](https://www.biorxiv.org/content/10.1101/2025.09.15.676421v1.full) while making improvements to digitization, reproducibility, and lower cost per image.
 
+Key Differentiators:
+1. Zero-LLM digitization step -> reproducible and deterministic through DP tracing
+2. Cost-per-image -> lower by using cheaper models, fewer calls, and offloading work to other processes
+3. Synthetic test robustness -> Contains strong degradation to test robustness
+4. High test accuracy -> Beats KM-GPT by 2x on harder tests (0.0082 IAE)
+
 ## Installation
 
 ### Prerequisites
@@ -12,7 +18,7 @@ This KM Curve Estimator solves the problem of translating KM curve images into w
 ### Install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/patrick-zx-wei/KM-curve-estimator
 cd KM-curve-estimator
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
@@ -39,10 +45,10 @@ km-extract tests/fixtures/standard/case_001/input/graph.png -o output.json
 ### Reconstruction Benchmark
 
 ```bash
-python tests/run_recon_bench.py                          # all 100 cases
+python tests/run_recon_bench.py                          # all 100 cases through reconstruction + validation
 python tests/run_recon_bench.py case_093                 # single case
-python tests/run_recon_bench.py --generate-cache         # re-digitize and cache
-python tests/run_recon_bench.py --workers 3              # parallel
+python tests/run_recon_bench.py --generate-cache         # re-digitize and cache information alongside reconstruction + validation
+python tests/run_recon_bench.py --workers 3              # run in parallel
 ```
 
 ## How It Works
@@ -55,9 +61,9 @@ Upscales images to ~2000px, normalizes background colours, denoises, and then sh
 
 Uses Gemini to verify the image provided is a valid KM curve. Checks for clear axes, step-function curves, and tick marks. Non KM images are filtered at this step.
 
-### 3. MMPU
+### 3. MMPU (Multi-Modality Processing Unit)
 
-Extracts axes, tick labels, legend and risk table text using GPT 5 Mini with Gemini Flash for validation. Packages data into PlotMetadata. When extraction is poor, axis and risk tables are re-extracted. This step cuts costs against full GPT 5 or Gemini Pro models.
+Extracts axes, tick labels, legend and risk table text using GPT-5 Mini with Gemini Flash for validation. Packages data into PlotMetadata. When extraction is poor, axis and risk tables are re-extracted. This step reduces costs against full GPT-5 or Gemini Pro models.
 
 Axis: Applies geometric inference and checks ticks to reconstruct spacing. 
 
@@ -131,8 +137,15 @@ Reconstruction and greedy flips help optimize events that may not have been caug
 | IAE (recon vs GT) | 0.0105 | 0.0082 |
 | RMSE (recon vs GT) | 0.0163 | 0.0116 |
 
-- Arms < 1% MAE: 137/207 (66%)
-- Arms < 2% MAE: 193/207 (93%)
+Arms < 1% MAE: 137/207 (66%)
+Arms < 2% MAE: 193/207 (93%)
+
+**MAE** (Mean Absolute Error): Average of |S_true(t) − S_recon(t)| sampled at all step-change time points.
+
+**IAE** (Integrated Absolute Error): ∫₀¹ |S_true(t) − S_recon(t)| dt, normalized by the follow-up time span. Measures total area between the true and reconstructed survival curves.
+
+**RMSE** (Root Mean Square Error): √(mean of (S_true(t) − S_recon(t))²) sampled at all step-change time points. Penalizes larger deviations more heavily than MAE.
+
 
 ### Comparison to KM-GPT
 
