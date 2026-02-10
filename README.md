@@ -149,9 +149,9 @@ Arms < 2% MAE: 193/207 (93%)
 
 ### Comparison to KM-GPT
 
-KM-GPT reports a median IAE of 0.018 across 538 clean synthetic plots with no image degradation. This project's median IAE of 0.0082 is less than half that, despite being evaluated on a deliberately harder benchmark that includes JPEG compression, low resolution, noisy backgrounds, and other artifacts common in real publications.
+KM-GPT reports a median IAE of 0.018 across 538 clean synthetic plots in ideal conditions. This project's median IAE of 0.0082 is less than half that, despite being evaluated on a deliberately difficult benchmark that includes JPEG compression, low resolution, noisy backgrounds, and other artifacts common in real publications.
 
-In practice, KM plots scraped from PDFs or scanned from older papers rarely look this clean. Our benchmark is designed to reflect these real-world conditions, with 50% of test cases including at least one form of image degradation.
+In practice, KM plots scraped from PDFs or scanned from older papers are rarely perfect. Our benchmark is designed to reflect these real-world conditions, with 50% of test cases including at least one form of image degradation.
 
 ### Factors in Test Design
 
