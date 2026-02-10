@@ -112,7 +112,7 @@ Reconstructs KM curve from previous step and compares against digitized curve. I
 
 1. Zero-LLM digitization:
 
-Digitization is done using a probability map and column-based dynamic programming. This is reproducible and 5-10x cheaper per image since all processing is done without use of APIs.
+Digitization is done using a probability map and column-based dynamic programming. This is reproducible significantly cheaper per image since all processing is done without use of APIs.
 
 2. Multi-arm DP:
 
