@@ -233,6 +233,77 @@ def _normalize_step_coords(coords: list[tuple[float, float]]) -> list[tuple[floa
 
     ordered = sorted((float(t), float(s)) for t, s in coords)
 
+    # Phase 0: Remove leading axis-tracing artifact.
+    # The digitizer may trace the x-axis, y-axis, or plot border before
+    # picking up the actual curve.  This creates a cluster of very low
+    # y-values near the start — possibly preceded by high y-values from
+    # the top of the y-axis.  If left in, the monotone non-increasing
+    # enforcement (Phase 2) caps the entire curve at the low minimum.
+    # Detection: multiple low-valued points in the early portion PLUS a
+    # high peak after them indicates axis tracing followed by real curve.
+    _LEADING_LOW_THRESHOLD = 0.05
+    _LEADING_PEAK_THRESHOLD = 0.50
+    _LEADING_MIN_PTS = 30
+    _LEADING_MIN_LOW_COUNT = 5
+    if len(ordered) >= _LEADING_MIN_PTS:
+        n_early = min(len(ordered) // 5, 100)
+        early_max = max(s for _, s in ordered[:n_early])
+        low_count = sum(1 for _, s in ordered[:n_early] if s < _LEADING_LOW_THRESHOLD)
+        if low_count >= _LEADING_MIN_LOW_COUNT and early_max > _LEADING_PEAK_THRESHOLD:
+            # Find the last low point in the early region, then the first
+            # high point after it.  Trim everything before that high point.
+            peak_threshold = early_max * 0.85
+            last_low = max(
+                i for i in range(n_early) if ordered[i][1] < _LEADING_LOW_THRESHOLD
+            )
+            first_high = next(
+                (i for i in range(last_low, n_early) if ordered[i][1] >= peak_threshold),
+                None,
+            )
+            if first_high is not None:
+                ordered = ordered[first_high:]
+
+    # Phase 0b: Remove trailing axis-tracing artifact.
+    # The digitizer may trace the x-axis or bottom frame at the end of the
+    # curve, creating a steep ramp from the true terminal survival down to
+    # near-zero.  This causes the Guyot algorithm to place many spurious
+    # events in the terminal interval.
+    # Detection: compare the drop rate in the last portion of the curve to
+    # the drop rate in the body.  If the tail drops much faster, trim the
+    # trailing ramp back to where the steep decline begins.
+    _TRAILING_MIN_PTS = 50
+    _TRAILING_BODY_END = 0.85  # first 85% of points = body
+    _TRAILING_MIN_DROP = 0.08  # tail must drop at least 8% in survival
+    _TRAILING_SLOPE_RATIO = 2.5  # tail slope must be 2.5x body slope
+    if len(ordered) >= _TRAILING_MIN_PTS:
+        body_end_idx = max(1, int(len(ordered) * _TRAILING_BODY_END))
+        body_s_start = ordered[0][1]
+        body_s_end = ordered[body_end_idx - 1][1]
+        body_t_span = max(1e-9, ordered[body_end_idx - 1][0] - ordered[0][0])
+        body_drop_rate = max(0.0, body_s_start - body_s_end) / body_t_span
+
+        tail_s_start = ordered[body_end_idx][1]
+        tail_s_end = ordered[-1][1]
+        tail_t_span = max(1e-9, ordered[-1][0] - ordered[body_end_idx][0])
+        tail_drop_rate = max(0.0, tail_s_start - tail_s_end) / tail_t_span
+        tail_drop = tail_s_start - tail_s_end
+
+        if (
+            tail_drop > _TRAILING_MIN_DROP
+            and body_drop_rate > 1e-9
+            and tail_drop_rate > body_drop_rate * _TRAILING_SLOPE_RATIO
+        ):
+            # Walk backward from the end to find where the steep ramp begins.
+            # Keep points whose survival is >= 80% of the body-end survival.
+            ramp_threshold = body_s_end * 0.80
+            trim_idx = len(ordered)
+            for i in range(len(ordered) - 1, body_end_idx, -1):
+                if ordered[i][1] >= ramp_threshold:
+                    trim_idx = i + 1
+                    break
+            if trim_idx < len(ordered):
+                ordered = ordered[:trim_idx]
+
     # Phase 1: Remove transient dip outliers using local median comparison.
     # A digitized curve may pick up pixels from a crossing curve, creating a
     # sudden dip that recovers.  Strict monotone enforcement would cap all
@@ -271,7 +342,13 @@ def _normalize_step_coords(coords: list[tuple[float, float]]) -> list[tuple[floa
 
 
 def _looks_upward_trend(coords: list[tuple[float, float]]) -> bool:
-    """Detect whether coords are likely incidence-space (increasing over time)."""
+    """Detect whether coords are likely incidence-space (increasing over time).
+
+    Uses two complementary tests:
+    1. Rise/fall counting (original) — works for clean curves.
+    2. Quartile comparison — robust to noisy upward curves where pixel-level
+       fluctuations create many spurious falls that outnumber rises.
+    """
     if len(coords) < 3:
         return False
     ordered = sorted((float(t), float(s)) for t, s in coords)
@@ -279,7 +356,23 @@ def _looks_upward_trend(coords: list[tuple[float, float]]) -> bool:
     rises = sum(1 for i in range(len(ys) - 1) if ys[i + 1] > ys[i] + 1e-4)
     falls = sum(1 for i in range(len(ys) - 1) if ys[i + 1] < ys[i] - 1e-4)
     net_change = ys[-1] - ys[0]
-    return net_change > 0.03 and rises > max(1, falls)
+
+    # Original test: net increase with more rises than falls.
+    if net_change > 0.03 and rises > max(1, falls):
+        return True
+
+    # Robust quartile test: compare first-quarter median vs last-quarter
+    # median.  A large positive difference indicates an upward trend even
+    # when point-to-point noise obscures the rise/fall ratio.
+    n = len(ys)
+    q1_end = max(1, n // 4)
+    q4_start = n - max(1, n // 4)
+    first_q_median = float(sorted(ys[:q1_end])[q1_end // 2])
+    last_q_median = float(sorted(ys[q4_start:])[len(ys[q4_start:]) // 2])
+    if last_q_median - first_q_median > 0.08 and first_q_median < 0.5:
+        return True
+
+    return False
 
 
 def _ensure_survival_space(
@@ -295,8 +388,34 @@ def _ensure_survival_space(
     """
     if not coords:
         return [], False
-    if curve_direction != "upward" or not _looks_upward_trend(coords):
+
+    is_upward = _looks_upward_trend(coords)
+
+    if is_upward:
+        # Data clearly trends upward — reflect regardless of declared
+        # direction (e.g. the digitiser may output incidence values even
+        # when metadata says "downward").
+        pass  # fall through to reflection below
+    elif curve_direction != "upward":
+        # Both data and metadata agree: downward / survival.
         return _normalize_step_coords(coords), False
+    else:
+        # Metadata says "upward" but _looks_upward_trend disagrees.
+        # Only skip reflection if the data is *clearly* survival-like
+        # (strongly decreasing).  Otherwise trust the metadata —
+        # truncated y-axes and axis-tracing artefacts can mask the
+        # upward trend from the heuristic.
+        ordered_tmp = sorted((float(t), float(s)) for t, s in coords)
+        ys_tmp = [s for _, s in ordered_tmp]
+        n_tmp = len(ys_tmp)
+        q1e = max(1, n_tmp // 4)
+        q4s = n_tmp - max(1, n_tmp // 4)
+        fq = float(sorted(ys_tmp[:q1e])[q1e // 2])
+        lq = float(sorted(ys_tmp[q4s:])[len(ys_tmp[q4s:]) // 2])
+        if fq - lq > 0.15:
+            # Clearly decreasing — data is already in survival space.
+            return _normalize_step_coords(coords), False
+        # Ambiguous: trust the metadata and reflect.
 
     y_abs_max = float(max(abs(y_start), abs(y_end)))
     percent_scale = 100.0 if (1.5 < y_abs_max <= 100.5) else 1.0
@@ -811,7 +930,7 @@ def _greedy_event_correction(
     """Greedy per-interval event count adjustment to minimize MAE.
 
     After the initial Guyot pass, iterate through intervals and try converting
-    event→censoring or censoring→event.  Keep any change that reduces the
+    event->censoring or censoring->event.  Keep any change that reduces the
     overall MAE against the target survival curve.  Tries both directions for
     each interval and picks the best improvement.
     """
@@ -831,7 +950,6 @@ def _greedy_event_correction(
             if lost_total <= 0:
                 continue
 
-            # Gather patients in this interval
             ivl_events: list[int] = []
             ivl_censors: list[int] = []
             for idx, p in enumerate(best_patients):
@@ -847,7 +965,6 @@ def _greedy_event_correction(
             best_trial: list[PatientRecord] | None = None
             best_trial_mae = best_mae
 
-            # Try converting one censoring → event (add event)
             if ivl_censors and len(ivl_events) < lost_total:
                 c_idx = min(
                     ivl_censors, key=lambda i: abs(float(best_patients[i].time) - mid)
@@ -861,7 +978,6 @@ def _greedy_event_correction(
                     best_trial = trial
                     best_trial_mae = trial_mae
 
-            # Try converting one event → censoring (remove event)
             if ivl_events:
                 e_idx = min(
                     ivl_events, key=lambda i: abs(float(best_patients[i].time) - mid)
