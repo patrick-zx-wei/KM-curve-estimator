@@ -3,12 +3,11 @@
 Generate synthetic KM curve images with known ground truth for pipeline evaluation.
 
 Usage:
-    from tests.synthetic import generate_difficult, generate_standard
+    from tests.synthetic import generate_standard
     from tests.synthetic import load_test_case, load_manifest
     from tests.synthetic import run_case, run_all, run_filtered
 
 Generation (no API keys needed):
-    generate_difficult()   # 5 hard cases -> tests/fixtures/difficult/
     generate_standard()    # 100 cases   -> tests/fixtures/standard/
 
 Running (requires OPENAI_API_KEY + GEMINI_API_KEY):
@@ -37,13 +36,12 @@ from .modifiers import (
     ThinLines,
     TruncatedYAxis,
 )
-from .presets import generate_difficult, generate_standard
+from .presets import generate_standard
 from .renderer import render_test_case
 from .runner import run_all, run_case, run_filtered, run_fixed_suite
 
 __all__ = [
     # Generation
-    "generate_difficult",
     "generate_standard",
     "generate_test_case",
     "render_test_case",

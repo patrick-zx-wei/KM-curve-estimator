@@ -193,7 +193,6 @@ def calibrate_axes(image: NDArray[np.uint8], meta: PlotMetadata) -> AxisMapping 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
 
-    # Detect edges and lines
     edges = cv2.Canny(gray, 45, 140)
     lines = cv2.HoughLinesP(
         edges, 1, np.pi / 180, threshold=80, minLineLength=max(w, h) // 5, maxLineGap=8
@@ -303,7 +302,6 @@ def calibrate_axes(image: NDArray[np.uint8], meta: PlotMetadata) -> AxisMapping 
     y_axis_x = int(np.clip(y_axis_x, 0, w - 2))
     right_border_x = int(np.clip(right_border_x, y_axis_x + 2, w - 1))
 
-    # Validate non-zero region
     if right_border_x <= y_axis_x or x_axis_y <= top_border_y:
         return ProcessingError(
             stage=ProcessingStage.DIGITIZE,
@@ -400,7 +398,6 @@ def validate_against_anchors(
             continue
 
         for anchor_time, anchor_survival in anchor_points:
-            # Find closest digitized point by time
             closest = min(curve, key=lambda p: abs(p[0] - anchor_time))
             time_diff = abs(closest[0] - anchor_time)
 
@@ -472,17 +469,14 @@ def validate_axis_config(axis: AxisConfig, axis_name: str) -> list[str]:
     """
     warnings: list[str] = []
 
-    # Check start < end
     if axis.start >= axis.end:
         warnings.append(f"{axis_name}: start ({axis.start}) >= end ({axis.end})")
 
     if axis.tick_values:
-        # Check tick values are in range
         out_of_range = [v for v in axis.tick_values if v < axis.start - 0.01 or v > axis.end + 0.01]
         if out_of_range:
             warnings.append(f"{axis_name}: tick values out of range: {out_of_range}")
 
-        # Check tick values are increasing
         if axis.tick_values != sorted(axis.tick_values):
             warnings.append(f"{axis_name}: tick values not in increasing order")
 

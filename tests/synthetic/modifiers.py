@@ -96,18 +96,6 @@ class BackgroundStyle(Modifier):
 
 
 @dataclass
-class CurveDirection(Modifier):
-    """Directionality of rendered curves.
-
-    - downward: survival-style decreasing curves
-    - upward: incidence-style increasing curves
-    """
-
-    direction: Literal["downward", "upward"] = "downward"
-    stage: ModifierStage = field(default=ModifierStage.FIGURE, init=False)
-
-
-@dataclass
 class FrameLayout(Modifier):
     """Axis frame layout.
 

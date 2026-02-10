@@ -139,12 +139,6 @@ def _gate_confidence(
     if any(w.startswith("W_COLOR_UNINFORMATIVE") for w in unique_warning_codes):
         adjusted -= 0.15
         warnings.append("W_COLOR_UNINFORMATIVE_PENALTY")
-    if any(w.startswith("W_DIRECTION_AMBIGUOUS_TEXT") for w in unique_warning_codes):
-        adjusted -= 0.18
-        warnings.append("W_DIRECTION_AMBIGUOUS_PENALTY")
-    if any(w.startswith("I_DIRECTION_FALLBACK_METADATA:unknown") for w in unique_warning_codes):
-        hard_fail = True
-        warnings.append("E_HARD_FAIL_DIRECTION_UNKNOWN")
     if any(w.startswith("W_CROSSING_DISABLED_CAP:") for w in unique_warning_codes):
         hard_fail = True
         warnings.append("E_HARD_FAIL_CROSSING_OVERFIRE")
@@ -253,18 +247,12 @@ def _build_risk_table_constraints(
 
 def _survival_to_plot_y(
     survival: float,
-    curve_direction: str,
     y_start: float,
     y_end: float,
 ) -> float:
     s = float(np.clip(float(survival), 0.0, 1.0))
     y_abs_max = float(max(abs(y_start), abs(y_end)))
     use_percent = y_abs_max > 1.5
-    if curve_direction == "upward":
-        incidence = 1.0 - s
-        if use_percent:
-            return float(y_start + incidence * (y_end - y_start))
-        return float(np.clip(incidence, min(y_start, y_end), max(y_start, y_end)))
     if use_percent:
         return float(y_start + s * (y_end - y_start))
     return float(np.clip(s, min(y_start, y_end), max(y_start, y_end)))
@@ -284,14 +272,13 @@ def _build_hardpoint_guides(
     h = max(1, y1 - y0)
     y_start = float(plot_model.mapping.y_axis.start)
     y_end = float(plot_model.mapping.y_axis.end)
-    direction = plot_model.curve_direction
 
     for name, pts in hardpoints.items():
         if not pts:
             continue
         by_col: dict[int, list[int]] = {}
         for t, s in pts:
-            y_plot = _survival_to_plot_y(s, direction, y_start, y_end)
+            y_plot = _survival_to_plot_y(s, y_start, y_end)
             px, py = plot_model.real_to_px(float(t), float(y_plot))
             cx = int(np.clip(px - x0, 0, w - 1))
             cy = int(np.clip(py - y0, 0, h - 1))
@@ -398,8 +385,6 @@ def digitize_v5(state: PipelineState) -> PipelineState:
     trace = trace_curves(
         arm_score_maps=evidence.arm_score_maps,
         evidence=evidence,
-        direction=plot_model.curve_direction,
-        direction_confidence=plot_model.direction_confidence,
         x0=x0,
         y0=y0,
         candidate_mask=evidence.candidate_mask,
@@ -418,7 +403,6 @@ def digitize_v5(state: PipelineState) -> PipelineState:
     digitized_curves, post_warnings = convert_pixel_curves_to_survival(
         trimmed_pixel_curves,
         plot_model=plot_model,
-        direction=plot_model.curve_direction,
     )
     all_warnings.extend(post_warnings)
 
@@ -440,8 +424,6 @@ def digitize_v5(state: PipelineState) -> PipelineState:
         retrace = trace_curves(
             arm_score_maps=retrace_maps,
             evidence=evidence,
-            direction=plot_model.curve_direction,
-            direction_confidence=plot_model.direction_confidence,
             x0=x0,
             y0=y0,
             trace_config=TraceConfig(
@@ -463,7 +445,6 @@ def digitize_v5(state: PipelineState) -> PipelineState:
         retrace_curves, retrace_post_warnings = convert_pixel_curves_to_survival(
             retrace_trimmed,
             plot_model=plot_model,
-            direction=plot_model.curve_direction,
         )
         all_warnings.extend(retrace_post_warnings)
         if retrace.plot_confidence >= trace.plot_confidence:

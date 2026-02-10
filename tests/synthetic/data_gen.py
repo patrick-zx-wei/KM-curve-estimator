@@ -56,9 +56,7 @@ class SyntheticTestCase:
     difficulty: int = 1
     tier: str = "standard"
     gap_pattern: str | None = None
-    curve_direction: str = "downward"
     image_path: str | None = None
-    draft_image_path: str | None = None
 
 
 def _km_from_ipd(patients: list[PatientRecord]) -> list[tuple[float, float]]:
@@ -447,14 +445,6 @@ def generate_test_case(
     if line_styles is None:
         line_styles = ["solid"] * n_curves
 
-    inferred_direction = "downward"
-    for mod in modifiers:
-        if hasattr(mod, "direction"):
-            direction = str(getattr(mod, "direction")).lower()
-            if direction in ("downward", "upward"):
-                inferred_direction = direction
-                break
-
     # Risk table time points
     risk_time_points = _compute_risk_table_intervals(max_time)
 
@@ -578,9 +568,7 @@ def generate_test_case(
     )
 
     y_axis = AxisConfig(
-        label=(
-            "Cumulative Incidence" if inferred_direction == "upward" else "Survival Probability"
-        ),
+        label="Survival Probability",
         start=y_axis_start,
         end=1.0,
         tick_interval=0.2,
@@ -601,5 +589,4 @@ def generate_test_case(
         difficulty=difficulty,
         tier=tier,
         gap_pattern=gap_pattern,
-        curve_direction=inferred_direction,
     )

@@ -20,8 +20,6 @@ RIDGE_WEIGHT = 0.30
 EDGE_WEIGHT = 0.20
 COLOR_WEIGHT = 0.52
 AXIS_PENALTY_WEIGHT = 0.85
-AXIS_PENALTY_WEIGHT_UPWARD = 0.45
-AXIS_PENALTY_WEIGHT_UNKNOWN = 0.65
 TEXT_PENALTY_WEIGHT = 0.58
 TEXT_REGION_PENALTY_WEIGHT = 0.42
 LINE_PENALTY_WEIGHT = 0.68
@@ -65,8 +63,6 @@ HSV_HUE_SEED_MIN = 18
 HSV_HUE_SEED_QUANTILE = 88.0
 HSV_HUE_SEED_MIN_SCORE = 0.62
 CANDIDATE_AXIS_THRESH = 0.25
-CANDIDATE_AXIS_THRESH_UPWARD = 0.55
-CANDIDATE_AXIS_THRESH_UNKNOWN = 0.40
 CANDIDATE_TEXT_THRESH = 0.35
 CANDIDATE_TEXT_REGION_THRESH = 0.42
 CANDIDATE_LINE_THRESH = 0.55
@@ -227,7 +223,6 @@ def _horizontal_support(mask: NDArray[np.bool_]) -> NDArray[np.float32]:
 
 def _prune_curve_components(
     mask: NDArray[np.bool_],
-    direction: str,
 ) -> tuple[NDArray[np.bool_], int, int]:
     """
     Keep only connected components that look like plausible curve fragments.
@@ -268,10 +263,7 @@ def _prune_curve_components(
         x_span_ratio = float(cw) / float(max(1, w))
         starts_left = x_min <= x_start_max
 
-        if direction == "upward":
-            in_start_band = y_max >= (h - y_band)
-        else:
-            in_start_band = y_min <= y_band
+        in_start_band = y_min <= y_band
 
         keep_comp = (starts_left and in_start_band) or (
             x_span_ratio >= COMPONENT_XSPAN_KEEP_RATIO
@@ -291,7 +283,6 @@ def _prune_curve_components(
 
 def _select_primary_component(
     mask: NDArray[np.bool_],
-    direction: str,
 ) -> tuple[NDArray[np.bool_], bool, float]:
     """
     Keep a single most plausible component to avoid arm hopping.
@@ -325,10 +316,7 @@ def _select_primary_component(
         y_min = y
         y_max = y + ch - 1
         starts_left = x <= x_start_max
-        if direction == "upward":
-            start_band = y_max >= (h - y_band)
-        else:
-            start_band = y_min <= y_band
+        start_band = y_min <= y_band
         area_ratio = float(area) / float(max(1, h * w))
         score = (
             2.2 * x_span
@@ -942,23 +930,9 @@ def build_evidence_cube(
     axis_pen_f = _normalize01(axis_pen_f)
     line_pen, line_count = _straight_line_penalty(gray, axis_mask=axis_pen)
 
-    direction = plot_model.curve_direction
     axis_weight = AXIS_PENALTY_WEIGHT
     candidate_axis_thresh = CANDIDATE_AXIS_THRESH
     axis_pen_for_structure = axis_pen_f
-    if direction == "upward":
-        h = axis_pen_f.shape[0]
-        row_rel = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None]
-        # Upward (cumulative incidence) curves are expected near the x-axis early;
-        # reduce axis suppression in the lower band while still discouraging true-axis capture.
-        soften = 0.35 + 0.65 * (1.0 - row_rel)
-        axis_pen_for_structure = (axis_pen_f * soften).astype(np.float32)
-        axis_weight = AXIS_PENALTY_WEIGHT_UPWARD
-        candidate_axis_thresh = CANDIDATE_AXIS_THRESH_UPWARD
-        warnings.append("I_AXIS_PENALTY_SOFTENED_UPWARD")
-    elif direction == "unknown":
-        axis_weight = AXIS_PENALTY_WEIGHT_UNKNOWN
-        candidate_axis_thresh = CANDIDATE_AXIS_THRESH_UNKNOWN
 
     structure_base = (
         RIDGE_WEIGHT * ridge
@@ -1313,7 +1287,6 @@ def build_evidence_cube(
         else:
             pruned_mask, kept_components, dropped_components = _prune_curve_components(
                 arm_mask.astype(np.bool_),
-                direction=direction,
             )
             if kept_components > 0:
                 arm_mask = pruned_mask
@@ -1327,7 +1300,6 @@ def build_evidence_cube(
             if model.reliability >= COLOR_STRICT_RELIABILITY:
                 primary_mask, selected, xspan = _select_primary_component(
                     arm_mask.astype(np.bool_),
-                    direction=direction,
                 )
                 if selected:
                     arm_mask = primary_mask

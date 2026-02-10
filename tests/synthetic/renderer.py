@@ -1,11 +1,11 @@
 """Matplotlib rendering of synthetic KM curves.
 
-Produces graph_draft.png (clean) and graph.png (after post-render modifiers).
+Produces input/graph.png (with optional post-render modifiers applied).
 """
 
 from __future__ import annotations
 
-import shutil
+
 from pathlib import Path
 
 import cv2
@@ -16,7 +16,6 @@ from .modifiers import (
     Annotations,
     BackgroundStyle,
     CensoringMarks,
-    CurveDirection,
     FontTypography,
     FrameLayout,
     GridLines,
@@ -88,19 +87,16 @@ def _get_survival_at(coords: list[tuple[float, float]], t: float) -> float:
     return coords[0][1]
 
 
-def _extract_style_directives(modifiers: list[Modifier]) -> tuple[str, str, str]:
-    """Extract (background_style, direction, frame_layout) directives."""
+def _extract_style_directives(modifiers: list[Modifier]) -> tuple[str, str]:
+    """Extract (background_style, frame_layout) directives."""
     background = "white"
-    direction = "downward"
     frame_layout = "full_box"
     for mod in modifiers:
         if isinstance(mod, BackgroundStyle):
             background = mod.style
-        elif isinstance(mod, CurveDirection):
-            direction = mod.direction
         elif isinstance(mod, FrameLayout):
             frame_layout = mod.layout
-    return background, direction, frame_layout
+    return background, frame_layout
 
 
 def _uniform_ticks(start: float, end: float, step: float, ndigits: int = 2) -> list[float]:
@@ -176,10 +172,10 @@ def render_test_case(
     output_dir: Path,
     dpi: int = 150,
     figsize: tuple[float, float] = (10, 7),
-) -> tuple[Path, Path]:
-    """Render a test case to graph_draft.png and graph.png.
+) -> Path:
+    """Render a test case to input/graph.png.
 
-    Returns (draft_path, final_path).
+    Returns graph_path.
     """
     import matplotlib
 
@@ -209,10 +205,9 @@ def render_test_case(
         ax_table = None
 
     linewidth = _get_linewidth(test_case.modifiers)
-    background_style, curve_direction, frame_layout = _extract_style_directives(figure_mods)
+    background_style, frame_layout = _extract_style_directives(figure_mods)
     has_explicit_grid = any(isinstance(m, GridLines) for m in figure_mods)
     _apply_background_style(ax, ax_table, background_style, has_explicit_grid)
-    test_case.curve_direction = curve_direction
 
     # Simplify step coordinates for cleaner rendering
     simplified: dict[str, list[tuple[float, float]]] = {}
@@ -224,8 +219,6 @@ def render_test_case(
         coords = simplified[curve.group_name]
         times = [c[0] for c in coords]
         survivals = [c[1] for c in coords]
-        if curve_direction == "upward":
-            survivals = [1.0 - float(s) for s in survivals]
 
         step_kwargs: dict = dict(
             where="post",
@@ -260,8 +253,6 @@ def render_test_case(
                 if curve.censoring_times:
                     simple = simplified.get(curve.group_name, curve.step_coords)
                     censor_survivals = [_get_survival_at(simple, t) for t in curve.censoring_times]
-                    if curve_direction == "upward":
-                        censor_survivals = [1.0 - float(s) for s in censor_survivals]
                     ax.plot(
                         curve.censoring_times,
                         censor_survivals,
@@ -288,15 +279,10 @@ def render_test_case(
     ax.set_yticks(test_case.y_axis.tick_values)
     ax.set_xlabel(test_case.x_axis.label or "Time (months)")
     y_label = test_case.y_axis.label or "Survival Probability"
-    if curve_direction == "upward" and "survival" in y_label.lower():
-        y_label = "Cumulative Incidence"
-        test_case.y_axis = test_case.y_axis.model_copy(update={"label": y_label})
     ax.set_ylabel(y_label)
     _apply_frame_layout(ax, frame_layout)
 
     if test_case.title:
-        if curve_direction == "upward" and "survival" in test_case.title.lower():
-            test_case.title = "Cumulative Incidence Curve"
         ax.set_title(test_case.title)
 
     # Legend
@@ -353,22 +339,19 @@ def render_test_case(
                     )
 
     fig.tight_layout()
-    # Save draft
-    draft_path = output_dir / "graph_draft.png"
-    fig.savefig(str(draft_path), dpi=dpi, bbox_inches="tight")
+    # Save graph into input/
+    input_dir = output_dir / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    graph_path = input_dir / "graph.png"
+    fig.savefig(str(graph_path), dpi=dpi, bbox_inches="tight")
     plt.close(fig)
-
-    # Copy to graph.png, then apply post-render modifiers
-    graph_path = output_dir / "graph.png"
-    shutil.copy2(draft_path, graph_path)
 
     if post_mods:
         _apply_post_render_modifiers(graph_path, post_mods)
 
-    test_case.draft_image_path = str(draft_path)
     test_case.image_path = str(graph_path)
 
-    return draft_path, graph_path
+    return graph_path
 
 
 def _apply_post_render_modifiers(image_path: Path, modifiers: list[Modifier]) -> None:

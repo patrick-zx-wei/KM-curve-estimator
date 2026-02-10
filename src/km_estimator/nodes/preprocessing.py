@@ -41,12 +41,10 @@ def preprocess(state: PipelineState) -> PipelineState:
     """
     cfg = state.config
 
-    # Load image
     image = cv_utils.load_image(state.image_path, stage=ProcessingStage.PREPROCESS)
     if isinstance(image, ProcessingError):
         return state.model_copy(update={"errors": state.errors + [image]})
 
-    # Check if image needs scaling
     info = cv_utils.get_image_info(image)
     scale_result = cv_utils.calculate_scale_factor(
         current_size=(info.width, info.height),
@@ -60,7 +58,6 @@ def preprocess(state: PipelineState) -> PipelineState:
 
     scale_factor, method = scale_result
 
-    # Scale if needed
     if method == "espcn":
         scaled = cv_utils.upscale_espcn(image, scale_factor=int(scale_factor))
         if isinstance(scaled, ProcessingError):
@@ -86,7 +83,6 @@ def preprocess(state: PipelineState) -> PipelineState:
     else:
         image = cv_utils.sharpen_unsharp_mask(image, amount=1.5)
 
-    # Assess quality
     quality = cv_utils.assess_quality(image, min_variance=cfg.min_image_variance)
     if isinstance(quality, ProcessingError):
         return state.model_copy(update={"errors": state.errors + [quality]})

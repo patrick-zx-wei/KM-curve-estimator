@@ -80,7 +80,7 @@ OCR_PROMPT_GPT = """Extract all visible text from this Kaplan-Meier style time-t
 
 Focus on ACCURACY over quantity. Extract:
 - x_tick_labels: X-axis tick values (time points)
-- y_tick_labels: Y-axis tick values (survival probability OR cumulative incidence)
+- y_tick_labels: Y-axis tick values (survival probability)
 - axis_labels: Axis title labels
 - legend_labels: Legend entries (group/curve names)
 - risk_table_text: Risk table as 2D array if visible, null otherwise
@@ -89,7 +89,6 @@ Focus on ACCURACY over quantity. Extract:
 - extraction_confidence: float 0.0-1.0 for your confidence
 
 IMPORTANT: Check y_tick_labels carefully - the Y-axis may NOT start at 0.
-The curve direction can be downward (survival) or upward (incidence).
 
 Return only valid JSON, no markdown."""
 
@@ -99,7 +98,7 @@ Extract ALL visible text from this Kaplan-Meier style time-to-event plot with HI
 
 You MUST extract:
 - x_tick_labels: ALL X-axis tick labels (every visible time value)
-- y_tick_labels: ALL Y-axis tick labels (every visible probability/incidence value)
+- y_tick_labels: ALL Y-axis tick labels (every visible probability value)
 - axis_labels: Complete axis titles/labels
 - legend_labels: ALL legend entries with exact text
 - risk_table_text: COMPLETE risk table as 2D array (all rows, all columns, all numbers) or null
@@ -122,8 +121,6 @@ Using both the image and extracted text, return JSON with:
 - y_axis: {{label, start, end, tick_interval, tick_values, scale}}
 - curves: [{{name, color_description, line_style}}]
 - risk_table: {{time_points, groups: [{{name, counts}}]}} or null
-- curve_direction: "downward" for survival-style curves or \
-"upward" for cumulative-incidence-style curves
 - title: string or null
 - annotations: list of strings
 
@@ -132,12 +129,6 @@ CRITICAL - Y-AXIS ATTENTION:
 - Common truncation: Y-axis starts at 0.2, 0.3, 0.4, or 0.5
 - Set y_axis.start to the ACTUAL lowest tick mark value shown
 - This is essential for accurate curve digitization
-
-CRITICAL - CURVE DIRECTION:
-- Set curve_direction="downward" when the main curves decrease over time (survival).
-- Set curve_direction="upward" when the main curves increase over time \
-(cumulative incidence / cumulative event probability).
-- Use the y-axis label and curve shape together to decide.
 
 CRITICAL - X-AXIS ENDPOINT:
 - x_axis.end must be the true axis boundary, not just the largest labeled tick value
@@ -155,8 +146,7 @@ style time-to-event curve figure.
 
 Check for the following elements:
 1. Axes: Are there clear X and Y axes?
-2. Curves: Is there at least one step-function curve \
-(downward survival OR upward cumulative incidence)?
+2. Curves: Is there at least one step-function survival curve?
 3. Ticks: Are there readable tick marks/labels on both axes?
 4. Legend: Is there a legend identifying curve groups? (optional but helpful)
 5. Risk table: Is there a number-at-risk table below the plot? (optional)

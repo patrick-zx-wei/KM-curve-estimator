@@ -1,0 +1,80 @@
+{
+  "Control": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.8314,
+        "plot_y": 0.8314,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.7276,
+        "plot_y": 0.7276,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.5883,
+        "plot_y": 0.5883,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.4324,
+        "plot_y": 0.4324,
+        "description": "3-year value"
+      },
+      {
+        "time": 48,
+        "survival": 0.3524,
+        "plot_y": 0.3524,
+        "description": "4-year value"
+      }
+    ],
+    "median_survival": 29.5,
+    "quartiles": {
+      "25pct": 8.17,
+      "50pct": 29.5
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  },
+  "Treatment": {
+    "landmarks": [
+      {
+        "time": 6,
+        "survival": 0.9833,
+        "plot_y": 0.9833,
+        "description": "6-month value"
+      },
+      {
+        "time": 12,
+        "survival": 0.845,
+        "plot_y": 0.845,
+        "description": "1-year value"
+      },
+      {
+        "time": 24,
+        "survival": 0.6932,
+        "plot_y": 0.6932,
+        "description": "2-year value"
+      },
+      {
+        "time": 36,
+        "survival": 0.4861,
+        "plot_y": 0.4861,
+        "description": "3-year value"
+      }
+    ],
+    "median_survival": 34.86,
+    "quartiles": {
+      "25pct": 16.35,
+      "50pct": 34.86
+    },
+    "curve_direction": "downward",
+    "plot_space": "survival",
+    "evaluation_space": "survival"
+  }
+}

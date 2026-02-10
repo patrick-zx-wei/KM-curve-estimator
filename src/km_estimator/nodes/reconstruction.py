@@ -341,92 +341,13 @@ def _normalize_step_coords(coords: list[tuple[float, float]]) -> list[tuple[floa
     return merged
 
 
-def _looks_upward_trend(coords: list[tuple[float, float]]) -> bool:
-    """Detect whether coords are likely incidence-space (increasing over time).
-
-    Uses two complementary tests:
-    1. Rise/fall counting (original) — works for clean curves.
-    2. Quartile comparison — robust to noisy upward curves where pixel-level
-       fluctuations create many spurious falls that outnumber rises.
-    """
-    if len(coords) < 3:
-        return False
-    ordered = sorted((float(t), float(s)) for t, s in coords)
-    ys = [s for _, s in ordered]
-    rises = sum(1 for i in range(len(ys) - 1) if ys[i + 1] > ys[i] + 1e-4)
-    falls = sum(1 for i in range(len(ys) - 1) if ys[i + 1] < ys[i] - 1e-4)
-    net_change = ys[-1] - ys[0]
-
-    # Original test: net increase with more rises than falls.
-    if net_change > 0.03 and rises > max(1, falls):
-        return True
-
-    # Robust quartile test: compare first-quarter median vs last-quarter
-    # median.  A large positive difference indicates an upward trend even
-    # when point-to-point noise obscures the rise/fall ratio.
-    n = len(ys)
-    q1_end = max(1, n // 4)
-    q4_start = n - max(1, n // 4)
-    first_q_median = float(sorted(ys[:q1_end])[q1_end // 2])
-    last_q_median = float(sorted(ys[q4_start:])[len(ys[q4_start:]) // 2])
-    if last_q_median - first_q_median > 0.08 and first_q_median < 0.5:
-        return True
-
-    return False
-
-
 def _ensure_survival_space(
     coords: list[tuple[float, float]],
-    curve_direction: str,
-    y_start: float,
-    y_end: float,
-) -> tuple[list[tuple[float, float]], bool]:
-    """
-    Ensure coordinates are in decreasing survival space.
-
-    Returns: (normalized_coords, converted_from_upward)
-    """
+) -> list[tuple[float, float]]:
+    """Normalize coordinates into decreasing survival space."""
     if not coords:
-        return [], False
-
-    is_upward = _looks_upward_trend(coords)
-
-    if is_upward:
-        # Data clearly trends upward — reflect regardless of declared
-        # direction (e.g. the digitiser may output incidence values even
-        # when metadata says "downward").
-        pass  # fall through to reflection below
-    elif curve_direction != "upward":
-        # Both data and metadata agree: downward / survival.
-        return _normalize_step_coords(coords), False
-    else:
-        # Metadata says "upward" but _looks_upward_trend disagrees.
-        # Only skip reflection if the data is *clearly* survival-like
-        # (strongly decreasing).  Otherwise trust the metadata —
-        # truncated y-axes and axis-tracing artefacts can mask the
-        # upward trend from the heuristic.
-        ordered_tmp = sorted((float(t), float(s)) for t, s in coords)
-        ys_tmp = [s for _, s in ordered_tmp]
-        n_tmp = len(ys_tmp)
-        q1e = max(1, n_tmp // 4)
-        q4s = n_tmp - max(1, n_tmp // 4)
-        fq = float(sorted(ys_tmp[:q1e])[q1e // 2])
-        lq = float(sorted(ys_tmp[q4s:])[len(ys_tmp[q4s:]) // 2])
-        if fq - lq > 0.15:
-            # Clearly decreasing — data is already in survival space.
-            return _normalize_step_coords(coords), False
-        # Ambiguous: trust the metadata and reflect.
-
-    y_abs_max = float(max(abs(y_start), abs(y_end)))
-    percent_scale = 100.0 if (1.5 < y_abs_max <= 100.5) else 1.0
-    reflected = [
-        (
-            float(t),
-            float(np.clip(1.0 - (float(s) / percent_scale), 0.0, 1.0)),
-        )
-        for t, s in coords
-    ]
-    return _normalize_step_coords(reflected), True
+        return []
+    return _normalize_step_coords(coords)
 
 
 def _extract_drop_points_in_interval(
@@ -1841,13 +1762,6 @@ def reconstruct(state: PipelineState) -> PipelineState:
         _build_risk_table_hardpoint_constraints(state)
     )
     all_warnings.extend(hardpoint_warnings)
-    curve_direction = (
-        state.plot_metadata.curve_direction
-        if state.plot_metadata.curve_direction in ("downward", "upward")
-        else "downward"
-    )
-    y_start = state.plot_metadata.y_axis.start
-    y_end = state.plot_metadata.y_axis.end
     rerender_mapping: AxisMapping | None = None
     rerender_shape: tuple[int, int] | None = None
     if mode == ReconstructionMode.FULL and state.isolated_curve_pixels:
@@ -1865,21 +1779,12 @@ def reconstruct(state: PipelineState) -> PipelineState:
                 )
 
     for name, coords in state.digitized_curves.items():
-        survival_coords, converted_from_upward = _ensure_survival_space(
-            coords,
-            curve_direction=curve_direction,
-            y_start=y_start,
-            y_end=y_end,
-        )
+        survival_coords = _ensure_survival_space(coords)
         curve_hardpoints = hardpoint_constraints.get(name, [])
         if curve_hardpoints:
             survival_coords = _apply_hardpoint_curve_constraints(survival_coords, curve_hardpoints)
             all_warnings.append(
                 f"{name}: applied {len(curve_hardpoints)} hardpoint anchors before reconstruction"
-            )
-        if converted_from_upward:
-            all_warnings.append(
-                f"{name}: reflected upward curve into survival space during reconstruction"
             )
 
         censoring = state.censoring_marks.get(name, []) if state.censoring_marks else []
@@ -2108,22 +2013,10 @@ def validate(state: PipelineState) -> PipelineState:
     validated_curves = []
 
     compute_full_metrics = state.config.compute_full_validation_metrics
-    curve_direction = (
-        state.plot_metadata.curve_direction
-        if state.plot_metadata and state.plot_metadata.curve_direction in ("downward", "upward")
-        else "downward"
-    )
-    y_start = state.plot_metadata.y_axis.start if state.plot_metadata else 0.0
-    y_end = state.plot_metadata.y_axis.end if state.plot_metadata else 1.0
 
     for curve in state.output.curves:
         raw_original = state.digitized_curves.get(curve.group_name, [])
-        original, _ = _ensure_survival_space(
-            raw_original,
-            curve_direction=curve_direction,
-            y_start=y_start,
-            y_end=y_end,
-        )
+        original = _ensure_survival_space(raw_original)
         reconstructed = _km_from_ipd(curve.patients)
 
         mae = _calculate_mae(original, reconstructed)

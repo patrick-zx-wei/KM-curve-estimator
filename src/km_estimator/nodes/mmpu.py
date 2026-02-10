@@ -34,24 +34,6 @@ RISK_TABLE_CROP_RATIOS = (0.35, 0.45, 0.52, 0.60, 0.70)
 RISK_TABLE_REPLACEMENT_MARGIN = 0.25
 AXIS_X_CROP_START_RATIO = 0.80
 AXIS_Y_CROP_END_RATIO = 0.24
-UPWARD_DIRECTION_HINTS = (
-    "cumulative incidence",
-    "incidence",
-    "cumulative event",
-    "event probability",
-    "failure probability",
-    "recurrence",
-    "mortality",
-)
-DOWNWARD_DIRECTION_HINTS = (
-    "survival",
-    "overall survival",
-    "progression-free survival",
-    "disease-free survival",
-    "event-free survival",
-    "survival probability",
-)
-
 
 def _mmpu_retry_phases(
     api_timeout_seconds: int, api_max_retries: int
@@ -87,86 +69,6 @@ def _row_numbers(row: list[str]) -> list[float]:
 def _normalize_name(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", name.lower()).strip()
 
-
-def _infer_curve_direction(
-    plot_metadata: PlotMetadata,
-    ocr_tokens: RawOCRTokens | None,
-    warnings: list[str],
-) -> PlotMetadata:
-    """Infer curve direction from extracted text and reconcile metadata."""
-    texts: list[str] = []
-    if plot_metadata.title:
-        texts.append(str(plot_metadata.title))
-    texts.extend(str(a) for a in plot_metadata.annotations)
-    if plot_metadata.x_axis.label:
-        texts.append(str(plot_metadata.x_axis.label))
-    if plot_metadata.y_axis.label:
-        texts.append(str(plot_metadata.y_axis.label))
-    if ocr_tokens is not None:
-        texts.extend(str(a) for a in ocr_tokens.axis_labels)
-        texts.extend(str(a) for a in ocr_tokens.annotations)
-        if ocr_tokens.title:
-            texts.append(str(ocr_tokens.title))
-
-    combined = " ".join(texts).lower()
-    upward_hits = sum(1 for hint in UPWARD_DIRECTION_HINTS if hint in combined)
-    downward_hits = sum(1 for hint in DOWNWARD_DIRECTION_HINTS if hint in combined)
-    explicit_upward = any(
-        phrase in combined for phrase in ("cumulative incidence", "incidence", "cumulative event")
-    )
-    explicit_downward = any(
-        phrase in combined
-        for phrase in (
-            "overall survival",
-            "progression-free survival",
-            "disease-free survival",
-            "event-free survival",
-            "survival probability",
-        )
-    )
-
-    inferred: str | None = None
-    if explicit_upward and not explicit_downward:
-        inferred = "upward"
-    elif explicit_downward and not explicit_upward:
-        inferred = "downward"
-    elif upward_hits >= 2 and upward_hits >= downward_hits + 2:
-        inferred = "upward"
-    elif downward_hits >= 2 and downward_hits >= upward_hits + 2:
-        inferred = "downward"
-
-    current = (
-        plot_metadata.curve_direction
-        if plot_metadata.curve_direction in ("downward", "upward")
-        else "downward"
-    )
-
-    # Avoid overcorrecting explicit incidence/survival metadata unless opposite evidence is strong.
-    if (
-        current == "upward"
-        and explicit_upward
-        and not (explicit_downward and downward_hits >= upward_hits + 2)
-    ):
-        return plot_metadata
-    if (
-        current == "downward"
-        and explicit_downward
-        and not (explicit_upward and upward_hits >= downward_hits + 2)
-    ):
-        return plot_metadata
-
-    if inferred is not None and inferred != current:
-        warnings.append(
-            f"Adjusted curve_direction from {current} to {inferred} based on labels/annotations"
-        )
-        return plot_metadata.model_copy(update={"curve_direction": inferred})
-
-    if plot_metadata.curve_direction not in ("downward", "upward"):
-        resolved = inferred or "downward"
-        warnings.append(f"Defaulted invalid curve_direction to {resolved}")
-        return plot_metadata.model_copy(update={"curve_direction": resolved})
-
-    return plot_metadata
 
 
 def _best_non_decreasing_run(nums: list[float]) -> list[float]:
@@ -1304,7 +1206,6 @@ def mmpu(state: PipelineState) -> PipelineState:
         )
 
     plot_metadata = metadata_result.result
-    plot_metadata = _infer_curve_direction(plot_metadata, ocr_tokens, warnings)
 
     # Risk-table recovery pass (quality-aware):
     # 1) Always attempt OCR parsing when tokens are available.
@@ -1567,7 +1468,6 @@ async def mmpu_async(state: PipelineState) -> PipelineState:
         )
 
     plot_metadata = metadata_result.result
-    plot_metadata = _infer_curve_direction(plot_metadata, ocr_tokens, warnings)
 
     # Async risk-table recovery mirrors sync quality-aware behavior.
     if ocr_tokens is not None:

@@ -1,17 +1,13 @@
-"""Shared plot model for digitization_v3.
+"""Shared plot model.
 
-This module is the single source of truth for:
-- plot bounds
-- pixel/value transforms
-- x-column grid
-- axis/tick penalty masks
+Single source of truth for plot bounds, pixel/value transforms,
+x-column grid, and axis/tick penalty masks.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal
 
 import cv2
 import numpy as np
@@ -19,8 +15,6 @@ from numpy.typing import NDArray
 
 from km_estimator.models import PlotMetadata, ProcessingError, RawOCRTokens
 from km_estimator.nodes.axis_calibration import AxisMapping, calibrate_axes
-
-CurveDirection = Literal["downward", "upward", "unknown"]
 
 AXIS_THICKNESS_RATIO = 0.010
 TICK_EXTENT_RATIO = 0.015
@@ -52,7 +46,7 @@ TICK_HOTSPOT_KEEP_SCORE = 0.030
 
 @dataclass(frozen=True)
 class PlotModel:
-    """Shared geometric model consumed by all digitization_v3 stages."""
+    """Shared geometric model consumed by all digitization stages."""
 
     mapping: AxisMapping
     x_grid: NDArray[np.int32]
@@ -61,8 +55,6 @@ class PlotModel:
     x_tick_anchors: tuple[tuple[int, float], ...]  # global px -> value
     y_tick_anchors: tuple[tuple[int, float], ...]  # global py -> value
     tick_calibration_confidence: float
-    curve_direction: CurveDirection
-    direction_confidence: float
     warning_codes: tuple[str, ...]
 
     @property
@@ -214,74 +206,6 @@ class PlotModel:
         px = int(np.clip(px, x0, x1 - 1))
         py = int(np.clip(py, y0, y1 - 1))
         return (px, py)
-
-
-def _direction_from_text(text: str) -> CurveDirection | None:
-    lowered = text.lower()
-    if any(
-        token in lowered
-        for token in ("incidence", "cumulative", "event-free", "hazard", "probability of event")
-    ):
-        return "upward"
-    if any(
-        token in lowered
-        for token in ("survival", "overall survival", "progression-free", "pfs", "os")
-    ):
-        return "downward"
-    return None
-
-
-def infer_curve_direction(
-    meta: PlotMetadata,
-    ocr_tokens: RawOCRTokens | None,
-) -> tuple[CurveDirection, float, list[str]]:
-    """Infer expected curve direction from text first, metadata second."""
-    warnings: list[str] = []
-
-    text_candidates: list[str] = []
-    if meta.title:
-        text_candidates.append(meta.title)
-    if meta.y_axis.label:
-        text_candidates.append(meta.y_axis.label)
-    text_candidates.extend(meta.annotations)
-    if ocr_tokens is not None:
-        text_candidates.extend(ocr_tokens.axis_labels)
-        text_candidates.extend(ocr_tokens.annotations)
-        if ocr_tokens.title:
-            text_candidates.append(ocr_tokens.title)
-
-    votes: list[CurveDirection] = []
-    for chunk in text_candidates:
-        vote = _direction_from_text(chunk)
-        if vote is not None:
-            votes.append(vote)
-
-    if votes:
-        n_up = sum(1 for v in votes if v == "upward")
-        n_down = sum(1 for v in votes if v == "downward")
-        if n_up == n_down:
-            # Keep deterministic behavior: fall back to metadata direction
-            # rather than unknown/no-constraint tracing.
-            fallback = (
-                meta.curve_direction
-                if meta.curve_direction in ("upward", "downward")
-                else "unknown"
-            )
-            warnings.append("W_DIRECTION_AMBIGUOUS_TEXT")
-            warnings.append(f"I_DIRECTION_FALLBACK_METADATA:{fallback}")
-            if fallback != "unknown":
-                return fallback, 0.62, warnings
-            return "unknown", 0.45, warnings
-        if n_up > n_down:
-            return "upward", min(0.95, 0.60 + 0.07 * n_up), warnings
-        return "downward", min(0.95, 0.60 + 0.07 * n_down), warnings
-
-    if meta.curve_direction in ("upward", "downward"):
-        warnings.append("W_DIRECTION_FROM_METADATA_ONLY")
-        return meta.curve_direction, 0.60, warnings
-
-    warnings.append("W_DIRECTION_UNKNOWN")
-    return "unknown", 0.35, warnings
 
 
 def _tick_search_radius(
@@ -1331,8 +1255,6 @@ def build_plot_model(
         y_ticks_py=tuple(py for py, _ in y_tick_anchors),
     )
 
-    direction, direction_confidence, warning_codes = infer_curve_direction(meta, ocr_tokens)
-    warning_codes.extend(tick_warnings)
     x_grid = np.arange(x0, x1, dtype=np.int32)
     if x_grid.size == 0:
         x_grid = np.asarray([x0], dtype=np.int32)
@@ -1345,7 +1267,5 @@ def build_plot_model(
         x_tick_anchors=x_tick_anchors,
         y_tick_anchors=y_tick_anchors,
         tick_calibration_confidence=float(tick_cal_conf),
-        curve_direction=direction,
-        direction_confidence=float(direction_confidence),
-        warning_codes=tuple(warning_codes),
+        warning_codes=tuple(tick_warnings),
     )

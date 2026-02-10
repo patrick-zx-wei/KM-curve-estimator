@@ -57,11 +57,13 @@ def _save_cache(case_dir: Path, state: PipelineState) -> None:
             for name, pts in (state.isolated_curve_pixels or {}).items()
         },
     }
-    (case_dir / CACHE_FILENAME).write_text(json.dumps(cache))
+    out_dir = case_dir / "output"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / CACHE_FILENAME).write_text(json.dumps(cache))
 
 
 def _load_cache(case_dir: Path) -> dict | None:
-    path = case_dir / CACHE_FILENAME
+    path = case_dir / "output" / CACHE_FILENAME
     if not path.exists():
         return None
     return json.loads(path.read_text())
@@ -138,7 +140,6 @@ def _build_metadata(meta: dict, risk_table: RiskTable | None) -> PlotMetadata:
         ),
         curves=curves,
         risk_table=risk_table,
-        curve_direction=meta.get("curve_direction", "downward"),
         title=meta.get("title"),
         annotations=meta.get("annotations", []),
     )
@@ -215,16 +216,16 @@ def main():
         case_dir = FIXTURE_DIR / case_name
         if not case_dir.exists():
             continue
-        meta = json.loads((case_dir / "metadata.json").read_text())
-        image_path = str(case_dir / "graph.png")
+        meta = json.loads((case_dir / "ground_truth" / "metadata.json").read_text())
+        image_path = str(case_dir / "input" / "graph.png")
 
         # Load ground-truth risk table
-        rt_path = case_dir / "risk_table_data.csv"
+        rt_path = case_dir / "ground_truth" / "risk_table_data.csv"
         risk_table = _load_risk_table(rt_path) if rt_path.exists() else None
 
         # Load ground-truth curves
         gt_curves: dict[str, list[tuple[float, float]]] = {}
-        gt_csv = case_dir / "ground_truth.csv"
+        gt_csv = case_dir / "ground_truth" / "ground_truth.csv"
         if gt_csv.exists():
             with open(gt_csv) as f:
                 reader = csv.DictReader(f)

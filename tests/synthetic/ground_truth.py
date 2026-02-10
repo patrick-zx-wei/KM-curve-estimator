@@ -1,8 +1,9 @@
 """Ground truth construction, persistence, and comparison utilities.
 
-Handles the 7-file-per-case format:
-  metadata.json, raw_survival_data.csv, risk_table_data.csv,
-  ground_truth.csv, hard_points.json, graph_draft.png, graph.png
+Each case directory contains:
+  input/        graph.png
+  ground_truth/ metadata.json, risk_table_data.csv, raw_survival_data.csv,
+                ground_truth.csv, hard_points.json
 """
 
 from __future__ import annotations
@@ -37,7 +38,6 @@ from km_estimator.utils.shape_metrics import (
 from .data_gen import SyntheticCurveData, SyntheticTestCase, _compute_greenwood_ci, _km_from_ipd
 from .modifiers import (
     BackgroundStyle,
-    CurveDirection,
     FontTypography,
     FrameLayout,
     Modifier,
@@ -49,15 +49,12 @@ def _extract_style_profile(modifiers: list[Modifier]) -> dict[str, str]:
     """Extract style directives from figure modifiers for metadata/debugging."""
     profile = {
         "background_style": "white",
-        "curve_direction": "downward",
         "frame_layout": "full_box",
         "font_typography": "sans",
     }
     for mod in modifiers:
         if isinstance(mod, BackgroundStyle):
             profile["background_style"] = mod.style
-        elif isinstance(mod, CurveDirection):
-            profile["curve_direction"] = mod.direction
         elif isinstance(mod, FrameLayout):
             profile["frame_layout"] = mod.layout
         elif isinstance(mod, FontTypography):
@@ -67,10 +64,6 @@ def _extract_style_profile(modifiers: list[Modifier]) -> dict[str, str]:
 
 def build_ground_truth_metadata(test_case: SyntheticTestCase) -> PlotMetadata:
     """Build the PlotMetadata the pipeline should ideally extract."""
-    style_profile = _extract_style_profile(test_case.modifiers)
-    curve_direction = style_profile["curve_direction"]
-    if not test_case.modifiers and test_case.curve_direction in ("downward", "upward"):
-        curve_direction = test_case.curve_direction
     curves = [
         CurveInfo(
             name=c.group_name,
@@ -86,7 +79,6 @@ def build_ground_truth_metadata(test_case: SyntheticTestCase) -> PlotMetadata:
         risk_table=test_case.risk_table,
         title=test_case.title,
         annotations=test_case.annotations,
-        curve_direction=curve_direction,
     )
 
 
@@ -114,12 +106,6 @@ def build_ground_truth_ipd(test_case: SyntheticTestCase) -> IPDOutput:
 def compute_hard_points(test_case: SyntheticTestCase) -> dict:
     """Compute landmark survival probabilities and median/quartile survival times."""
     result = {}
-    direction = (
-        test_case.curve_direction
-        if test_case.curve_direction in ("downward", "upward")
-        else "downward"
-    )
-    plot_space = "incidence" if direction == "upward" else "survival"
 
     for curve in test_case.curves:
         step_coords = curve.step_coords
@@ -144,12 +130,11 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
         for t in candidate_times:
             if t <= last_event_t:
                 s = _get_survival_at_step(step_coords, float(t))
-                plot_y = (1.0 - s) if direction == "upward" else s
                 landmarks.append(
                     {
                         "time": t,
                         "survival": round(s, 4),
-                        "plot_y": round(plot_y, 4),
+                        "plot_y": round(s, 4),
                         "description": time_labels[t],
                     }
                 )
@@ -167,9 +152,6 @@ def compute_hard_points(test_case: SyntheticTestCase) -> dict:
             "landmarks": landmarks,
             "median_survival": median,
             "quartiles": quartiles,
-            "curve_direction": direction,
-            "plot_space": plot_space,
-            "evaluation_space": "survival",
         }
 
     return result
@@ -199,9 +181,12 @@ def _find_survival_time(coords: list[tuple[float, float]], target_survival: floa
 
 
 def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
-    """Write all 7 files for a test case to output_dir."""
+    """Write all files for a test case to output_dir."""
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    input_dir = output_dir / "input"
+    gt_dir = output_dir / "ground_truth"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    gt_dir.mkdir(parents=True, exist_ok=True)
 
     style_profile = _extract_style_profile(test_case.modifiers)
     # 1. metadata.json
@@ -217,7 +202,6 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "tier": test_case.tier,
         "gap_pattern": test_case.gap_pattern,
         "background_style": style_profile["background_style"],
-        "curve_direction": style_profile["curve_direction"],
         "frame_layout": style_profile["frame_layout"],
         "font_typography": style_profile["font_typography"],
         "dpi": 150,
@@ -228,13 +212,11 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
         "y_axis": test_case.y_axis.model_dump(),
         "total_patients": sum(len(c.patients) for c in test_case.curves),
         "total_events": sum(sum(1 for p in c.patients if p.event) for c in test_case.curves),
-        "hard_points_space": "survival",
-        "plot_space_for_upward": "incidence",
     }
-    _write_json(output_dir / "metadata.json", metadata)
+    _write_json(gt_dir / "metadata.json", metadata)
 
     # 2. raw_survival_data.csv
-    with open(output_dir / "raw_survival_data.csv", "w", newline="") as f:
+    with open(gt_dir / "raw_survival_data.csv", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["patient_id", "group", "time", "event"])
         pid = 0
@@ -246,7 +228,7 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
     # 3. risk_table_data.csv
     if test_case.risk_table:
         rt = test_case.risk_table
-        with open(output_dir / "risk_table_data.csv", "w", newline="") as f:
+        with open(gt_dir / "risk_table_data.csv", "w", newline="") as f:
             writer = csv.writer(f)
             header = ["time"] + [g.name for g in rt.groups]
             writer.writerow(header)
@@ -255,11 +237,11 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
                 writer.writerow(row)
     else:
         # Write empty file
-        with open(output_dir / "risk_table_data.csv", "w", newline="") as f:
+        with open(gt_dir / "risk_table_data.csv", "w", newline="") as f:
             f.write("time\n")
 
     # 4. ground_truth.csv (dense KM coords with Greenwood CI)
-    with open(output_dir / "ground_truth.csv", "w", newline="") as f:
+    with open(gt_dir / "ground_truth.csv", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["time", "group", "survival_probability", "ci_lower", "ci_upper"])
         for curve in test_case.curves:
@@ -279,23 +261,25 @@ def save_test_case(test_case: SyntheticTestCase, output_dir: Path) -> None:
 
     # 5. hard_points.json
     hard_points = compute_hard_points(test_case)
-    _write_json(output_dir / "hard_points.json", hard_points)
+    _write_json(gt_dir / "hard_points.json", hard_points)
 
-    # 6 & 7. graph_draft.png and graph.png are written by renderer.py
-    # (they should already exist at this point)
+    # 6. graph.png is written by renderer.py into input/
+    # (it should already exist at this point)
 
 
 def load_test_case(case_dir: Path) -> SyntheticTestCase:
     """Load a test case from disk."""
     case_dir = Path(case_dir)
+    input_dir = case_dir / "input"
+    gt_dir = case_dir / "ground_truth"
 
     # Load metadata
-    with open(case_dir / "metadata.json") as f:
+    with open(gt_dir / "metadata.json") as f:
         metadata = json.load(f)
 
     # Load raw survival data
     patients_by_group: dict[str, list[PatientRecord]] = {}
-    with open(case_dir / "raw_survival_data.csv") as f:
+    with open(gt_dir / "raw_survival_data.csv") as f:
         reader = csv.DictReader(f)
         for row in reader:
             group = row["group"]
@@ -307,7 +291,7 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
 
     # Load risk table
     risk_table = None
-    rt_path = case_dir / "risk_table_data.csv"
+    rt_path = gt_dir / "risk_table_data.csv"
     if rt_path.exists():
         with open(rt_path) as f:
             reader = csv.reader(f)
@@ -390,8 +374,7 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
     # Reconstruct modifier list from names (for metadata only)
     modifiers: list[Modifier] = []
 
-    graph_path = case_dir / "graph.png"
-    draft_path = case_dir / "graph_draft.png"
+    graph_path = case_dir / "input" / "graph.png"
 
     return SyntheticTestCase(
         name=metadata.get("name", case_dir.name),
@@ -406,13 +389,7 @@ def load_test_case(case_dir: Path) -> SyntheticTestCase:
         difficulty=metadata.get("difficulty", 1),
         tier=metadata.get("tier", "standard"),
         gap_pattern=metadata.get("gap_pattern"),
-        curve_direction=(
-            str(metadata.get("curve_direction", "downward")).lower()
-            if str(metadata.get("curve_direction", "downward")).lower() in ("downward", "upward")
-            else "downward"
-        ),
         image_path=str(graph_path) if graph_path.exists() else None,
-        draft_image_path=str(draft_path) if draft_path.exists() else None,
     )
 
 
@@ -432,7 +409,6 @@ def save_manifest(
                 "tier": c.tier,
                 "gap_pattern": c.gap_pattern,
                 "background_style": style["background_style"],
-                "curve_direction": style["curve_direction"],
                 "frame_layout": style["frame_layout"],
                 "font_typography": style["font_typography"],
                 "modifiers": get_modifier_names(c.modifiers),
@@ -487,12 +463,6 @@ def compare_hard_points(
     """Check if reconstructed IPD matches landmark survival values."""
     results = {}
 
-    direction = (
-        actual_ipd.metadata.curve_direction
-        if actual_ipd.metadata.curve_direction in ("downward", "upward")
-        else "downward"
-    )
-
     for curve in actual_ipd.curves:
         group = curve.group_name
         if group not in hard_points:
@@ -506,11 +476,9 @@ def compare_hard_points(
         for lm in expected.get("landmarks", []):
             t = lm["time"]
             expected_s = lm["survival"]
-            expected_plot_y = lm.get(
-                "plot_y", expected_s if direction == "downward" else 1.0 - expected_s
-            )
+            expected_plot_y = lm.get("plot_y", expected_s)
             actual_s = _get_survival_at_step_local(reconstructed_km, float(t))
-            actual_plot_y = actual_s if direction == "downward" else (1.0 - actual_s)
+            actual_plot_y = actual_s
             error = abs(actual_s - expected_s)
             plot_error = abs(float(actual_plot_y) - float(expected_plot_y))
             landmark_results.append(
@@ -529,8 +497,6 @@ def compare_hard_points(
         results[group] = {
             "landmarks": landmark_results,
             "all_pass": all(lr["pass"] for lr in landmark_results),
-            "evaluation_space": "survival",
-            "plot_space": ("incidence" if direction == "upward" else "survival"),
         }
 
     return results

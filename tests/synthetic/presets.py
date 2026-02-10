@@ -1,6 +1,5 @@
-"""Preset generation profiles: difficult and standard suites.
+"""Preset generation profiles.
 
-generate_difficult(): 5 hand-picked realistic hard scenarios (Legacy tier).
 generate_standard(): 100 cases across 3 tiers (50 pristine / 35 standard / 15 legacy).
 """
 
@@ -19,7 +18,6 @@ from .modifiers import (
     Annotations,
     BackgroundStyle,
     CensoringMarks,
-    CurveDirection,
     FontTypography,
     FrameLayout,
     GridLines,
@@ -120,7 +118,6 @@ TIER_LEGACY = TierConfig(
 TIERS = [TIER_PRISTINE, TIER_STANDARD, TIER_LEGACY]
 GapPattern = Literal["diverging", "parallel", "converging", "crossover"]
 BackgroundStyleLabel = Literal["white", "sas_gray", "ggplot_gray"]
-CurveDirectionLabel = Literal["downward", "upward"]
 FrameLayoutLabel = Literal["l_axis", "full_box"]
 FontFamilyLabel = Literal["sans", "serif"]
 
@@ -151,7 +148,7 @@ def _sample_literature_style_modifiers(case_rng: np.random.Generator) -> list[Mo
 
     Distributions:
     - Background: 75% white, 20% SAS gray, 5% ggplot gray
-    - Direction: 85% downward (survival), 15% upward (incidence)
+    - Direction: always downward (survival)
     - Frame: 60% L-axis, 40% full box
     - Font: 80% sans, 20% serif
     """
@@ -163,10 +160,6 @@ def _sample_literature_style_modifiers(case_rng: np.random.Generator) -> list[Mo
                 p=[0.75, 0.20, 0.05],
             )
         ),
-    )
-    direction = cast(
-        CurveDirectionLabel,
-        str(case_rng.choice(["downward", "upward"], p=[0.85, 0.15])),
     )
     frame_layout = cast(
         FrameLayoutLabel,
@@ -180,7 +173,6 @@ def _sample_literature_style_modifiers(case_rng: np.random.Generator) -> list[Mo
         list[Modifier],
         [
             BackgroundStyle(style=background),
-            CurveDirection(direction=direction),
             FrameLayout(layout=frame_layout),
             FontTypography(family=font_family),
         ],
@@ -193,7 +185,6 @@ def _apply_literature_style_profile(style_profile: dict[str, str]) -> list[Modif
         list[Modifier],
         [
             BackgroundStyle(style=cast(BackgroundStyleLabel, style_profile["background_style"])),
-            CurveDirection(direction=cast(CurveDirectionLabel, style_profile["curve_direction"])),
             FrameLayout(layout=cast(FrameLayoutLabel, style_profile["frame_layout"])),
             FontTypography(family=cast(FontFamilyLabel, style_profile["font_typography"])),
         ],
@@ -330,155 +321,6 @@ def _apply_post_render(
     modifiers.append(LowResolution(target_width=int(rng.integers(lo_w, hi_w + 1))))
     modifiers.append(JPEGArtifacts(quality=int(rng.integers(lo_q, hi_q + 1))))
     modifiers.append(NoisyBackground(sigma=rng.uniform(lo_s, hi_s)))
-
-
-# ---------------------------------------------------------------------------
-# Difficult preset definitions (Legacy tier)
-# ---------------------------------------------------------------------------
-
-
-def _difficult_low_res_overlap(seed: int) -> SyntheticTestCase:
-    return generate_test_case(
-        name="low_res_overlap",
-        seed=seed,
-        n_curves=3,
-        n_per_arm=180,
-        max_time=48.0,
-        weibull_ks=[0.95, 1.05, 1.15],
-        weibull_scale=32.0,
-        censoring_rate=0.02,
-        modifiers=[
-            CensoringMarks(),
-            RiskTableDisplay(),
-            GridLines(alpha=0.25),
-            Annotations(),
-            LowResolution(target_width=850),
-            JPEGArtifacts(quality=70),
-        ],
-        difficulty=4,
-        tier="legacy",
-    )
-
-
-def _difficult_truncated_noisy(seed: int) -> SyntheticTestCase:
-    return generate_test_case(
-        name="truncated_noisy",
-        seed=seed,
-        n_curves=2,
-        n_per_arm=200,
-        max_time=60.0,
-        weibull_ks=[1.35, 1.85],
-        weibull_scale=40.0,
-        censoring_rate=0.02,
-        y_axis_start=0.25,
-        modifiers=[
-            TruncatedYAxis(y_start=0.25),
-            CensoringMarks(),
-            RiskTableDisplay(),
-            GridLines(alpha=0.25),
-            ThinLines(linewidth=1.3),
-            NoisyBackground(sigma=5.0),
-        ],
-        difficulty=4,
-        tier="legacy",
-    )
-
-
-def _difficult_crossing_compressed(seed: int) -> SyntheticTestCase:
-    return generate_test_case(
-        name="crossing_compressed",
-        seed=seed,
-        n_curves=2,
-        n_per_arm=180,
-        max_time=60.0,
-        weibull_ks=[0.75, 1.95],
-        weibull_scale=35.0,
-        censoring_rate=0.015,
-        modifiers=[
-            CensoringMarks(),
-            RiskTableDisplay(),
-            Annotations(),
-            GridLines(major=True, alpha=0.25),
-            LowResolution(target_width=900),
-            JPEGArtifacts(quality=70),
-        ],
-        difficulty=4,
-        tier="legacy",
-    )
-
-
-def _difficult_four_arm_lowres(seed: int) -> SyntheticTestCase:
-    return generate_test_case(
-        name="four_arm_lowres",
-        seed=seed,
-        n_curves=4,
-        n_per_arm=130,
-        max_time=36.0,
-        weibull_ks=[0.9, 1.0, 1.08, 1.15],
-        weibull_scale=25.0,
-        censoring_rate=0.02,
-        group_names=["Arm A", "Arm B", "Arm C", "Arm D"],
-        modifiers=[
-            CensoringMarks(),
-            RiskTableDisplay(),
-            GridLines(alpha=0.25),
-            Annotations(),
-            LowResolution(target_width=880),
-        ],
-        difficulty=4,
-        tier="legacy",
-    )
-
-
-def _difficult_sparse_degraded(seed: int) -> SyntheticTestCase:
-    return generate_test_case(
-        name="sparse_degraded",
-        seed=seed,
-        n_curves=2,
-        n_per_arm=95,
-        max_time=48.0,
-        weibull_ks=[0.95, 1.05],
-        weibull_scale=24.0,
-        censoring_rate=0.08,
-        modifiers=[
-            CensoringMarks(),
-            RiskTableDisplay(),
-            GridLines(alpha=0.25),
-            Annotations(),
-            LowResolution(target_width=820),
-            JPEGArtifacts(quality=68),
-            NoisyBackground(sigma=5.0),
-        ],
-        difficulty=5,
-        tier="legacy",
-    )
-
-
-DIFFICULT_PRESETS = [
-    _difficult_low_res_overlap,
-    _difficult_truncated_noisy,
-    _difficult_crossing_compressed,
-    _difficult_four_arm_lowres,
-    _difficult_sparse_degraded,
-]
-
-
-def generate_difficult(
-    output_dir: str | Path = "tests/fixtures/difficult",
-    base_seed: int = 42,
-) -> list[SyntheticTestCase]:
-    """Generate 5 difficult test cases (Legacy tier)."""
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    cases = []
-    for i, preset_fn in enumerate(DIFFICULT_PRESETS):
-        tc = preset_fn(seed=base_seed + i)
-        _generate_and_save(tc, output_dir)
-        cases.append(tc)
-
-    save_manifest(cases, output_dir)
-    return cases
 
 
 # ---------------------------------------------------------------------------
@@ -864,12 +706,6 @@ def generate_standard(
         probs=[0.75, 0.20, 0.05],
         rng=style_rng,
     )
-    direction_schedule = _build_weighted_schedule(
-        n_total,
-        labels=["downward", "upward"],
-        probs=[0.85, 0.15],
-        rng=style_rng,
-    )
     frame_schedule = _build_weighted_schedule(
         n_total,
         labels=["l_axis", "full_box"],
@@ -915,7 +751,6 @@ def generate_standard(
 
         style_profile = {
             "background_style": background_schedule[i],
-            "curve_direction": direction_schedule[i],
             "frame_layout": frame_schedule[i],
             "font_typography": font_schedule[i],
         }

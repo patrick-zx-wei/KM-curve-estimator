@@ -1,4 +1,4 @@
-"""Minimal curve cleanup and conversion for digitization_v2."""
+"""Minimal curve cleanup and conversion."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from .axis_map import CurveDirection, PlotModel
+from .axis_map import PlotModel
 
 SPIKE_WINDOW = 3
 SOFT_MONO_TOLERANCE = 0.01
@@ -27,10 +27,9 @@ def _running_median(values: list[float], window: int) -> list[float]:
 
 def _soft_monotone(
     values: list[float],
-    direction: CurveDirection,
 ) -> tuple[list[float], int, bool]:
     """
-    Non-destructive monotone correction.
+    Non-destructive monotone correction (downward/survival curves).
 
     - Only edits short violation runs.
     - If violations are widespread, do not edit; request retrace instead.
@@ -39,14 +38,9 @@ def _soft_monotone(
         return values, 0, False
     out = list(values)
     violating: list[int] = []
-    if direction in ("downward", "unknown"):
-        for i in range(1, len(out)):
-            if out[i] > out[i - 1] + SOFT_MONO_TOLERANCE:
-                violating.append(i)
-    else:
-        for i in range(1, len(out)):
-            if out[i] < out[i - 1] - SOFT_MONO_TOLERANCE:
-                violating.append(i)
+    for i in range(1, len(out)):
+        if out[i] > out[i - 1] + SOFT_MONO_TOLERANCE:
+            violating.append(i)
 
     if not violating:
         return out, 0, False
@@ -70,39 +64,20 @@ def _soft_monotone(
         if len(run) > SOFT_MONO_MAX_RUN:
             return values, n_fix, True
         for i in run:
-            if direction in ("downward", "unknown"):
-                allowed = out[i - 1] + SOFT_MONO_TOLERANCE
-                if out[i] > allowed:
-                    out[i] = 0.85 * allowed + 0.15 * out[i]
-                    n_fix += 1
-            else:
-                allowed = out[i - 1] - SOFT_MONO_TOLERANCE
-                if out[i] < allowed:
-                    out[i] = 0.85 * allowed + 0.15 * out[i]
-                    n_fix += 1
+            allowed = out[i - 1] + SOFT_MONO_TOLERANCE
+            if out[i] > allowed:
+                out[i] = 0.85 * allowed + 0.15 * out[i]
+                n_fix += 1
     return out, n_fix, False
-
-
-def _to_survival_value(
-    y_real: float, y_start: float, y_end: float, direction: CurveDirection
-) -> float:
-    if direction != "upward":
-        return float(y_real)
-    denom = max(1e-9, float(y_end - y_start))
-    incidence = (float(y_real) - float(y_start)) / denom
-    return float(np.clip(1.0 - incidence, 0.0, 1.0))
 
 
 def convert_pixel_curves_to_survival(
     pixel_curves: dict[str, list[tuple[int, int]]],
     plot_model: PlotModel,
-    direction: CurveDirection,
 ) -> tuple[dict[str, list[tuple[float, float]]], list[str]]:
     """Convert traced pixel curves to real-space survival coordinates."""
     warnings: list[str] = []
     out: dict[str, list[tuple[float, float]]] = {}
-    y_start = float(plot_model.mapping.y_axis.start)
-    y_end = float(plot_model.mapping.y_axis.end)
 
     for name, pts in pixel_curves.items():
         if not pts:
@@ -121,10 +96,10 @@ def convert_pixel_curves_to_survival(
             py = int(round(float(np.median(np.asarray(by_x[px], dtype=np.float32)))))
             xr, yr = plot_model.px_to_real(px, py)
             xs_real.append(float(xr))
-            ys_surv.append(_to_survival_value(float(yr), y_start, y_end, direction))
+            ys_surv.append(float(yr))
 
         ys_smooth = _running_median(ys_surv, SPIKE_WINDOW)
-        ys_soft, n_fix, retrace_needed = _soft_monotone(ys_smooth, direction=direction)
+        ys_soft, n_fix, retrace_needed = _soft_monotone(ys_smooth)
         if n_fix > 0:
             warnings.append(f"W_SOFT_MONOTONE_ADJUST:{name}:{n_fix}")
         if retrace_needed:
@@ -133,6 +108,4 @@ def convert_pixel_curves_to_survival(
         coords = [(float(t), float(s)) for t, s in zip(xs_real, ys_soft)]
         out[name] = coords
 
-    if direction == "upward":
-        warnings.append("W_UPWARD_REFLECTED_TO_SURVIVAL")
     return out, warnings

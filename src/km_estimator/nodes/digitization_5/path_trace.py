@@ -4,15 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
-from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
 
-from .axis_map import CurveDirection
 from .probability_map import EvidenceCube
-
-DirectionMode = Literal["downward", "upward", "unknown"]
 
 MAX_CANDIDATES_PER_COLUMN = 6
 MIN_COLUMN_SCORE = 0.30
@@ -96,20 +92,13 @@ class TraceResult:
 def _direction_penalty(
     prev_y: int,
     cur_y: int,
-    direction: DirectionMode,
     height: int,
     cfg: TraceConfig,
 ) -> float:
     tol = max(1, int(round(height * MONOTONE_TOLERANCE_RATIO)))
     scale = DIRECTION_WEIGHT * max(0.1, cfg.direction_multiplier)
-    if direction == "downward":
-        if cur_y + tol < prev_y:
-            return scale * float(prev_y - cur_y) / float(max(1, height))
-        return 0.0
-    if direction == "upward":
-        if cur_y > prev_y + tol:
-            return scale * float(cur_y - prev_y) / float(max(1, height))
-        return 0.0
+    if cur_y + tol < prev_y:
+        return scale * float(prev_y - cur_y) / float(max(1, height))
     return 0.0
 
 
@@ -148,16 +137,8 @@ def _axis_penalty_value(
     axis_penalty_map: NDArray[np.float32],
     y: int,
     x: int,
-    direction: DirectionMode,
-    height: int,
 ) -> float:
-    pen = float(axis_penalty_map[y, x])
-    if direction == "upward":
-        # Upward/cumulative-incidence curves legitimately hug the x-axis early.
-        rel = float(y) / float(max(1, height - 1))
-        factor = 0.35 + 0.65 * (1.0 - rel)
-        return pen * factor
-    return pen
+    return float(axis_penalty_map[y, x])
 
 
 def _start_anchor_penalty(
@@ -165,16 +146,12 @@ def _start_anchor_penalty(
     x: int,
     width: int,
     height: int,
-    direction: DirectionMode,
     cfg: TraceConfig,
 ) -> float:
-    if direction == "unknown":
-        return 0.0
     window = max(8, int(round(width * START_PRIOR_WINDOW_RATIO)))
     if x >= window:
         return 0.0
-    target = (height - 1) if direction == "upward" else 0
-    dist = abs(int(y) - int(target)) / float(max(1, height))
+    dist = abs(int(y)) / float(max(1, height))
     decay = 1.0 - (float(x) / float(max(1, window)))
     return START_PRIOR_WEIGHT * cfg.direction_multiplier * decay * dist
 
@@ -347,7 +324,6 @@ def _extract_arm_diagnostics(
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
     overlap_consensus_map: NDArray[np.float32] | None,
-    direction: DirectionMode,
 ) -> dict[str, float]:
     if not ys:
         return {
@@ -369,13 +345,6 @@ def _extract_arm_diagnostics(
     for x in range(w):
         y = ys[x]
         pen = float(axis_penalty_map[y, x])
-        if direction == "upward":
-            # Near-bottom early columns are expected for cumulative-incidence starts;
-            # don't count these as axis-capture failures.
-            rel = float(y) / float(max(1, h - 1))
-            if x < int(round(0.15 * w)) and rel > 0.88:
-                axis_hits.append(0.0)
-                continue
         axis_hits.append(1.0 if pen > 0.35 else 0.0)
     axis_capture_frac = float(np.mean(np.asarray(axis_hits, dtype=np.float32)))
     low_margin_frac = float(
@@ -415,10 +384,8 @@ def _extract_arm_diagnostics(
                 jumps += 1
             if ady > jump_hard:
                 extreme += 1
-            if direction == "downward" and dy < -tol:
+            if dy < -tol:
                 monotone_mass += float(-dy) / float(max(1, h))
-            elif direction == "upward" and dy > tol:
-                monotone_mass += float(dy) / float(max(1, h))
         jump_rate = float(jumps) / float(len(ys) - 1)
         extreme_jump_frac = float(extreme) / float(len(ys) - 1)
         monotone_mass = float(monotone_mass) / float(len(ys) - 1)
@@ -437,7 +404,7 @@ def _extract_arm_diagnostics(
     }
 
 
-def _confidence_from_diagnostics(diag: dict[str, float], direction_confidence: float) -> float:
+def _confidence_from_diagnostics(diag: dict[str, float]) -> float:
     conf = 1.0
     conf -= 0.70 * float(diag.get("axis_capture_frac", 0.0))
     conf -= 0.45 * float(diag.get("low_margin_frac", 0.0))
@@ -449,7 +416,6 @@ def _confidence_from_diagnostics(diag: dict[str, float], direction_confidence: f
     conf -= 0.22 * float(diag.get("low_consensus_frac", 0.0))
     conf -= 0.20 * float(diag.get("low_conf_frac", 0.0))
     conf += 0.25 * float(diag.get("mean_score", 0.0))
-    conf *= 0.85 + 0.15 * float(direction_confidence)
     return float(np.clip(conf, 0.0, 1.0))
 
 
@@ -605,7 +571,6 @@ def _trace_single(
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
     overlap_consensus_map: NDArray[np.float32] | None,
-    direction: DirectionMode,
     occupied_penalty: NDArray[np.float32] | None,
     candidate_mask: NDArray[np.bool_] | None,
     hardpoint_guides: tuple[tuple[int, int], ...] | None,
@@ -656,16 +621,15 @@ def _trace_single(
     parents: list[NDArray[np.int32]] = []
     first = candidates_by_x[0]
     if not first:
-        seed_y = (h - 1) if direction == "upward" else 0
-        seed_y = int(np.clip(seed_y, 0, h - 1))
+        seed_y = 0
         first = [(seed_y, float(score_map[seed_y, 0]))]
         candidates_by_x[0] = first
     first_cost = np.asarray(
         [
             -score
             + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
-            * _axis_penalty_value(axis_penalty_map, y, 0, direction, h)
-            + _start_anchor_penalty(y, 0, w, h, direction, cfg)
+            * _axis_penalty_value(axis_penalty_map, y, 0)
+            + _start_anchor_penalty(y, 0, w, h, cfg)
             + (
                 OVERLAP_AMBIG_PENALTY * (1.0 - float(overlap_consensus_map[y, 0]))
                 if overlap_consensus_map is not None
@@ -719,8 +683,8 @@ def _trace_single(
                 unary = (
                     -float(score_cur)
                     + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
-                    * _axis_penalty_value(axis_penalty_map, y_cur, x, direction, h)
-                    + _start_anchor_penalty(y_cur, x, w, h, direction, cfg)
+                    * _axis_penalty_value(axis_penalty_map, y_cur, x)
+                    + _start_anchor_penalty(y_cur, x, w, h, cfg)
                     + (
                         OVERLAP_AMBIG_PENALTY * (1.0 - float(overlap_consensus_map[y_cur, x]))
                         if overlap_consensus_map is not None
@@ -747,7 +711,7 @@ def _trace_single(
                         * abs(y_cur - y_prev)
                         / float(max(1, h))
                     )
-                    dir_pen = _direction_penalty(y_prev, y_cur, direction, h, cfg)
+                    dir_pen = _direction_penalty(y_prev, y_cur, h, cfg)
                     jump_pen = _jump_penalty(y_prev, y_cur, h)
                     total = float(prev_cost[i]) + unary + smooth + dir_pen + jump_pen
                     if total < best_value:
@@ -821,7 +785,6 @@ def _trace_single(
         axis_penalty_map,
         ambiguity_map,
         overlap_consensus_map,
-        direction,
     )
     diag["local_carry_frac"] = float(local_carry_count) / float(max(1, w - 1))
     diag["local_retry_frac"] = float(local_retry_count) / float(max(1, w - 1))
@@ -838,7 +801,6 @@ def _trace_joint_two(
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
     overlap_consensus_map: NDArray[np.float32] | None,
-    direction: DirectionMode,
     candidate_mask_a: NDArray[np.bool_] | None,
     candidate_mask_b: NDArray[np.bool_] | None,
     hardpoint_guides_a: tuple[tuple[int, int], ...] | None,
@@ -920,13 +882,9 @@ def _trace_joint_two(
         )
 
     if not candidates_a[0]:
-        seed_a = (h - 1) if direction == "upward" else 0
-        seed_a = int(np.clip(seed_a, 0, h - 1))
-        candidates_a[0] = [(seed_a, float(map_a[seed_a, 0]))]
+        candidates_a[0] = [(0, float(map_a[0, 0]))]
     if not candidates_b[0]:
-        seed_b = (h - 1) if direction == "upward" else 0
-        seed_b = int(np.clip(seed_b, 0, h - 1))
-        candidates_b[0] = [(seed_b, float(map_b[seed_b, 0]))]
+        candidates_b[0] = [(0, float(map_b[0, 0]))]
 
     # Initial deterministic expected ordering.
     y0a = candidates_a[0][0][0]
@@ -980,11 +938,11 @@ def _trace_joint_two(
             unary = (
                 -float(sa + sb)
                 + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
-                * _axis_penalty_value(axis_penalty_map, ya, x, direction, h)
+                * _axis_penalty_value(axis_penalty_map, ya, x)
                 + (AXIS_NEAR_WEIGHT * cfg.axis_multiplier)
-                * _axis_penalty_value(axis_penalty_map, yb, x, direction, h)
-                + _start_anchor_penalty(ya, x, w, h, direction, cfg)
-                + _start_anchor_penalty(yb, x, w, h, direction, cfg)
+                * _axis_penalty_value(axis_penalty_map, yb, x)
+                + _start_anchor_penalty(ya, x, w, h, cfg)
+                + _start_anchor_penalty(yb, x, w, h, cfg)
                 + _hardpoint_penalty(ya, x, w, h, hardpoint_guides_a)
                 + _hardpoint_penalty(yb, x, w, h, hardpoint_guides_b)
                 + _hardpoint_corridor_penalty(
@@ -1086,8 +1044,8 @@ def _trace_joint_two(
                         * (abs(ya - pya) + abs(yb - pyb))
                         / float(max(1, h))
                     )
-                    dpen = _direction_penalty(pya, ya, direction, h, cfg) + _direction_penalty(
-                        pyb, yb, direction, h, cfg
+                    dpen = _direction_penalty(pya, ya, h, cfg) + _direction_penalty(
+                        pyb, yb, h, cfg
                     )
                     jump_pen = _jump_penalty(pya, ya, h) + _jump_penalty(pyb, yb, h)
                     order_pen = 0.0
@@ -1205,7 +1163,6 @@ def _trace_joint_two(
         axis_penalty_map,
         ambiguity_map,
         overlap_consensus_map,
-        direction,
     )
     diag_b = _extract_arm_diagnostics(
         ys_b,
@@ -1213,7 +1170,6 @@ def _trace_joint_two(
         axis_penalty_map,
         ambiguity_map,
         overlap_consensus_map,
-        direction,
     )
 
     # Overlap conflict diagnostic.
@@ -1254,7 +1210,6 @@ def _trace_joint_three(
     axis_penalty_map: NDArray[np.float32],
     ambiguity_map: NDArray[np.float32],
     overlap_consensus_map: NDArray[np.float32] | None,
-    direction: DirectionMode,
     candidate_masks: tuple[
         NDArray[np.bool_] | None, NDArray[np.bool_] | None, NDArray[np.bool_] | None
     ],
@@ -1343,10 +1298,8 @@ def _trace_joint_three(
                 axis_penalty_map,
                 ys[i],
                 x,
-                direction,
-                h,
             )
-            unary += _start_anchor_penalty(ys[i], x, w, h, direction, cfg)
+            unary += _start_anchor_penalty(ys[i], x, w, h, cfg)
             unary += _hardpoint_penalty(ys[i], x, w, h, hardpoint_guides[i])
             unary += _hardpoint_corridor_penalty(
                 y=ys[i],
@@ -1450,9 +1403,9 @@ def _trace_joint_three(
                         / float(max(1, h))
                     )
                     dpen = (
-                        _direction_penalty(p0, y0, direction, h, cfg)
-                        + _direction_penalty(p1, y1, direction, h, cfg)
-                        + _direction_penalty(p2, y2, direction, h, cfg)
+                        _direction_penalty(p0, y0, h, cfg)
+                        + _direction_penalty(p1, y1, h, cfg)
+                        + _direction_penalty(p2, y2, h, cfg)
                     )
                     jump_pen = (
                         _jump_penalty(p0, y0, h)
@@ -1575,7 +1528,6 @@ def _trace_joint_three(
             axis_penalty_map,
             ambiguity_map,
             overlap_consensus_map,
-            direction,
         )
 
     conflict = 0
@@ -1611,8 +1563,6 @@ def _trace_joint_three(
 def trace_curves(
     arm_score_maps: dict[str, NDArray[np.float32]],
     evidence: EvidenceCube,
-    direction: CurveDirection,
-    direction_confidence: float,
     x0: int,
     y0: int,
     trace_config: TraceConfig | None = None,
@@ -1654,7 +1604,6 @@ def trace_curves(
             axis_pen,
             ambiguity,
             overlap_consensus,
-            direction,
             candidate_mask_a=(
                 arm_candidate_masks.get(names[0], candidate_mask)
                 if arm_candidate_masks is not None
@@ -1688,7 +1637,6 @@ def trace_curves(
             axis_pen,
             ambiguity,
             overlap_consensus,
-            direction,
             candidate_masks=(
                 arm_candidate_masks.get(names[0], candidate_mask)
                 if arm_candidate_masks is not None
@@ -1736,7 +1684,6 @@ def trace_curves(
                 axis_pen,
                 ambiguity,
                 overlap_consensus,
-                direction,
                 occupied_penalty=occupied,
                 candidate_mask=arm_mask,
                 hardpoint_guides=(
@@ -1758,7 +1705,7 @@ def trace_curves(
         pts = [(int(x0 + x), int(y0 + y)) for x, y in enumerate(ys)]
         pixel_curves[name] = pts
         diag = diagnostics.get(name, {})
-        conf = _confidence_from_diagnostics(diag, direction_confidence=direction_confidence)
+        conf = _confidence_from_diagnostics(diag)
         confidence[name] = conf
         if conf < 0.45:
             warnings.append(f"W_LOW_ARM_CONFIDENCE:{name}:{conf:.3f}")

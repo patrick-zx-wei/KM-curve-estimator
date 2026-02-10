@@ -57,10 +57,8 @@ def _tick_coverage(ticks: list[float], axis_start: float, axis_end: float) -> fl
 
 def _overlay_curve_to_plot_space(
     coords: list[tuple[float, float]],
-    curve_direction: str,
     y_start: float,
     y_end: float,
-    assume_survival_space: bool,
 ) -> list[tuple[float, float]]:
     """Map curve coordinates into plotted y-space for visualization overlays."""
     if not coords:
@@ -72,32 +70,7 @@ def _overlay_curve_to_plot_space(
     y_lo = float(min(y_start, y_end))
     y_hi = float(max(y_start, y_end))
 
-    def normalize_survival_like(val: float) -> float:
-        if percent_scale > 1.0 and val > 1.5:
-            return float(np.clip(val / percent_scale, 0.0, 1.0))
-        return float(np.clip(val, 0.0, 1.0))
-
     out: list[tuple[float, float]] = []
-    if curve_direction == "upward":
-        # Upward plots are incidence-like: y_plot = 1 - S.
-        # Reconstructed curves are in survival-space by construction.
-        net = ordered[-1][1] - ordered[0][1]
-        treat_as_survival = bool(assume_survival_space or (net < -0.02))
-        for t, y in ordered:
-            if treat_as_survival:
-                s_norm = normalize_survival_like(y)
-                y_plot = (1.0 - s_norm) * percent_scale
-            else:
-                if percent_scale > 1.0 and y <= 1.5:
-                    y_plot = float(y * percent_scale)
-                elif percent_scale <= 1.0 and y > 1.5:
-                    y_plot = float(y / 100.0)
-                else:
-                    y_plot = float(y)
-            out.append((float(t), float(np.clip(y_plot, y_lo, y_hi))))
-        return out
-
-    # Downward survival plot.
     for t, y in ordered:
         if percent_scale > 1.0 and y <= 1.5:
             y_plot = float(y * percent_scale)
@@ -239,7 +212,7 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
     if state.plot_metadata is None:
         return {"overlay_results": None, "error": "no plot_metadata"}
 
-    image_path = case_dir / "graph.png"
+    image_path = case_dir / "input" / "graph.png"
     image = cv2.imread(str(image_path))
     if image is None:
         return {"overlay_results": None, "error": f"failed to load image: {image_path}"}
@@ -270,11 +243,6 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
         pass
 
     overlay = image.copy()
-    curve_direction = (
-        state.plot_metadata.curve_direction
-        if state.plot_metadata.curve_direction in ("downward", "upward")
-        else "downward"
-    )
     y_start = float(state.plot_metadata.y_axis.start)
     y_end = float(state.plot_metadata.y_axis.end)
 
@@ -286,10 +254,8 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
         for coords in state.digitized_curves.values():
             plot_coords = _overlay_curve_to_plot_space(
                 coords=coords,
-                curve_direction=curve_direction,
                 y_start=y_start,
                 y_end=y_end,
-                assume_survival_space=False,
             )
             poly = _curve_to_polyline_pixels(plot_coords, mapping, overlay.shape[:2])
             if poly is not None:
@@ -300,10 +266,8 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
             km_coords = _km_from_ipd(curve.patients)
             plot_coords = _overlay_curve_to_plot_space(
                 coords=km_coords,
-                curve_direction=curve_direction,
                 y_start=y_start,
                 y_end=y_end,
-                assume_survival_space=True,
             )
             poly = _curve_to_polyline_pixels(plot_coords, mapping, overlay.shape[:2])
             if poly is not None:
@@ -362,7 +326,9 @@ def _write_overlay_artifact(state, case_dir: Path) -> dict:
         cv2.LINE_AA,
     )
 
-    out_path = case_dir / "overlay_results.png"
+    out_dir = case_dir / "output"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "overlay_results.png"
     ok = cv2.imwrite(str(out_path), overlay)
     if not ok:
         return {"overlay_results": None, "error": f"failed to write overlay: {out_path}"}
@@ -390,23 +356,12 @@ def run_case(
         return {"error": f"Case directory not found: {case_dir}"}
 
     test_case = load_test_case(case_dir)
-    expected_curve_direction = "downward"
-    metadata_path = case_dir / "metadata.json"
-    if metadata_path.exists():
-        try:
-            with open(metadata_path) as f:
-                case_metadata = json.load(f)
-            raw_direction = str(case_metadata.get("curve_direction", "downward")).lower()
-            if raw_direction in ("downward", "upward"):
-                expected_curve_direction = raw_direction
-        except (OSError, json.JSONDecodeError):
-            pass
 
     # Lazy import — requires LLM API keys and full pipeline deps
     from km_estimator.pipeline import run_pipeline
 
     # Feed graph.png through the pipeline
-    image_path = case_dir / "graph.png"
+    image_path = case_dir / "input" / "graph.png"
     if not image_path.exists():
         return {"error": f"graph.png not found in {case_dir}"}
 
@@ -482,11 +437,6 @@ def run_case(
             "n_curves_detected": len(pm.curves),
             "n_curves_expected": len(test_case.curves),
             "curves_match": len(pm.curves) == len(test_case.curves),
-            "curve_direction_detected": getattr(pm, "curve_direction", "downward"),
-            "curve_direction_expected": expected_curve_direction,
-            "curve_direction_match": (
-                getattr(pm, "curve_direction", "downward") == expected_curve_direction
-            ),
             "risk_table_detected": pm.risk_table is not None,
             "risk_table_expected": test_case.risk_table is not None,
         }
@@ -502,7 +452,7 @@ def run_case(
 
     # Stage 3: Reconstruct — compare IPD via hard points
     if state.output:
-        hp_path = case_dir / "hard_points.json"
+        hp_path = case_dir / "ground_truth" / "hard_points.json"
         if hp_path.exists():
             with open(hp_path) as f:
                 hard_points = json.load(f)
@@ -557,7 +507,9 @@ def run_case(
     results["passed"] = _check_pass(results)
 
     if write_results:
-        results_path = case_dir / "results.json"
+        out_dir = case_dir / "output"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        results_path = out_dir / "results.json"
         with open(results_path, "w") as f:
             json.dump(results, f, indent=2, default=_json_default)
 

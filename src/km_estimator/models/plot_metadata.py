@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 
 class AxisConfig(BaseModel):
@@ -44,26 +44,8 @@ class PlotMetadata(BaseModel):
     y_axis: AxisConfig
     curves: list[CurveInfo]
     risk_table: RiskTable | None
-    curve_direction: Literal["downward", "upward"] = "downward"
     title: str | None = None
     annotations: list[str] = []
-
-    @field_validator("curve_direction", mode="before")
-    @classmethod
-    def _normalize_curve_direction(cls, value: object) -> str:
-        """Normalize permissive LLM direction strings into the supported enum."""
-        if value is None:
-            return "downward"
-        text = str(value).strip().lower().replace("-", " ").replace("_", " ")
-        if text in {"upward", "up", "increasing", "increase", "ascending"}:
-            return "upward"
-        if text in {"downward", "down", "decreasing", "decrease", "descending"}:
-            return "downward"
-        if "incidence" in text or "increas" in text or "event probability" in text:
-            return "upward"
-        if "survival" in text or "decreas" in text or "kaplan" in text:
-            return "downward"
-        return "downward"
 
 
 class ValidationResult(BaseModel):
