@@ -315,6 +315,8 @@ def _process_case(
 
     # Validate
     state = validate(state)
+    assert state.output is not None  # validate() preserves output
+    assert state.digitized_curves is not None
 
     # Check for digitization issues (initial point far from 1.0)
     dig_ok = True
@@ -363,8 +365,58 @@ def _process_case(
     return result
 
 
+def run_single(case_name: str, use_cache: bool = True) -> CaseResult:
+    """Run a single case through reconstruct+validate (uses ground-truth metadata)."""
+    r = _process_case(case_name, use_cache=use_cache, save_cache=not use_cache)
+    _print_case_result(r)
+    return r
+
+
+def run_full(image_path: str) -> None:
+    """Run the full pipeline from just a graph image (requires API keys).
+
+    Usage:
+        python tests/run_recon_bench.py --full path/to/graph.png
+    """
+    from km_estimator.pipeline import run_pipeline
+
+    state = run_pipeline(image_path)
+
+    if state.errors:
+        print("Pipeline errors:")
+        for e in state.errors:
+            print(f"  [{e.stage.value}] {e.message}")
+
+    if state.plot_metadata:
+        pm = state.plot_metadata
+        print(f"\nMetadata: x=[{pm.x_axis.start}, {pm.x_axis.end}] "
+              f"y=[{pm.y_axis.start}, {pm.y_axis.end}] "
+              f"curves={[c.name for c in pm.curves]}")
+        if pm.risk_table:
+            print(f"Risk table: {len(pm.risk_table.time_points)} time points, "
+                  f"{len(pm.risk_table.groups)} groups")
+
+    if state.digitized_curves:
+        print(f"\nDigitized {len(state.digitized_curves)} curves:")
+        for name, coords in state.digitized_curves.items():
+            print(f"  {name}: {len(coords)} points, "
+                  f"y_range=[{min(c[1] for c in coords):.3f}, {max(c[1] for c in coords):.3f}]")
+
+    if state.output:
+        print(f"\nReconstruction mode: {state.output.reconstruction_mode.value}")
+        for curve in state.output.curves:
+            print(f"  {curve.group_name}: {len(curve.patients)} patients, "
+                  f"val_MAE={curve.validation_mae:.4f}")
+    else:
+        print("\nNo output produced.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Reconstruction benchmark")
+    parser.add_argument("case", nargs="?", default=None,
+                        help="Run a single case (e.g. case_093)")
+    parser.add_argument("--full", type=str, default=None, metavar="IMAGE",
+                        help="Run full pipeline on an image (requires API keys)")
     parser.add_argument("--generate-cache", action="store_true",
                         help="Run digitization and save cache for all cases")
     parser.add_argument("--no-cache", action="store_true",
@@ -373,8 +425,19 @@ def main():
                         help="Number of parallel workers (default: 1)")
     args = parser.parse_args()
 
+    # Full pipeline mode (image → everything)
+    if args.full:
+        run_full(args.full)
+        return
+
     use_cache = not args.generate_cache and not args.no_cache
     save_cache = args.generate_cache
+
+    # Single case mode
+    if args.case:
+        run_single(args.case, use_cache=use_cache)
+        return
+
     workers = max(1, args.workers)
 
     # Collect results
@@ -421,6 +484,15 @@ def _print_case_result(r: CaseResult) -> None:
             f"n={arm.n_patients}{marker}"
         )
 
+    maes = [a.gt_mae for a in r.arms if not np.isnan(a.gt_mae)]
+    iaes = [a.gt_iae for a in r.arms if not np.isnan(a.gt_iae)]
+    rmses = [a.gt_rmse for a in r.arms if not np.isnan(a.gt_rmse)]
+    if maes:
+        print(f"  ---")
+        print(f"  MAE  mean={np.mean(maes):.4f} median={np.median(maes):.4f}")
+        print(f"  IAE  mean={np.mean(iaes):.4f} median={np.median(iaes):.4f}")
+        print(f"  RMSE mean={np.mean(rmses):.4f} median={np.median(rmses):.4f}")
+
 
 def _print_summary(results: list[CaseResult]) -> None:
     cache_hits = sum(1 for r in results if r.cache_hit)
@@ -443,7 +515,11 @@ def _print_summary(results: list[CaseResult]) -> None:
             if not np.isnan(arm.gt_rmse):
                 all_gt_rmse.append(arm.gt_rmse)
 
+    dig_errs = sum(1 for r in results if not r.failed and not r.dig_ok)
+    failures = sum(1 for r in results if r.failed)
+
     print(f"\n{'=' * 60}")
+    print(f"Cases: {len(results)} total, {failures} failed, {dig_errs} DIG_ERR")
     print(f"Cache: {cache_hits} hits, {cache_misses} misses")
     print(f"SUMMARY ({len(all_gt_mae)} arms)")
     if all_val_mae:
